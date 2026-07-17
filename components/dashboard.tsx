@@ -1,0 +1,49 @@
+"use client";
+import { motion } from "framer-motion";
+import { ArrowUpRight, BookOpen, BriefcaseBusiness, FileText, Home, MessageCircleMore, Network, Plus, Settings2, Sparkles, UserRound } from "lucide-react";
+import { MotionButton } from "./motion-button";
+import { MusicPlayer } from "./music-player";
+
+const tools = [
+  { icon: MessageCircleMore, title: "Tell your story", copy: "Rambling welcome. We'll find the strongest bullets.", color: "bg-coral", tag: "AI Interviewer" },
+  { icon: Sparkles, title: "Practice the room", copy: "A mock interview that already knows your history.", color: "bg-sun", tag: "Interview Prep" },
+  { icon: FileText, title: "Make it shine", copy: "Shape a tailored resume or cover letter in a few beats.", color: "bg-mint", tag: "Documents" },
+];
+const nav = [{ icon: Home, name: "Home" }, { icon: BriefcaseBusiness, name: "Journey" }, { icon: Network, name: "People" }, { icon: Settings2, name: "Settings" }];
+
+export function Dashboard() {
+  return <div className="min-h-dvh pb-28 md:pb-8">
+    <aside className="fixed inset-y-0 left-0 z-30 hidden w-24 flex-col items-center border-r-2 border-ink/10 bg-ink py-7 text-cream md:flex">
+      <div className="grid size-12 place-items-center rounded-2xl bg-coral text-xl font-black shadow-[0_4px_0_#ffc857]">CG</div>
+      <nav className="mt-16 flex flex-1 flex-col gap-7">{nav.map(({ icon: Icon, name }, i) => <button key={name} aria-label={name} className={`grid size-12 place-items-center rounded-2xl ${i === 0 ? "bg-cream text-ink" : "text-cream/60 hover:text-cream"}`}><Icon size={21} /></button>)}</nav>
+      <button aria-label="Profile" className="grid size-11 place-items-center rounded-full border border-cream/30"><UserRound size={20} /></button>
+    </aside>
+
+    <main className="mx-auto max-w-7xl px-5 pt-6 md:pl-32 md:pr-10 md:pt-10">
+      <header className="flex items-center justify-between">
+        <div><p className="text-xs font-black uppercase tracking-[.24em] text-plum">Thursday · July 16</p><h1 className="mt-1 font-[var(--font-display)] text-2xl font-black md:text-3xl">Hey, you. <span className="inline-block origin-bottom -rotate-3">✦</span></h1></div>
+        <MotionButton className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-coral px-4 py-3 text-sm font-black shadow-pop"><Plus size={18} /> <span className="hidden sm:inline">Add a chapter</span></MotionButton>
+      </header>
+
+      <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="relative mt-8 overflow-hidden rounded-4xl border-2 border-ink bg-ink px-6 py-8 text-cream shadow-soft md:px-10 md:py-10">
+        <div className="absolute -right-10 -top-16 size-56 rounded-full border-[28px] border-mint/20" /><div className="absolute bottom-5 right-16 hidden text-7xl text-sun/80 md:block">♪</div>
+        <div className="relative max-w-2xl"><div className="mb-5 inline-flex items-center gap-2 rounded-full bg-cream/10 px-3 py-1 text-xs font-bold"><span className="size-2 animate-pulse rounded-full bg-mint" /> Your groove is building</div>
+          <h2 className="font-[var(--font-display)] text-3xl font-black leading-tight md:text-5xl">Your experience has a rhythm.<br/><span className="text-sun">Let’s make it heard.</span></h2>
+          <p className="mt-4 max-w-lg text-sm leading-6 text-cream/70 md:text-base">Capture the work, people, places, and wins that shaped you—then turn them into your next move.</p>
+          <button className="mt-6 flex items-center gap-2 font-black text-mint">Continue your story <ArrowUpRight size={18}/></button>
+        </div>
+      </motion.section>
+
+      <section className="mt-9"><div className="flex items-end justify-between"><div><p className="text-xs font-black uppercase tracking-[.2em] text-plum">Pick up the beat</p><h2 className="font-[var(--font-display)] text-2xl font-black">What are we working on?</h2></div><button className="hidden text-sm font-bold underline decoration-coral decoration-2 underline-offset-4 sm:block">See all tools</button></div>
+        <div className="mt-5 grid gap-4 lg:grid-cols-3">{tools.map(({ icon: Icon, title, copy, color, tag }, i) => <motion.button key={title} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .1 + i * .08 }} whileHover={{ y: -5, rotate: i - 1 }} whileTap={{ scale: .98 }} className="group rounded-3xl border-2 border-ink bg-white p-5 text-left shadow-[0_5px_0_#26312c]">
+          <div className={`grid size-12 place-items-center rounded-2xl border-2 border-ink ${color}`}><Icon size={23}/></div><p className="mt-5 text-[10px] font-black uppercase tracking-[.18em] text-plum">{tag}</p><h3 className="mt-1 font-[var(--font-display)] text-xl font-black">{title}</h3><p className="mt-2 text-sm leading-5 text-ink/60">{copy}</p><span className="mt-5 flex items-center gap-1 text-sm font-black group-hover:text-coral">Start a session <ArrowUpRight size={16}/></span>
+        </motion.button>)}</div>
+      </section>
+
+      <section className="mt-10 grid gap-5 lg:grid-cols-[1.4fr_.6fr]"><div className="rounded-3xl border-2 border-ink/15 bg-white/60 p-5"><div className="flex justify-between"><div><p className="text-xs font-black uppercase tracking-[.2em] text-plum">Your timeline</p><h2 className="font-[var(--font-display)] text-xl font-black">Recent chapters</h2></div><button><ArrowUpRight /></button></div><div className="mt-5 flex gap-4"><div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-plum text-white"><BriefcaseBusiness size={20}/></div><div><p className="font-black">Add your current role</p><p className="text-sm text-ink/55">A title and company is enough to get started.</p></div></div></div>
+        <div className="rounded-3xl border-2 border-ink bg-mint/30 p-5"><BookOpen size={24}/><p className="mt-5 font-[var(--font-display)] text-xl font-black">Life counts, too.</p><p className="mt-2 text-sm text-ink/60">Keep residences, education, and licenses close at hand.</p></div></section>
+    </main>
+    <MusicPlayer />
+    <nav className="fixed inset-x-3 bottom-3 z-30 flex justify-around rounded-3xl border-2 border-ink bg-ink px-2 py-2 text-cream shadow-soft md:hidden">{nav.map(({ icon: Icon, name }, i) => <button key={name} className={`flex min-w-16 flex-col items-center gap-1 rounded-2xl py-2 text-[10px] font-bold ${i === 0 ? "bg-cream text-ink" : "text-cream/60"}`}><Icon size={19}/>{name}</button>)}</nav>
+  </div>;
+}
