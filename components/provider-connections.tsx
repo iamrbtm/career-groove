@@ -4,7 +4,7 @@ import { CheckCircle2, KeyRound, LoaderCircle, RefreshCw, Unplug } from "lucide-
 
 type Provider="openai"|"anthropic"|"google"|"ollama";
 type Model={id:string;name:string};
-type Connection={provider:Provider;keyHint:string;selectedModel:string;models:Model[];active:boolean;lastCheckedAt?:string};
+type Connection={provider:Provider;keyHint:string;selectedModel:string;models:Model[];active:boolean;lastCheckedAt?:string;lastError?:string};
 const providers:{id:Provider;name:string;copy:string;key:boolean}[]=[
   {id:"openai",name:"OpenAI",copy:"GPT and compatible models available to your account.",key:true},
   {id:"anthropic",name:"Claude",copy:"Claude models enabled for your Anthropic workspace.",key:true},
@@ -12,7 +12,7 @@ const providers:{id:Provider;name:string;copy:string;key:boolean}[]=[
   {id:"ollama",name:"Ollama",copy:"Models installed on your configured Ollama server.",key:false},
 ];
 
-export function ProviderConnections(){const [connections,setConnections]=useState<Connection[]>([]),[busy,setBusy]=useState<Provider|null>(null),[notice,setNotice]=useState("");const load=useCallback(async()=>{const r=await fetch("/api/providers");if(r.ok)setConnections((await r.json()).connections)},[]);useEffect(()=>{void load()},[load]);
+export function ProviderConnections(){const [connections,setConnections]=useState<Connection[]>([]),[busy,setBusy]=useState<Provider|null>(null),[notice,setNotice]=useState("");const load=useCallback(async()=>{const r=await fetch("/api/providers");if(r.ok){const loaded=(await r.json()).connections as Connection[];setConnections(loaded);const stale=loaded.find(connection=>connection.lastError?.includes("no longer be decrypted"));if(stale)setNotice(`${providers.find(provider=>provider.id===stale.provider)?.name}: ${stale.lastError}`)}},[]);useEffect(()=>{void load()},[load]);
  async function connect(event:FormEvent<HTMLFormElement>,provider:Provider){event.preventDefault();setBusy(provider);setNotice("");const data=new FormData(event.currentTarget);const r=await fetch("/api/providers",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"connect",provider,apiKey:data.get("apiKey")||undefined})});const body=await r.json();if(r.ok){event.currentTarget.reset();setNotice(`${providers.find(x=>x.id===provider)?.name} connected. ${body.connection.models.length} models found.`);await load()}else setNotice(body.error||"Connection failed.");setBusy(null)}
  async function refresh(provider:Provider){setBusy(provider);const r=await fetch("/api/providers",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"refresh",provider})});const body=await r.json();setNotice(r.ok?`Model list refreshed. ${body.connection.models.length} models available.`:body.error||"Refresh failed.");if(r.ok)await load();setBusy(null)}
  async function select(provider:Provider,model:string){setBusy(provider);const r=await fetch("/api/providers",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"select",provider,model})});setNotice(r.ok?"Default model updated.":"That model could not be selected.");if(r.ok)await load();setBusy(null)}

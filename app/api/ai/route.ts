@@ -34,7 +34,12 @@ export async function POST(request: Request) {
   const provider = providerResult.data;
   const connection = await db.query(`SELECT encrypted_api_key,selected_model,base_url FROM provider_connections WHERE user_id=$1 AND provider=$2 AND active=true`, [session.user.id,provider]);
   if (!connection.rowCount) return Response.json({ error: "This AI provider is not fully configured." }, { status: 409 });
-  const apiKey = connection.rows[0].encrypted_api_key ? decryptSecret(connection.rows[0].encrypted_api_key) : undefined;
+  let apiKey: string | undefined;
+  try {
+    apiKey = connection.rows[0].encrypted_api_key ? decryptSecret(connection.rows[0].encrypted_api_key) : undefined;
+  } catch {
+    return Response.json({ error: `The saved ${provider} API key can no longer be decrypted. Reconnect ${provider} in Settings.` }, { status: 409 });
+  }
   const model = parsed.data.model ?? connection.rows[0].selected_model;
   try {
     const result = await generateText({

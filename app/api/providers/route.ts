@@ -13,9 +13,19 @@ const requestSchema = z.discriminatedUnion("action", [
 export async function GET() {
   const user = await requireUser();
   if (!user) return unauthorized();
-  const result = await db.query(`SELECT provider, key_hint AS "keyHint", selected_model AS "selectedModel", available_models AS models, active, last_checked_at AS "lastCheckedAt", last_error AS "lastError" FROM provider_connections WHERE user_id=$1 ORDER BY provider`, [user]);
+  const result = await db.query(`SELECT provider, encrypted_api_key AS "encryptedApiKey", key_hint AS "keyHint", selected_model AS "selectedModel", available_models AS models, active, last_checked_at AS "lastCheckedAt", last_error AS "lastError" FROM provider_connections WHERE user_id=$1 ORDER BY provider`, [user]);
   const preferences = await db.query(`SELECT preferences->>'aiProvider' AS "defaultProvider" FROM users WHERE id=$1`, [user]);
-  return Response.json({ connections: result.rows, defaultProvider: preferences.rows[0]?.defaultProvider ?? null });
+  const connections = result.rows.map((connection) => {
+    const { encryptedApiKey, ...safeConnection } = connection;
+    if (!encryptedApiKey) return safeConnection;
+    try {
+      decryptSecret(encryptedApiKey);
+      return safeConnection;
+    } catch {
+      return { ...safeConnection, active: false, lastError: "The saved API key can no longer be decrypted. Enter the key again to reconnect." };
+    }
+  });
+  return Response.json({ connections, defaultProvider: preferences.rows[0]?.defaultProvider ?? null });
 }
 
 export async function POST(request: Request) {
@@ -37,7 +47,11 @@ export async function POST(request: Request) {
   } else {
     const existing = await db.query(`SELECT encrypted_api_key FROM provider_connections WHERE user_id=$1 AND provider=$2`, [user,input.provider]);
     if (!existing.rowCount) return Response.json({ error: "Connect this provider first." }, { status: 404 });
-    apiKey = existing.rows[0].encrypted_api_key ? decryptSecret(existing.rows[0].encrypted_api_key) : undefined;
+    try {
+      apiKey = existing.rows[0].encrypted_api_key ? decryptSecret(existing.rows[0].encrypted_api_key) : undefined;
+    } catch {
+      return Response.json({ error: "The saved API key can no longer be decrypted. Enter the key again to reconnect." }, { status: 409 });
+    }
   }
   try {
     const discovery = await discoverModels(input.provider, apiKey);
