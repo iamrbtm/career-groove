@@ -3,6 +3,8 @@ import { z } from "zod";
 import { getModel } from "@/lib/ai";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { decryptSecret } from "@/lib/secret-box";
+import { providerSchema } from "@/lib/provider-models";
 
 const requestSchema = z.object({
   provider: z.enum(["openai", "anthropic", "google", "ollama"]).optional(),
@@ -27,10 +29,15 @@ export async function POST(request: Request) {
   const { purpose, messages, context } = parsed.data;
   const preferences = await db.query("SELECT preferences FROM users WHERE id=$1", [session.user.id]);
   const saved = preferences.rows[0]?.preferences ?? {};
-  const provider = parsed.data.provider ?? saved.aiProvider ?? "openai";
-  const model = parsed.data.model ?? (saved.aiModel || undefined);
+  const providerResult = providerSchema.safeParse(parsed.data.provider ?? saved.aiProvider);
+  if (!providerResult.success) return Response.json({ error: "Connect and select an AI provider in Settings first." }, { status: 409 });
+  const provider = providerResult.data;
+  const connection = await db.query(`SELECT encrypted_api_key,selected_model,base_url FROM provider_connections WHERE user_id=$1 AND provider=$2 AND active=true`, [session.user.id,provider]);
+  if (!connection.rowCount) return Response.json({ error: "This AI provider is not fully configured." }, { status: 409 });
+  const apiKey = connection.rows[0].encrypted_api_key ? decryptSecret(connection.rows[0].encrypted_api_key) : undefined;
+  const model = parsed.data.model ?? connection.rows[0].selected_model;
   const result = streamText({
-    model: getModel(provider, model),
+    model: getModel(provider, model, apiKey, connection.rows[0].base_url),
     system: `${prompts[purpose]}\nContext: ${JSON.stringify(context ?? {})}`,
     messages,
   });

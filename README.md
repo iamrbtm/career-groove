@@ -10,7 +10,7 @@ A mobile-first personal career and life CRM built with Next.js, PostgreSQL, Auth
 - Professional contact CRM with a relationship-strength graph
 - Work, residence, education, license, and certification tracking
 - Credentials, Google, GitHub, Apple, and optional passkey authentication
-- OpenAI, Claude, Gemini, and local Ollama model support
+- Encrypted per-user OpenAI, Claude, Gemini, and local Ollama connections with live model discovery
 - GitHub Issues and Projects v2 feedback automation
 - Persistent AI/music preferences and a global four-station ambient player
 - Installable, offline-capable PWA shell with responsive bottom/side navigation
@@ -30,6 +30,8 @@ docker compose up --build
 
 Open http://localhost:3000. The app container applies the idempotent schema and compatibility migrations before starting. OAuth, passkeys, AI providers, and GitHub feedback activate when their corresponding environment variables are configured. Passkeys additionally require `AUTH_EXPERIMENTAL_ENABLE_PASSKEYS=true` and a secure origin outside localhost.
 
+Compose includes an Ollama service with persistent model storage. Install a model once with `docker compose exec ollama ollama pull llama3.2`, then connect Ollama from Settings. If the Compose service is unavailable, CareerGroove falls back through `OLLAMA_BASE_URL`, `host.docker.internal:11434`, and `localhost:11434`.
+
 ## API routes
 
 - `POST /api/ai` streams interviewer, mock-interview, resume, or cover-letter responses with provider switching.
@@ -38,7 +40,7 @@ Open http://localhost:3000. The app container applies the idempotent schema and 
 - `/api/jobs`, `/api/contacts`, `/api/residences`, `/api/credentials`, and `/api/documents` persist user-scoped CRM data.
 - `/api/settings` stores provider, model, motion, and music preferences.
 
-All career, life, settings, AI, and GitHub API routes require an authenticated session. Provider API keys are read only from server-side environment variables and are never returned to the browser.
+All career, life, settings, AI, and GitHub API routes require an authenticated session. User-entered provider keys are encrypted with AES-256-GCM using `PROVIDER_ENCRYPTION_KEY` (or `AUTH_SECRET` as a fallback), never returned to the browser, and only decrypted server-side for provider requests.
 
 ## Verification
 

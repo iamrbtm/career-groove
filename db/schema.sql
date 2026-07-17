@@ -54,6 +54,15 @@ CREATE TABLE IF NOT EXISTS ai_conversations (
   purpose TEXT NOT NULL, provider TEXT NOT NULL, messages JSONB NOT NULL DEFAULT '[]', context JSONB NOT NULL DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT now(), updated_at TIMESTAMPTZ DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS provider_connections (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  provider TEXT NOT NULL CHECK (provider IN ('openai','anthropic','google','ollama')),
+  encrypted_api_key TEXT, key_hint TEXT, base_url TEXT, selected_model TEXT, available_models JSONB NOT NULL DEFAULT '[]',
+  active BOOLEAN NOT NULL DEFAULT false, last_checked_at TIMESTAMPTZ, last_error TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(user_id, provider)
+);
 CREATE INDEX IF NOT EXISTS jobs_user_idx ON jobs(user_id, started_on DESC);
 CREATE INDEX IF NOT EXISTS contacts_user_idx ON contacts(user_id);
 CREATE INDEX IF NOT EXISTS conversations_context_gin ON ai_conversations USING GIN(context);
+CREATE INDEX IF NOT EXISTS provider_connections_user_idx ON provider_connections(user_id, active);
