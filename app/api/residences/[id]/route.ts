@@ -1,0 +1,2 @@
+import { db } from "@/lib/db"; import { requireUser, unauthorized } from "@/lib/api-auth"; import { z } from "zod";
+export async function DELETE(_:Request,{params}:{params:Promise<{id:string}>}){const user=await requireUser();if(!user)return unauthorized();const id=z.string().uuid().safeParse((await params).id);if(!id.success)return Response.json({error:"Invalid id"},{status:400});const r=await db.query("DELETE FROM residences WHERE id=$1 AND user_id=$2",[id.data,user]);return r.rowCount?new Response(null,{status:204}):Response.json({error:"Not found"},{status:404});}

@@ -1,0 +1,7 @@
+import { z } from "zod";
+import { db } from "@/lib/db";
+import { requireUser, unauthorized } from "@/lib/api-auth";
+
+const input = z.object({ name: z.string().trim().min(1).max(160), company: z.string().trim().max(160).optional(), role: z.string().trim().max(160).optional(), email: z.string().email().or(z.literal("")).optional(), relationshipStrength: z.number().int().min(1).max(5).default(1), note: z.string().max(3000).optional() });
+export async function GET() { const user = await requireUser(); if (!user) return unauthorized(); const result = await db.query(`SELECT id,name,company,role,email,relationship_strength AS "relationshipStrength",notes,links,created_at AS "createdAt" FROM contacts WHERE user_id=$1 ORDER BY relationship_strength DESC,name`, [user]); return Response.json({ contacts: result.rows }); }
+export async function POST(request: Request) { const user = await requireUser(); if (!user) return unauthorized(); const parsed=input.safeParse(await request.json()); if(!parsed.success)return Response.json({error:parsed.error.flatten()},{status:400}); const x=parsed.data; const result=await db.query(`INSERT INTO contacts(user_id,name,company,role,email,relationship_strength,notes) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb) RETURNING id,name,company,role,email,relationship_strength AS "relationshipStrength",notes,links`,[user,x.name,x.company||null,x.role||null,x.email||null,x.relationshipStrength,JSON.stringify(x.note?[{text:x.note,at:new Date().toISOString()}]:[])]); return Response.json({contact:result.rows[0]},{status:201}); }

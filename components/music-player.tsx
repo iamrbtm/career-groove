@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Headphones, Pause, Play, SkipForward, Volume2 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -14,6 +14,7 @@ export function MusicPlayer() {
   const audio = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [station, setStation] = useState(0);
+  useEffect(() => { fetch("/api/settings").then(async (response) => { if (!response.ok) return; const name = (await response.json()).settings?.musicStation; const index = stations.findIndex((item) => item.name === name); if (index >= 0) setStation(index); }).catch(() => undefined); }, []);
   const toggle = async () => { if (!audio.current) return; playing ? audio.current.pause() : await audio.current.play(); setPlaying(!playing); };
   const skip = async () => { const next = (station + 1) % stations.length; setStation(next); if (audio.current) { audio.current.src = stations[next].url; if (playing) await audio.current.play(); } };
   return <motion.div layout className="fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full border-2 border-ink bg-white p-2 pr-4 shadow-pop md:bottom-6">

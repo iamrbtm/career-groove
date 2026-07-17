@@ -8,6 +8,21 @@ import PostgresAdapter from "@auth/pg-adapter";
 import { compare } from "bcryptjs";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import type { Adapter, AdapterAuthenticator } from "next-auth/adapters";
+
+function CareerGrooveAdapter(): Adapter {
+  return {
+    ...PostgresAdapter(db),
+    async createAuthenticator(authenticator: AdapterAuthenticator) {
+      const a = authenticator;
+      const result = await db.query(`INSERT INTO authenticators ("credentialID","userId","providerAccountId","credentialPublicKey",counter,"credentialDeviceType","credentialBackedUp",transports) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`, [a.credentialID,a.userId,a.providerAccountId,a.credentialPublicKey,a.counter,a.credentialDeviceType,a.credentialBackedUp,a.transports]);
+      return result.rows[0];
+    },
+    async getAuthenticator(credentialID) { const r=await db.query(`SELECT * FROM authenticators WHERE "credentialID"=$1`,[credentialID]); return r.rows[0]??null; },
+    async listAuthenticatorsByUserId(userId) { const r=await db.query(`SELECT * FROM authenticators WHERE "userId"=$1`,[userId]); return r.rows; },
+    async updateAuthenticatorCounter(credentialID,newCounter) { const r=await db.query(`UPDATE authenticators SET counter=$2 WHERE "credentialID"=$1 RETURNING *`,[credentialID,newCounter]); if(!r.rows[0])throw new Error("Authenticator not found"); return r.rows[0]; },
+  };
+}
 
 const enabled = (id?: string, secret?: string) => Boolean(id && secret);
 const providers = [
@@ -29,7 +44,17 @@ const providers = [
 ];
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PostgresAdapter(db), providers, session: { strategy: "jwt" },
+  adapter: CareerGrooveAdapter(), providers, session: { strategy: "jwt" },
   experimental: { enableWebAuthn: process.env.AUTH_EXPERIMENTAL_ENABLE_PASSKEYS === "true" },
   pages: { signIn: "/signin" },
+  callbacks: {
+    jwt({ token, user }) {
+      if (user?.id) token.userId = user.id;
+      return token;
+    },
+    session({ session, token }) {
+      if (session.user && token.userId) session.user.id = String(token.userId);
+      return session;
+    },
+  },
 });

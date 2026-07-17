@@ -1,9 +1,11 @@
 import { streamText } from "ai";
 import { z } from "zod";
 import { getModel } from "@/lib/ai";
+import { auth } from "@/auth";
+import { db } from "@/lib/db";
 
 const requestSchema = z.object({
-  provider: z.enum(["openai", "anthropic", "google", "ollama"]).default("openai"),
+  provider: z.enum(["openai", "anthropic", "google", "ollama"]).optional(),
   model: z.string().optional(),
   purpose: z.enum(["job-interviewer", "mock-interview", "resume", "cover-letter"]).default("job-interviewer"),
   messages: z.array(z.object({ role: z.enum(["user", "assistant", "system"]), content: z.string().max(20000) })).min(1),
@@ -18,13 +20,19 @@ const prompts = {
 };
 
 export async function POST(request: Request) {
+  const session = await auth();
+  if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const parsed = requestSchema.safeParse(await request.json());
   if (!parsed.success) return Response.json({ error: parsed.error.flatten() }, { status: 400 });
-  const { provider, model, purpose, messages, context } = parsed.data;
+  const { purpose, messages, context } = parsed.data;
+  const preferences = await db.query("SELECT preferences FROM users WHERE id=$1", [session.user.id]);
+  const saved = preferences.rows[0]?.preferences ?? {};
+  const provider = parsed.data.provider ?? saved.aiProvider ?? "openai";
+  const model = parsed.data.model ?? (saved.aiModel || undefined);
   const result = streamText({
     model: getModel(provider, model),
     system: `${prompts[purpose]}\nContext: ${JSON.stringify(context ?? {})}`,
     messages,
   });
-  return result.toDataStreamResponse();
+  return result.toTextStreamResponse();
 }
