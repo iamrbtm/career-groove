@@ -26,7 +26,7 @@ export function JobInterviewer() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
-  useEffect(()=>{fetch("/api/providers").then(async response=>{if(!response.ok)return;const active=((await response.json()).connections as Connection[]).filter(connection=>connection.active&&connection.selectedModel);setConnections(active);setProvider(current=>current||active[0]?.provider||"")}).catch(()=>undefined)},[]);
+  useEffect(()=>{fetch("/api/providers").then(async response=>{if(!response.ok)return;const body=await response.json();const active=(body.connections as Connection[]).filter(connection=>connection.active&&connection.selectedModel);setConnections(active);setProvider(current=>current||(active.some(connection=>connection.provider===body.defaultProvider)?body.defaultProvider:active[0]?.provider)||"")}).catch(()=>undefined)},[]);
 
   const achievements = useMemo(() => answer.split("\n").map((line) => line.replace(/^\s*[-*•\d.)]+\s*/, "").trim()).filter((line) => line.length > 12), [answer]);
 
@@ -40,9 +40,12 @@ export function JobInterviewer() {
         messages: [{ role: "user", content: `Here is my rough account of the role:\n${story}\n\nReturn 3–5 strong bullets, then one focused follow-up question if useful.` }],
       }) });
       if (response.status === 401) throw new Error("Sign in to start an AI interview and keep your career data private.");
-      if (!response.ok || !response.body) throw new Error((await response.text()) || "The interview could not start.");
+      if (!response.ok || !response.body) { const body=await response.json().catch(()=>null); throw new Error(body?.error || "The interview could not start."); }
       const reader = response.body.getReader(); const decoder = new TextDecoder();
-      while (true) { const { done, value } = await reader.read(); if (done) break; setAnswer((current) => current + decoder.decode(value, { stream: true })); }
+      let complete="";
+      while (true) { const { done, value } = await reader.read(); if (done) break; complete += decoder.decode(value, { stream: true }); setAnswer(complete); }
+      complete += decoder.decode();
+      if (!complete.trim()) throw new Error("The selected model returned no text. Choose another model in Settings and try again.");
     } catch (error) { setNotice(error instanceof Error ? error.message : "Something interrupted the session."); }
     finally { setLoading(false); }
   }

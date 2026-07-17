@@ -14,7 +14,8 @@ export async function GET() {
   const user = await requireUser();
   if (!user) return unauthorized();
   const result = await db.query(`SELECT provider, key_hint AS "keyHint", selected_model AS "selectedModel", available_models AS models, active, last_checked_at AS "lastCheckedAt", last_error AS "lastError" FROM provider_connections WHERE user_id=$1 ORDER BY provider`, [user]);
-  return Response.json({ connections: result.rows });
+  const preferences = await db.query(`SELECT preferences->>'aiProvider' AS "defaultProvider" FROM users WHERE id=$1`, [user]);
+  return Response.json({ connections: result.rows, defaultProvider: preferences.rows[0]?.defaultProvider ?? null });
 }
 
 export async function POST(request: Request) {

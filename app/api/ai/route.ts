@@ -1,4 +1,4 @@
-import { streamText } from "ai";
+import { generateText } from "ai";
 import { z } from "zod";
 import { getModel } from "@/lib/ai";
 import { auth } from "@/auth";
@@ -36,10 +36,16 @@ export async function POST(request: Request) {
   if (!connection.rowCount) return Response.json({ error: "This AI provider is not fully configured." }, { status: 409 });
   const apiKey = connection.rows[0].encrypted_api_key ? decryptSecret(connection.rows[0].encrypted_api_key) : undefined;
   const model = parsed.data.model ?? connection.rows[0].selected_model;
-  const result = streamText({
-    model: getModel(provider, model, apiKey, connection.rows[0].base_url),
-    system: `${prompts[purpose]}\nContext: ${JSON.stringify(context ?? {})}`,
-    messages,
-  });
-  return result.toTextStreamResponse();
+  try {
+    const result = await generateText({
+      model: getModel(provider, model, apiKey, connection.rows[0].base_url),
+      system: `${prompts[purpose]}\nContext: ${JSON.stringify(context ?? {})}`,
+      messages,
+    });
+    if (!result.text.trim()) throw new Error("The provider returned an empty response.");
+    return new Response(result.text, { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
+  } catch (error) {
+    console.error("AI generation failed", { provider, model, error: error instanceof Error ? error.message : String(error) });
+    return Response.json({ error: `The ${provider} model ${model} could not complete this request. Try another active model in Settings.` }, { status: 502 });
+  }
 }
