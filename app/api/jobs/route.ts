@@ -44,6 +44,16 @@ export async function POST(request: Request) {
         [result.rows[0].id, skill.rows[0].id],
       );
     }
+    const contactName = job.networkContact?.name.trim();
+    if (contactName && !/^(none|no|n\/a|not applicable)$/i.test(contactName)) {
+      await client.query(
+        `INSERT INTO contacts(user_id,job_id,name,company,role,phone,relationship_strength,notes)
+         VALUES($1,$2,$3,$4,$5,$6,3,$7::jsonb)
+         ON CONFLICT (user_id,job_id,lower(name)) WHERE job_id IS NOT NULL
+         DO UPDATE SET phone=COALESCE(NULLIF(EXCLUDED.phone,''),contacts.phone),company=EXCLUDED.company,role=EXCLUDED.role`,
+        [session.user.id,result.rows[0].id,contactName,job.company,job.title,job.networkContact?.phone||null,JSON.stringify([{text:`Contact for ${job.title} at ${job.company}`,at:new Date().toISOString()}])],
+      );
+    }
     await client.query("COMMIT");
     return Response.json({ job: result.rows[0] }, { status: 201 });
   } catch (error) {

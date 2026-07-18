@@ -10,7 +10,7 @@ const requestSchema = z.object({
   provider: z.enum(["openai", "anthropic", "google", "ollama"]).optional(),
   model: z.string().optional(),
   purpose: z
-    .enum(["job-interviewer", "mock-interview", "resume", "cover-letter"])
+    .enum(["job-interviewer", "job-interview-probe", "mock-interview", "resume", "cover-letter"])
     .default("job-interviewer"),
   messages: z
     .array(
@@ -26,6 +26,8 @@ const requestSchema = z.object({
 const prompts = {
   "job-interviewer":
     "Turn the supplied career chapter into as many honest, resume-ready achievement bullets as the supplied content supports, using one bullet for each distinct responsibility, contribution, or outcome worth preserving. Do not target or impose a fixed bullet count. Also provide a concise list of concrete skills demonstrated in the content. Output exactly two plain-text sections: first the line BULLETS, then one finished bullet per line; then the line SKILLS, then one skill per line in exactly this format: Canonical Skill Name | category_key. Allowed category keys are interpersonal_behavioral, cognitive_methodological, technical_digital, business_operational, specialized_vocational, and other. Skill names must be specific technologies, tools, methods, or durable professional capabilities supported by the chapter. Normalize synonyms to one canonical industry-standard name, such as Microsoft Office rather than MS Office, and never return duplicate skills. Do not use Markdown symbols, commentary, suggestions, follow-up questions, placeholders, or requests for more information. Never invent facts or numbers; omit unsupported metrics and skills.",
+  "job-interview-probe":
+    "Act as an adaptive career-history interviewer for people with any education level or writing ability. Review all supplied answers and prior follow-ups. Decide whether one more question is genuinely needed to understand what the person did, how they did it, who they helped, or what changed because of their work. Ask only one clear, plain-language question at a time. Prefer a specific clarification based on their own words. Useful backups are: what responsibilities people relied on them to handle; what became faster, easier, safer, more accurate, or more successful; and who they worked with or helped. Do not ask about recognition or extra duties because that is always asked separately as the final question. Do not repeat answered questions, request unsupported numbers, or ask for resume wording. Return only valid JSON with this exact shape: {\"needsFollowUp\":true,\"question\":\"...\"} or {\"needsFollowUp\":false,\"question\":\"\"}.",
   "mock-interview":
     "Act as a challenging but supportive reverse mock interviewer. Use supplied career context and give concise coaching after each answer.",
   resume:

@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS jobs (
 );
 CREATE TABLE IF NOT EXISTS contacts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  name TEXT NOT NULL, company TEXT, role TEXT, email TEXT, relationship_strength SMALLINT DEFAULT 1,
+  job_id UUID REFERENCES jobs(id) ON DELETE SET NULL, name TEXT NOT NULL, company TEXT, role TEXT, email TEXT, phone TEXT, relationship_strength SMALLINT DEFAULT 1,
   notes JSONB NOT NULL DEFAULT '[]', links JSONB NOT NULL DEFAULT '{}', created_at TIMESTAMPTZ DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS residences (
@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS provider_connections (
 );
 CREATE INDEX IF NOT EXISTS jobs_user_idx ON jobs(user_id, started_on DESC);
 CREATE INDEX IF NOT EXISTS contacts_user_idx ON contacts(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS contacts_user_job_name_idx ON contacts(user_id,job_id,lower(name)) WHERE job_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS conversations_context_gin ON ai_conversations USING GIN(context);
 CREATE INDEX IF NOT EXISTS provider_connections_user_idx ON provider_connections(user_id, active);
 ALTER TABLE skills ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'other';

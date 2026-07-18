@@ -9,6 +9,7 @@ import {
   ChevronRight,
   GraduationCap,
   Home,
+  Pencil,
   Plus,
   RefreshCw,
   Save,
@@ -40,6 +41,7 @@ export function JourneyManager() {
   const [credentials, setCredentials] = useState<AnyRow[]>([]);
   const [skills, setSkills] = useState<AnyRow[]>([]);
   const [selectedJob, setSelectedJob] = useState<AnyRow | null>(null);
+  const [selectedHome, setSelectedHome] = useState<AnyRow | null>(null);
   const [selectedSkill, setSelectedSkill] = useState<AnyRow | null>(null);
   const [tab, setTab] = useState("jobs");
   const [credentialTab, setCredentialTab] =
@@ -101,6 +103,7 @@ export function JourneyManager() {
     try {
       await json(url, { method: "DELETE" });
       setSelectedJob(null);
+      setSelectedHome(null);
       await load();
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Delete failed.");
@@ -240,6 +243,7 @@ export function JourneyManager() {
                   <ResidenceCard
                     key={home.id}
                     home={home}
+                    onEdit={() => setSelectedHome(home)}
                     onDelete={() => remove(`/api/residences/${home.id}`)}
                   />
                 ))}
@@ -273,6 +277,17 @@ export function JourneyManager() {
             setSelectedJob(job);
             await load();
             setNotice("Chapter updated.");
+          }}
+        />
+      )}
+      {selectedHome && (
+        <ResidenceEditor
+          home={selectedHome}
+          onClose={() => setSelectedHome(null)}
+          onSaved={async () => {
+            setSelectedHome(null);
+            await load();
+            setNotice("Residence updated.");
           }}
         />
       )}
@@ -792,20 +807,19 @@ function formatMonthYear(value?: string | null) {
 
 function ResidenceCard({
   home,
+  onEdit,
   onDelete,
 }: {
   home: AnyRow;
+  onEdit: () => void;
   onDelete: () => void;
 }) {
   const addressLineOne = home.address?.street || "Address not provided";
-  const addressLineTwo = [
-    home.address?.city,
-    home.address?.region,
-    home.address?.postalCode,
-    home.address?.country,
-  ]
+  const city = home.address?.city || "";
+  const regionAndPostal = [home.address?.region, home.address?.postalCode]
     .filter(Boolean)
-    .join(", ");
+    .join(" ");
+  const addressLineTwo = [city, regionAndPostal].filter(Boolean).join(", ");
   const startedOn = formatMonthYear(home.startedOn);
   const endedOn = formatMonthYear(home.endedOn);
 
@@ -817,11 +831,10 @@ function ResidenceCard({
         </div>
         <div className="grid min-w-0 flex-1 gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
           <div className="min-w-0">
-            <h3 className="font-[var(--font-display)] text-lg font-black">
-              {home.label}
-            </h3>
             <address className="not-italic text-sm leading-5 text-ink/55">
-              <span className="block break-words">{addressLineOne}</span>
+              <span className="block break-words font-black text-ink">
+                {addressLineOne}
+              </span>
               <span className="block break-words">{addressLineTwo}</span>
             </address>
           </div>
@@ -835,14 +848,114 @@ function ResidenceCard({
             <span>{endedOn || "Present"}</span>
           </div>
         </div>
-        <button
-          onClick={onDelete}
-          aria-label={`Delete ${home.label}`}
-          className="self-start text-ink/30 hover:text-coral"
-        >
-          <Trash2 size={18} />
-        </button>
+        <div className="flex shrink-0 flex-col items-center gap-2">
+          <button
+            type="button"
+            onClick={onEdit}
+            aria-label={`Edit ${home.label || addressLineOne}`}
+            className="text-ink/30 hover:text-plum"
+          >
+            <Pencil size={18} />
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-label={`Delete ${home.label || addressLineOne}`}
+            className="text-ink/30 hover:text-coral"
+          >
+            <Trash2 size={18} />
+          </button>
+        </div>
       </div>
     </article>
+  );
+}
+
+function ResidenceEditor({
+  home,
+  onClose,
+  onSaved,
+}: {
+  home: AnyRow;
+  onClose: () => void;
+  onSaved: () => Promise<void>;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    const body = Object.fromEntries(new FormData(event.currentTarget));
+    try {
+      await json(`/api/residences/${home.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      await onSaved();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Update failed.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-ink/55 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Edit residence"
+    >
+      <form
+        onSubmit={save}
+        className="w-full max-w-xl rounded-4xl border-2 border-ink bg-cream p-6 shadow-pop md:p-8"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="grid size-11 place-items-center rounded-2xl bg-mint/40">
+              <Home size={21} />
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-[.2em] text-plum">
+                Residence
+              </p>
+              <h2 className="font-[var(--font-display)] text-2xl font-black">
+                Edit this address
+              </h2>
+            </div>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close residence editor" className="grid size-10 place-items-center rounded-full bg-white">
+            <X />
+          </button>
+        </div>
+        <div className="mt-6 space-y-3">
+          <Input name="label" label="Label" required defaultValue={home.label || ""} />
+          <Input name="street" label="Street" required defaultValue={home.address?.street || ""} />
+          <div className="grid grid-cols-2 gap-3">
+            <Input name="city" label="City" required defaultValue={home.address?.city || ""} />
+            <Input name="region" label="State / region" defaultValue={home.address?.region || ""} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input name="country" label="Country" required defaultValue={home.address?.country || ""} />
+            <Input name="postalCode" label="Postal code" defaultValue={home.address?.postalCode || ""} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input name="startedOn" label="Start date" type="date" defaultValue={home.startedOn?.slice(0, 10) || ""} />
+            <Input name="endedOn" label="End date" type="date" defaultValue={home.endedOn?.slice(0, 10) || ""} />
+          </div>
+        </div>
+        {error && <p className="mt-4 rounded-2xl bg-coral/20 p-3 text-sm font-bold">{error}</p>}
+        <div className="mt-6 flex justify-end gap-3">
+          <button type="button" onClick={onClose} className="rounded-2xl px-5 py-3 text-sm font-black">Cancel</button>
+          <button disabled={saving} className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-mint px-5 py-3 text-sm font-black shadow-[0_3px_0_#26312c] disabled:opacity-50">
+            <Save size={17} />
+            {saving ? "Saving…" : "Save changes"}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
