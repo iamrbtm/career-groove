@@ -8,6 +8,7 @@ const requestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("connect"), provider: providerSchema, apiKey: z.string().trim().max(500).optional() }),
   z.object({ action: z.literal("refresh"), provider: providerSchema }),
   z.object({ action: z.literal("select"), provider: providerSchema, model: z.string().min(1).max(200) }),
+  z.object({ action: z.literal("setDefault"), provider: providerSchema }),
 ]);
 
 export async function GET() {
@@ -34,10 +35,15 @@ export async function POST(request: Request) {
   const parsed = requestSchema.safeParse(await request.json());
   if (!parsed.success) return Response.json({ error: "Invalid provider request" }, { status: 400 });
   const input = parsed.data;
+  if (input.action === "setDefault") {
+    const active = await db.query(`SELECT 1 FROM provider_connections WHERE user_id=$1 AND provider=$2 AND active=true AND selected_model IS NOT NULL`,[user,input.provider]);
+    if (!active.rowCount) return Response.json({error:"Choose an active provider with a selected model."},{status:400});
+    await db.query(`UPDATE users SET preferences=preferences || $1::jsonb,updated_at=now() WHERE id=$2`,[JSON.stringify({aiProvider:input.provider}),user]);
+    return Response.json({defaultProvider:input.provider});
+  }
   if (input.action === "select") {
     const result = await db.query(`UPDATE provider_connections SET selected_model=$3,updated_at=now() WHERE user_id=$1 AND provider=$2 AND active=true AND available_models @> $4::jsonb RETURNING provider,selected_model AS "selectedModel"`, [user,input.provider,input.model,JSON.stringify([{id:input.model}])]);
     if (!result.rowCount) return Response.json({ error: "Select a model returned by this active provider." }, { status: 400 });
-    await db.query(`UPDATE users SET preferences=preferences || $1::jsonb,updated_at=now() WHERE id=$2`, [JSON.stringify({aiProvider:input.provider}),user]);
     return Response.json({ connection: result.rows[0] });
   }
   let apiKey: string | undefined;
