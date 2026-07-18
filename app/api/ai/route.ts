@@ -9,36 +9,74 @@ import { providerSchema } from "@/lib/provider-models";
 const requestSchema = z.object({
   provider: z.enum(["openai", "anthropic", "google", "ollama"]).optional(),
   model: z.string().optional(),
-  purpose: z.enum(["job-interviewer", "mock-interview", "resume", "cover-letter"]).default("job-interviewer"),
-  messages: z.array(z.object({ role: z.enum(["user", "assistant", "system"]), content: z.string().max(20000) })).min(1),
+  purpose: z
+    .enum(["job-interviewer", "mock-interview", "resume", "cover-letter"])
+    .default("job-interviewer"),
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant", "system"]),
+        content: z.string().max(20000),
+      }),
+    )
+    .min(1),
   context: z.record(z.unknown()).optional(),
 });
 
 const prompts = {
-  "job-interviewer": "Turn the user's rough career story into honest, quantified, resume-ready bullets. Ask one focused follow-up when evidence is missing.",
-  "mock-interview": "Act as a challenging but supportive reverse mock interviewer. Use supplied career context and give concise coaching after each answer.",
-  resume: "Create precise, ATS-friendly resume content. Never invent facts; mark missing metrics clearly.",
-  "cover-letter": "Write a specific, human cover letter grounded only in supplied experience and target-role context.",
+  "job-interviewer":
+    "Turn the supplied career chapter into as many honest, resume-ready achievement bullets as the supplied content supports, using one bullet for each distinct responsibility, contribution, or outcome worth preserving. Do not target or impose a fixed bullet count. Also provide a concise list of concrete skills demonstrated in the content. Output exactly two plain-text sections: first the line BULLETS, then one finished bullet per line; then the line SKILLS, then one skill per line in exactly this format: Canonical Skill Name | category_key. Allowed category keys are interpersonal_behavioral, cognitive_methodological, technical_digital, business_operational, specialized_vocational, and other. Skill names must be specific technologies, tools, methods, or durable professional capabilities supported by the chapter. Normalize synonyms to one canonical industry-standard name, such as Microsoft Office rather than MS Office, and never return duplicate skills. Do not use Markdown symbols, commentary, suggestions, follow-up questions, placeholders, or requests for more information. Never invent facts or numbers; omit unsupported metrics and skills.",
+  "mock-interview":
+    "Act as a challenging but supportive reverse mock interviewer. Use supplied career context and give concise coaching after each answer.",
+  resume:
+    "Create precise, ATS-friendly resume content. Never invent facts; mark missing metrics clearly.",
+  "cover-letter":
+    "Write a specific, human cover letter grounded only in supplied experience and target-role context.",
 };
 
 export async function POST(request: Request) {
   const session = await auth();
-  if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.id)
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   const parsed = requestSchema.safeParse(await request.json());
-  if (!parsed.success) return Response.json({ error: parsed.error.flatten() }, { status: 400 });
+  if (!parsed.success)
+    return Response.json({ error: parsed.error.flatten() }, { status: 400 });
   const { purpose, messages, context } = parsed.data;
-  const preferences = await db.query("SELECT preferences FROM users WHERE id=$1", [session.user.id]);
+  const preferences = await db.query(
+    "SELECT preferences FROM users WHERE id=$1",
+    [session.user.id],
+  );
   const saved = preferences.rows[0]?.preferences ?? {};
-  const providerResult = providerSchema.safeParse(parsed.data.provider ?? saved.aiProvider);
-  if (!providerResult.success) return Response.json({ error: "Connect and select an AI provider in Settings first." }, { status: 409 });
+  const providerResult = providerSchema.safeParse(
+    parsed.data.provider ?? saved.aiProvider,
+  );
+  if (!providerResult.success)
+    return Response.json(
+      { error: "Connect and select an AI provider in Settings first." },
+      { status: 409 },
+    );
   const provider = providerResult.data;
-  const connection = await db.query(`SELECT encrypted_api_key,selected_model,base_url FROM provider_connections WHERE user_id=$1 AND provider=$2 AND active=true`, [session.user.id,provider]);
-  if (!connection.rowCount) return Response.json({ error: "This AI provider is not fully configured." }, { status: 409 });
+  const connection = await db.query(
+    `SELECT encrypted_api_key,selected_model,base_url FROM provider_connections WHERE user_id=$1 AND provider=$2 AND active=true`,
+    [session.user.id, provider],
+  );
+  if (!connection.rowCount)
+    return Response.json(
+      { error: "This AI provider is not fully configured." },
+      { status: 409 },
+    );
   let apiKey: string | undefined;
   try {
-    apiKey = connection.rows[0].encrypted_api_key ? decryptSecret(connection.rows[0].encrypted_api_key) : undefined;
+    apiKey = connection.rows[0].encrypted_api_key
+      ? decryptSecret(connection.rows[0].encrypted_api_key)
+      : undefined;
   } catch {
-    return Response.json({ error: `The saved ${provider} API key can no longer be decrypted. Reconnect ${provider} in Settings.` }, { status: 409 });
+    return Response.json(
+      {
+        error: `The saved ${provider} API key can no longer be decrypted. Reconnect ${provider} in Settings.`,
+      },
+      { status: 409 },
+    );
   }
   const model = parsed.data.model ?? connection.rows[0].selected_model;
   try {
@@ -47,10 +85,25 @@ export async function POST(request: Request) {
       system: `${prompts[purpose]}\nContext: ${JSON.stringify(context ?? {})}`,
       messages,
     });
-    if (!result.text.trim()) throw new Error("The provider returned an empty response.");
-    return new Response(result.text, { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
+    if (!result.text.trim())
+      throw new Error("The provider returned an empty response.");
+    return new Response(result.text, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-store",
+      },
+    });
   } catch (error) {
-    console.error("AI generation failed", { provider, model, error: error instanceof Error ? error.message : String(error) });
-    return Response.json({ error: `The ${provider} model ${model} could not complete this request. Try another active model in Settings.` }, { status: 502 });
+    console.error("AI generation failed", {
+      provider,
+      model,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return Response.json(
+      {
+        error: `The ${provider} model ${model} could not complete this request. Try another active model in Settings.`,
+      },
+      { status: 502 },
+    );
   }
 }

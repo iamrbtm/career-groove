@@ -44,6 +44,18 @@ CREATE TABLE IF NOT EXISTS credentials (
   kind TEXT NOT NULL CHECK (kind IN ('license','education','certification')), name TEXT NOT NULL, issuer TEXT,
   issued_on DATE, expires_on DATE, details JSONB NOT NULL DEFAULT '{}'
 );
+CREATE TABLE IF NOT EXISTS skills (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL, proficiency SMALLINT NOT NULL DEFAULT 3 CHECK (proficiency BETWEEN 1 AND 5),
+  category TEXT NOT NULL DEFAULT 'other' CHECK (category IN ('interpersonal_behavioral','cognitive_methodological','technical_digital','business_operational','specialized_vocational','other')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS skills_user_name_idx ON skills(user_id, lower(name));
+CREATE TABLE IF NOT EXISTS job_skills (
+  job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  skill_id UUID NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
+  PRIMARY KEY(job_id, skill_id)
+);
 CREATE TABLE IF NOT EXISTS documents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   kind TEXT NOT NULL CHECK (kind IN ('resume','cover_letter','other')), title TEXT NOT NULL,
@@ -66,3 +78,4 @@ CREATE INDEX IF NOT EXISTS jobs_user_idx ON jobs(user_id, started_on DESC);
 CREATE INDEX IF NOT EXISTS contacts_user_idx ON contacts(user_id);
 CREATE INDEX IF NOT EXISTS conversations_context_gin ON ai_conversations USING GIN(context);
 CREATE INDEX IF NOT EXISTS provider_connections_user_idx ON provider_connections(user_id, active);
+ALTER TABLE skills ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'other';

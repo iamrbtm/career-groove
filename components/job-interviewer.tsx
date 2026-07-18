@@ -1,80 +1,147 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, Check, LoaderCircle, Mic2, Save, Send, Sparkles } from "lucide-react";
+import { ArrowLeft, Check, LoaderCircle, Pencil, Send, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { MusicPlayer } from "./music-player";
+import { InferredSkill, parseChapterAI, skillCategories } from "@/lib/chapter-ai";
 
 type Provider = "openai" | "anthropic" | "google" | "ollama";
 type Connection = { provider: Provider; selectedModel: string; active: boolean };
-const providerNames: Record<Provider,string> = {openai:"OpenAI",anthropic:"Claude",google:"Gemini",ollama:"Ollama"};
+type Answers = Record<string, string>;
+type Question = { id: string; prompt: (answers: Answers) => string; type?: "date" | "yesno" };
 
-const prompts = [
-  "What did you own day to day?",
-  "What got measurably better because of your work?",
-  "Who did you collaborate with, and how?",
+const questions: Question[] = [
+  { id: "company", prompt: () => "What was the name of the company?" },
+  { id: "title", prompt: (a) => `What was your job title at ${a.company || "the company"}?` },
+  { id: "location", prompt: (a) => `Where was your role at ${a.company || "the company"} based?` },
+  { id: "startedOn", prompt: (a) => `When did you start working at ${a.company || "the company"}?`, type: "date" },
+  { id: "current", prompt: (a) => `Do you still work at ${a.company || "the company"}?`, type: "yesno" },
+  { id: "endedOn", prompt: (a) => `When did you finish working at ${a.company || "the company"}?`, type: "date" },
+  { id: "dayToDay", prompt: () => "What did you do on a typical day? Walk me through the work in your own words." },
+  { id: "responsibilities", prompt: () => "What responsibilities did people rely on you to handle?" },
+  { id: "impact", prompt: () => "What became faster, easier, safer, more accurate, or more successful because of your work?" },
+  { id: "collaboration", prompt: () => "Who did you work with, and how did you help customers, coworkers, or the team?" },
+  { id: "tools", prompt: () => "What tools, systems, equipment, or specialized skills did you use?" },
+  { id: "recognition", prompt: () => "Were you trusted with extra duties or recognized for anything you did especially well?" },
 ];
 
 export function JobInterviewer() {
-  const [company, setCompany] = useState("");
-  const [title, setTitle] = useState("");
-  const [story, setStory] = useState("");
-  const [answer, setAnswer] = useState("");
+  const router = useRouter();
+  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+  const [answers, setAnswers] = useState<Answers>({});
+  const [step, setStep] = useState(0);
+  const [value, setValue] = useState("");
   const [provider, setProvider] = useState<Provider | "">("");
   const [connections, setConnections] = useState<Connection[]>([]);
+  const [bullets, setBullets] = useState<string[]>([]);
+  const [skills, setSkills] = useState<InferredSkill[]>([]);
+  const [phase, setPhase] = useState<"interview" | "preview">("interview");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
-  useEffect(()=>{fetch("/api/providers").then(async response=>{if(!response.ok)return;const body=await response.json();const active=(body.connections as Connection[]).filter(connection=>connection.active&&connection.selectedModel);setConnections(active);setProvider(current=>current||(active.some(connection=>connection.provider===body.defaultProvider)?body.defaultProvider:active[0]?.provider)||"")}).catch(()=>undefined)},[]);
 
-  const achievements = useMemo(() => answer.split("\n").map((line) => line.replace(/^\s*[-*•\d.)]+\s*/, "").trim()).filter((line) => line.length > 12), [answer]);
+  const activeQuestions = useMemo(() => questions.filter((q) => q.id !== "endedOn" || answers.current === "No"), [answers.current]);
+  const question = activeQuestions[step];
+  const progress = Math.round((step / activeQuestions.length) * 100);
 
-  async function interview(event: FormEvent) {
-    event.preventDefault();
-    if (!story.trim() || loading || !provider) return;
-    setLoading(true); setAnswer(""); setNotice("");
+  useEffect(() => {
+    fetch("/api/providers").then(async (response) => {
+      if (!response.ok) return;
+      const body = await response.json();
+      const active = (body.connections as Connection[]).filter((item) => item.active && item.selectedModel);
+      setConnections(active);
+      setProvider(active.some((item) => item.provider === body.defaultProvider) ? body.defaultProvider : active[0]?.provider || "");
+    }).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    if (phase === "interview" && question) setValue(answers[question.id] || "");
+    inputRef.current?.focus();
+  }, [step, phase, question?.id]);
+
+  async function generatePreview(finalAnswers: Answers) {
+    if (!provider) { setNotice("Connect an AI provider in Settings to finish this chapter."); return; }
+    setLoading(true);
+    setNotice("");
     try {
-      const response = await fetch("/api/ai", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
-        provider, purpose: "job-interviewer", context: { company, title },
-        messages: [{ role: "user", content: `Here is my rough account of the role:\n${story}\n\nReturn 3–5 strong bullets, then one focused follow-up question if useful.` }],
-      }) });
-      if (response.status === 401) throw new Error("Sign in to start an AI interview and keep your career data private.");
-      if (!response.ok || !response.body) { const body=await response.json().catch(()=>null); throw new Error(body?.error || "The interview could not start."); }
-      const reader = response.body.getReader(); const decoder = new TextDecoder();
-      let complete="";
-      while (true) { const { done, value } = await reader.read(); if (done) break; complete += decoder.decode(value, { stream: true }); setAnswer(complete); }
-      complete += decoder.decode();
-      if (!complete.trim()) throw new Error("The selected model returned no text. Choose another model in Settings and try again.");
-    } catch (error) { setNotice(error instanceof Error ? error.message : "Something interrupted the session."); }
+      const response = await fetch("/api/ai", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider, purpose: "job-interviewer", context: finalAnswers, messages: [{ role: "user", content: `Create the final resume bullets from this completed work interview. Return only one plain-text bullet per line. Interview answers: ${JSON.stringify(finalAnswers)}` }] }),
+      });
+      if (response.status === 401) throw new Error("Sign in to create and save your private work chapter.");
+      if (!response.ok) { const body = await response.json().catch(() => null); throw new Error(body?.error || "The chapter preview could not be created."); }
+      const chapter = parseChapterAI(await response.text());
+      if (!chapter.bullets.length) throw new Error("The selected model did not return usable chapter bullets.");
+      setBullets(chapter.bullets);
+      setSkills(chapter.skills);
+      setPhase("preview");
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Something interrupted the interview."); }
     finally { setLoading(false); }
   }
 
-  async function save() {
-    if (!company.trim() || !title.trim() || !answer.trim()) { setNotice("Add a company and title, then generate your bullets first."); return; }
+  function commitAnswer(answer: string) {
+    if (!question || !answer.trim() || loading) return;
+    const next = { ...answers, [question.id]: answer.trim() };
+    setAnswers(next); setValue("");
+    if (step + 1 >= activeQuestions.length) void generatePreview(next);
+    else setStep(step + 1);
+  }
+
+  function answerQuestion(event: FormEvent) {
+    event.preventDefault();
+    commitAnswer(value);
+  }
+
+  async function submitChapter() {
+    if (!bullets.length || saving) return;
     setSaving(true); setNotice("");
     try {
-      const response = await fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ company, title, rawNotes: story, achievements, current: false, metadata: { source: "ai-job-interviewer", provider } }) });
-      if (response.status === 401) throw new Error("Sign in before saving this chapter to your career history.");
-      if (!response.ok) throw new Error("We couldn’t save this chapter. Check the role details and try again.");
-      setNotice("Saved to your career history. Nice work.");
-    } catch (error) { setNotice(error instanceof Error ? error.message : "Save failed."); }
-    finally { setSaving(false); }
+      const response = await fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+        company: answers.company, title: answers.title, location: answers.location,
+        startedOn: answers.startedOn, endedOn: answers.current === "Yes" ? "" : answers.endedOn,
+        current: answers.current === "Yes", rawNotes: Object.entries(answers).map(([key, answer]) => `${key}: ${answer}`).join("\n"),
+        achievements: bullets, inferredSkills: skills, metadata: { source: "guided-ai-interview", interviewAnswers: answers },
+      }) });
+      if (response.status === 401) throw new Error("Sign in before saving this chapter.");
+      if (!response.ok) throw new Error("We couldn’t save this chapter. Please try again.");
+      router.push("/journey"); router.refresh();
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Save failed."); setSaving(false); }
   }
 
   return <main className="min-h-dvh px-4 pb-28 pt-4 md:px-8 md:pt-8">
-    <div className="mx-auto max-w-6xl">
-      <header className="flex items-center justify-between gap-4"><Link href="/" className="flex items-center gap-2 rounded-2xl px-3 py-2 text-sm font-black hover:bg-white"><ArrowLeft size={18}/> Back home</Link><div className="rounded-full border-2 border-ink bg-white px-4 py-2 text-xs font-black uppercase tracking-widest"><span className="mr-2 text-coral">●</span>AI Interviewer</div></header>
-      <section className="mt-6 grid overflow-hidden rounded-4xl border-2 border-ink bg-white shadow-pop lg:grid-cols-[.75fr_1.25fr]">
-        <aside className="relative overflow-hidden bg-ink p-6 text-cream md:p-9"><div className="absolute -right-14 -top-14 size-44 rounded-full border-[22px] border-coral/25"/><div className="relative"><div className="grid size-14 place-items-center rounded-2xl border-2 border-cream bg-coral text-ink"><Mic2 size={26}/></div><p className="mt-8 text-xs font-black uppercase tracking-[.22em] text-mint">No perfect wording required</p><h1 className="mt-2 font-[var(--font-display)] text-3xl font-black md:text-4xl">Talk messy.<br/><span className="text-sun">Leave polished.</span></h1><p className="mt-4 text-sm leading-6 text-cream/65">Tell us what actually happened. The interviewer will surface impact without inventing a thing.</p><div className="mt-9 space-y-4">{prompts.map((prompt, i) => <div key={prompt} className="flex gap-3"><span className="grid size-6 shrink-0 place-items-center rounded-full bg-cream/10 text-xs font-black text-sun">{i + 1}</span><p className="text-sm text-cream/75">{prompt}</p></div>)}</div></div></aside>
-        <form onSubmit={interview} className="p-5 md:p-9"><div className="grid gap-4 sm:grid-cols-2"><label className="text-xs font-black uppercase tracking-wider text-plum">Company<input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Acme Studio" className="mt-2 w-full rounded-2xl border-2 border-ink/15 px-4 py-3 text-base font-bold normal-case tracking-normal outline-none focus:border-coral"/></label><label className="text-xs font-black uppercase tracking-wider text-plum">Your title<input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Product Designer" className="mt-2 w-full rounded-2xl border-2 border-ink/15 px-4 py-3 text-base font-bold normal-case tracking-normal outline-none focus:border-coral"/></label></div>
-          <div className="mt-5 flex items-center justify-between gap-3"><label htmlFor="story" className="text-xs font-black uppercase tracking-wider text-plum">What happened there?</label>{connections.length?<select value={provider} onChange={(e) => setProvider(e.target.value as Provider)} aria-label="AI provider" className="max-w-56 rounded-xl border border-ink/15 bg-cream px-3 py-2 text-xs font-bold">{connections.map(connection=><option key={connection.provider} value={connection.provider}>{providerNames[connection.provider]} · {connection.selectedModel}</option>)}</select>:<Link href="/settings" className="rounded-xl bg-sun px-3 py-2 text-xs font-black">Connect an AI provider</Link>}</div>
-          <textarea id="story" required value={story} onChange={(e) => setStory(e.target.value)} placeholder="I joined when the support queue was a mess. I rebuilt the triage process, worked with engineering on the recurring bugs, and I think response time dropped by about half…" className="mt-2 min-h-44 w-full resize-y rounded-3xl border-2 border-ink/15 bg-cream/40 p-4 leading-6 outline-none placeholder:text-ink/35 focus:border-coral"/>
-          <button disabled={loading || !story.trim() || !provider} className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-coral py-3 font-black shadow-pop transition disabled:cursor-not-allowed disabled:opacity-50">{loading ? <><LoaderCircle className="animate-spin" size={18}/> Listening…</> : <><Sparkles size={18}/>{provider?"Find the strongest notes":"Connect a provider in Settings"}<Send size={17}/></>}</button>
-          <AnimatePresence mode="wait">{answer && <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-7 rounded-3xl border-2 border-ink bg-mint/20 p-5"><div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-plum"><Check size={16}/> Your polished take</div><div className="mt-4 whitespace-pre-wrap text-sm leading-6">{answer}</div><button type="button" onClick={save} disabled={saving} className="mt-5 flex items-center gap-2 rounded-2xl border-2 border-ink bg-sun px-4 py-3 text-sm font-black shadow-[0_4px_0_#26312c] disabled:opacity-60"><Save size={17}/>{saving ? "Saving…" : "Save this chapter"}</button></motion.div>}</AnimatePresence>
-          {notice && <p role="status" className={`mt-4 rounded-2xl px-4 py-3 text-sm font-bold ${notice.startsWith("Saved") ? "bg-mint/30" : "bg-coral/15"}`}>{notice}{notice.startsWith("Sign in") && <> <Link href="/signin" className="underline">Sign in</Link></>}</p>}
-        </form>
+    <div className="mx-auto max-w-4xl">
+      <header className="flex items-center justify-between gap-4">
+        <Link href="/journey" className="flex items-center gap-2 rounded-2xl px-3 py-2 text-sm font-black hover:bg-white"><ArrowLeft size={18}/> Back to journey</Link>
+        <div className="rounded-full border-2 border-ink bg-white px-4 py-2 text-xs font-black uppercase tracking-widest"><span className="mr-2 text-coral">●</span>Work chapter</div>
+      </header>
+
+      <section className="mt-6 overflow-hidden rounded-4xl border-2 border-ink bg-white shadow-pop">
+        <div className="bg-ink px-6 py-5 text-cream md:px-9">
+          <div className="flex items-center justify-between gap-4 text-xs font-black uppercase tracking-[.18em]"><span>{phase === "interview" ? "Tell your story" : "Chapter preview"}</span><span className="text-mint">{phase === "preview" ? "Ready to review" : `${progress}%`}</span></div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-cream/15"><motion.div className="h-full rounded-full bg-coral" animate={{ width: phase === "preview" ? "100%" : `${progress}%` }}/></div>
+        </div>
+
+        <AnimatePresence mode="wait">
+          {phase === "interview" && question ? <motion.form key={question.id} onSubmit={answerQuestion} initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -18 }} className="p-6 md:p-10">
+            <p className="text-xs font-black uppercase tracking-[.2em] text-plum">Question {step + 1} of {activeQuestions.length}</p>
+            <h1 className="mt-3 max-w-2xl font-[var(--font-display)] text-2xl font-black leading-tight md:text-4xl">{question.prompt(answers)}</h1>
+            <div className="mt-8">
+              {question.type === "yesno" ? <div className="grid gap-3 sm:grid-cols-2">{["Yes", "No"].map((choice) => <button type="button" key={choice} onClick={() => commitAnswer(choice)} className="rounded-2xl border-2 border-ink bg-cream px-5 py-4 text-left font-black shadow-[0_4px_0_#26312c] hover:bg-coral">{choice}</button>)}</div> : question.type === "date" ? <input ref={inputRef as React.RefObject<HTMLInputElement>} type="date" required value={value} onChange={(e) => setValue(e.target.value)} className="w-full rounded-2xl border-2 border-ink/20 bg-cream/50 p-4 text-lg font-bold outline-none focus:border-coral"/> : <textarea ref={inputRef as React.RefObject<HTMLTextAreaElement>} required value={value} onChange={(e) => setValue(e.target.value)} placeholder="Answer in your own words…" className="min-h-36 w-full resize-y rounded-3xl border-2 border-ink/20 bg-cream/50 p-4 text-base leading-7 outline-none placeholder:text-ink/30 focus:border-coral"/>}
+            </div>
+            {question.type !== "yesno" && <button disabled={!value.trim() || loading} className="mt-5 flex items-center gap-2 rounded-2xl border-2 border-ink bg-coral px-6 py-3 font-black shadow-[0_4px_0_#26312c] disabled:opacity-50">{loading ? <LoaderCircle className="animate-spin" size={18}/> : <Send size={18}/>} {step + 1 === activeQuestions.length ? "Create my chapter" : "Next question"}</button>}
+            {loading && <p className="mt-4 flex items-center gap-2 text-sm font-bold text-plum"><Sparkles size={17}/> Turning your interview into a chapter…</p>}
+          </motion.form> : phase === "preview" ? <motion.div key="preview" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="p-6 md:p-10">
+            <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[.2em] text-plum">Preview before submitting</p><h1 className="mt-2 font-[var(--font-display)] text-3xl font-black">{answers.title} at {answers.company}</h1><p className="mt-1 text-sm text-ink/55">{answers.location} · {answers.startedOn} – {answers.current === "Yes" ? "Present" : answers.endedOn}</p></div><Check className="text-coral" size={30}/></div>
+            <div className="mt-7 space-y-3">{bullets.map((bullet, index) => <div key={index} className="flex gap-3"><span className="mt-4 size-2 shrink-0 rounded-full bg-coral"/><textarea aria-label={`Resume bullet ${index + 1}`} value={bullet} onChange={(e) => setBullets((current) => current.map((item, i) => i === index ? e.target.value : item))} className="min-h-20 w-full resize-y rounded-2xl border-2 border-ink/15 bg-mint/10 p-3 text-sm leading-6 outline-none focus:border-coral"/></div>)}</div>
+            {skills.length > 0 && <div className="mt-7"><p className="text-xs font-black uppercase tracking-[.18em] text-plum">Skills discovered</p><div className="mt-3 flex flex-wrap gap-2">{skills.map((skill) => <span key={skill.name.toLocaleLowerCase()} className="rounded-full border-2 border-ink/15 bg-sun/40 px-3 py-1.5 text-sm font-bold">{skill.name} · {skillCategories[skill.category]}</span>)}</div><p className="mt-2 text-xs text-ink/50">These will be added to your Skills tab automatically.</p></div>}
+            <div className="mt-7 flex flex-wrap gap-3"><button type="button" onClick={() => { setStep(0); setPhase("interview"); }} className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-white px-5 py-3 text-sm font-black"><Pencil size={17}/> Edit answers</button><button type="button" onClick={submitChapter} disabled={saving || bullets.some((item) => !item.trim())} className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-sun px-5 py-3 text-sm font-black shadow-[0_4px_0_#26312c] disabled:opacity-50">{saving ? <LoaderCircle className="animate-spin" size={17}/> : <Check size={17}/>} {saving ? "Submitting…" : "Submit chapter"}</button></div>
+          </motion.div> : null}
+        </AnimatePresence>
+        {notice && <p role="status" className="mx-6 mb-6 rounded-2xl bg-coral/15 px-4 py-3 text-sm font-bold md:mx-10">{notice} {notice.includes("provider") && <Link href="/settings" className="underline">Open Settings</Link>}</p>}
       </section>
-    </div><MusicPlayer />
+    </div><MusicPlayer/>
   </main>;
 }

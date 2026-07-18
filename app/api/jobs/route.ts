@@ -20,13 +20,37 @@ export async function POST(request: Request) {
   const parsed = jobInput.safeParse(await request.json());
   if (!parsed.success) return Response.json({ error: parsed.error.flatten() }, { status: 400 });
   const job = parsed.data;
-  const result = await db.query(
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await client.query(
     `INSERT INTO jobs (user_id, company, title, location, started_on, ended_on, current, raw_notes, achievements, metadata)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb)
      RETURNING id, company, title, location, started_on AS "startedOn", ended_on AS "endedOn",
        current, raw_notes AS "rawNotes", achievements, metadata, created_at AS "createdAt"`,
     [session.user.id, job.company, job.title, job.location || null, job.startedOn || null, job.current ? null : job.endedOn || null,
       job.current, job.rawNotes || null, JSON.stringify(job.achievements), JSON.stringify(job.metadata)],
-  );
-  return Response.json({ job: result.rows[0] }, { status: 201 });
+    );
+    const uniqueSkills = [...new Map(job.inferredSkills.map((skill) => [skill.name.trim().toLocaleLowerCase(), skill])).values()];
+    for (const skillInput of uniqueSkills) {
+      const skill = await client.query(
+        `INSERT INTO skills(user_id,name,proficiency,category) VALUES($1,$2,3,$3)
+         ON CONFLICT (user_id,lower(name)) DO UPDATE SET updated_at=now()
+         RETURNING id`,
+        [session.user.id, skillInput.name, skillInput.category],
+      );
+      await client.query(
+        `INSERT INTO job_skills(job_id,skill_id) VALUES($1,$2) ON CONFLICT DO NOTHING`,
+        [result.rows[0].id, skill.rows[0].id],
+      );
+    }
+    await client.query("COMMIT");
+    return Response.json({ job: result.rows[0] }, { status: 201 });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Job creation failed", error);
+    return Response.json({ error: "The chapter could not be saved." }, { status: 500 });
+  } finally {
+    client.release();
+  }
 }
