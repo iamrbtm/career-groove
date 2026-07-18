@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS jobs (
 );
 CREATE TABLE IF NOT EXISTS contacts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  name TEXT NOT NULL, company TEXT, role TEXT, email TEXT, relationship_strength SMALLINT DEFAULT 1,
+  job_id UUID REFERENCES jobs(id) ON DELETE SET NULL, name TEXT NOT NULL, company TEXT, role TEXT, email TEXT, phone TEXT, relationship_strength SMALLINT DEFAULT 1,
   notes JSONB NOT NULL DEFAULT '[]', links JSONB NOT NULL DEFAULT '{}', created_at TIMESTAMPTZ DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS residences (

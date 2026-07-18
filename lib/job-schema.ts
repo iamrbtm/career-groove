@@ -15,6 +15,10 @@ export const jobInput = z.object({
     name: z.string().trim().min(1).max(120),
     category: z.enum(["interpersonal_behavioral", "cognitive_methodological", "technical_digital", "business_operational", "specialized_vocational", "other"]),
   })).max(30).default([]),
+  networkContact: z.object({
+    name: z.string().trim().max(160),
+    phone: z.string().trim().max(60),
+  }).optional(),
   metadata: z.record(z.unknown()).default({}),
 });
 
