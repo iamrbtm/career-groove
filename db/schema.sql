@@ -3,6 +3,8 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), name TEXT, email TEXT UNIQUE NOT NULL,
   "emailVerified" TIMESTAMPTZ, image TEXT, password_hash TEXT, preferences JSONB NOT NULL DEFAULT '{}',
+  "stripeCustomerId" TEXT UNIQUE, "stripeSubscriptionId" TEXT UNIQUE, "stripePriceId" TEXT,
+  "stripeCurrentPeriodEnd" TIMESTAMPTZ, "subscriptionStatus" TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS accounts (

@@ -5,13 +5,14 @@ import { MotionButton } from "./motion-button";
 import { MusicPlayer } from "./music-player";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { AccountMenu } from "./account-menu";
 
 const tools = [
   { icon: MessageCircleMore, title: "Tell your story", copy: "Rambling welcome. We'll find the strongest bullets.", color: "bg-coral", tag: "AI Interviewer", href: "/interview" },
   { icon: Sparkles, title: "Practice the room", copy: "A mock interview that already knows your history.", color: "bg-sun", tag: "Interview Prep", href: "/mock-interview" },
   { icon: FileText, title: "Make it shine", copy: "Shape a tailored resume or cover letter in a few beats.", color: "bg-mint", tag: "Documents", href: "/documents" },
 ];
-const nav = [{ icon: Home, name: "Home", href: "/" }, { icon: BriefcaseBusiness, name: "Journey", href: "/journey" }, { icon: Network, name: "People", href: "/network" }, { icon: Settings2, name: "Settings", href: "/settings" }];
+const nav = [{ icon: Home, name: "Home", href: "/dashboard" }, { icon: BriefcaseBusiness, name: "Journey", href: "/journey" }, { icon: Network, name: "People", href: "/network" }, { icon: Settings2, name: "Settings", href: "/settings" }];
 
 export function Dashboard() {
   const router = useRouter();
@@ -22,7 +23,7 @@ export function Dashboard() {
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-24 flex-col items-center border-r-2 border-ink/10 bg-ink py-7 text-cream md:flex">
       <div className="grid size-12 place-items-center rounded-2xl bg-coral text-xl font-black shadow-[0_4px_0_#ffc857]">CG</div>
       <nav className="mt-16 flex flex-1 flex-col gap-7">{nav.map(({ icon: Icon, name, href }, i) => <button onClick={()=>router.push(href)} key={name} aria-label={name} className={`grid size-12 place-items-center rounded-2xl ${i === 0 ? "bg-cream text-ink" : "text-cream/60 hover:text-cream"}`}><Icon size={21} /></button>)}</nav>
-      <button aria-label="Profile" className="grid size-11 place-items-center rounded-full border border-cream/30"><UserRound size={20} /></button>
+      <AccountMenu />
     </aside>
 
     <main className="mx-auto max-w-7xl px-5 pt-6 md:pl-32 md:pr-10 md:pt-10">
@@ -50,6 +51,6 @@ export function Dashboard() {
         <div className="rounded-3xl border-2 border-ink bg-mint/30 p-5"><BookOpen size={24}/><p className="mt-5 font-[var(--font-display)] text-xl font-black">Life counts, too.</p><p className="mt-2 text-sm text-ink/60">Keep residences, education, and licenses close at hand.</p></div></section>
     </main>
     <MusicPlayer />
-    <nav className="fixed inset-x-3 bottom-3 z-30 flex justify-around rounded-3xl border-2 border-ink bg-ink px-2 py-2 text-cream shadow-soft md:hidden">{nav.map(({ icon: Icon, name, href }, i) => <button onClick={()=>router.push(href)} key={name} className={`flex min-w-16 flex-col items-center gap-1 rounded-2xl py-2 text-[10px] font-bold ${i === 0 ? "bg-cream text-ink" : "text-cream/60"}`}><Icon size={19}/>{name}</button>)}</nav>
+    <nav className="fixed inset-x-3 bottom-3 z-30 flex justify-around rounded-3xl border-2 border-ink bg-ink px-2 py-2 text-cream shadow-soft md:hidden">{nav.map(({ icon: Icon, name, href }, i) => <button onClick={()=>router.push(href)} key={name} className={`flex min-w-14 flex-col items-center gap-1 rounded-2xl py-2 text-[10px] font-bold ${i === 0 ? "bg-cream text-ink" : "text-cream/60"}`}><Icon size={19}/>{name}</button>)}<AccountMenu mobile/></nav>
   </div>;
 }
