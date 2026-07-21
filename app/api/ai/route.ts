@@ -6,6 +6,8 @@ import { db } from "@/lib/db";
 import { decryptSecret } from "@/lib/secret-box";
 import { providerSchema } from "@/lib/provider-models";
 
+const AI_MAX_RETRIES = 0;
+
 const requestSchema = z.object({
   provider: z.enum(["openai", "anthropic", "google", "ollama"]).optional(),
   model: z.string().optional(),
@@ -74,6 +76,7 @@ export async function POST(request: Request) {
         : undefined;
       const result = await generateText({
         model: getModel(provider, model, apiKey, connection.base_url),
+        maxRetries: AI_MAX_RETRIES,
         system: `${prompts[purpose]}\nContext: ${JSON.stringify(context ?? {})}`,
         messages,
       });

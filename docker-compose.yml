@@ -15,13 +15,28 @@ services:
       timeout: 3s
       retries: 10
   app:
-    build: .
+    build:
+      context: .
+      target: runner
     restart: unless-stopped
     ports: ["3000:3000"]
     env_file: [.env]
     environment:
       DATABASE_URL: postgresql://career_groove:career_groove@db:5432/career_groove
-      AUTH_URL: http://localhost:3000
+      OLLAMA_BASE_URL: http://ollama:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      db: { condition: service_healthy }
+  document-worker:
+    build:
+      context: .
+      target: worker
+    restart: unless-stopped
+    command: ["node", "scripts/document-worker.mjs"]
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql://career_groove:career_groove@db:5432/career_groove
       OLLAMA_BASE_URL: http://ollama:11434
     extra_hosts:
       - "host.docker.internal:host-gateway"

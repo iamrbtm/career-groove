@@ -45,6 +45,9 @@ const providers = [
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: CareerGrooveAdapter(), providers, session: { strategy: "jwt" },
+  // Derive the canonical URL from Host/X-Forwarded-* so the same container can
+  // serve HTTPS behind Nginx and direct HTTP connections on a trusted LAN.
+  trustHost: true,
   experimental: { enableWebAuthn: process.env.AUTH_EXPERIMENTAL_ENABLE_PASSKEYS === "true" },
   pages: { signIn: "/signin" },
   callbacks: {

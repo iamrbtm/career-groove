@@ -1,0 +1,52 @@
+You are an expert full-stack developer working on a Next.js App Router project called "Career Groove" — a mobile-first personal career and life CRM. The stack includes Next.js, PostgreSQL, Auth.js, Vercel AI SDK, Octokit, Tailwind CSS, and Framer Motion. 
+
+Your task is to build a highly converting, production-ready Landing Page and implement a complete Stripe Subscription workflow.
+
+Before writing any code, please analyze the following files in the workspace to match my exact environment:
+1. `package.json` (to identify the database ORM, UI component library, and exact dependency versions).
+2. `DESIGN.md` (to extract the color palette, typography, and aesthetic rules).
+3. The existing database schema file (e.g., `schema.prisma`, `schema.ts`, or migration files) to understand how users are currently modeled.
+4. The existing Auth.js configuration file to understand the current authentication setup.
+
+Once you have context, execute the following requirements:
+
+### 1. Landing Page Development
+Create a modern, mobile-first landing page (`app/page.tsx` or similar root layout) with the following sections, utilizing Framer Motion for scroll reveals and micro-interactions:
+- **Header:** Logo, navigation links, "Login" button (linking to the existing Auth.js login route), and a "Get Started" CTA.
+- **Hero Section:** Strong headline focusing on turning rough career stories into polished achievements and tailored applications. Include a primary CTA linking to the pricing/signup flow.
+- **Features/Benefits:** Highlight the Career CRM, AI-powered document generation, and interview prep.
+- **Pricing Section:** Create a toggle for Monthly/Yearly and display the following cards:
+  - **Pro Monthly:** $15/mo (Standard recurring).
+  - **Pro Yearly:** $99/yr (Highlight the savings).
+  - **Lifetime Early Bird:** $199 (One-time payment, indicate this is a limited offer).
+  - *Note:* Ensure the pricing cards clearly list features (e.g., Unlimited CRM, AI document generation caps, interview prep).
+- **Footer:** Standard footer links.
+- *Styling Constraint:* Strictly adhere to the aesthetic, spacing, and color variables defined in `DESIGN.md`.
+
+### 2. Database Schema Updates
+Using the ORM discovered in the workspace, update the `User` (or equivalent) model to support Stripe billing. Add fields for:
+- `stripeCustomerId` (string, unique)
+- `stripeSubscriptionId` (string, unique)
+- `stripePriceId` (string)
+- `stripeCurrentPeriodEnd` (datetime)
+- `subscriptionStatus` (string: active, canceled, past_due, etc.)
+Generate the necessary migration commands or schema updates and instruct me on how to run them.
+
+### 3. Stripe & Auth Workflow Integration
+Implement the backend and frontend logic for the subscription lifecycle:
+- **Checkout Route:** Create an API route (or Server Action) that initiates a Stripe Checkout Session when a user clicks a pricing tier. 
+  - If the user is unauthenticated, route them through the Auth.js registration flow *first*, then immediately redirect them to the Stripe Checkout page post-registration.
+  - If authenticated, send them straight to Stripe Checkout.
+- **Stripe Webhook:** Create a secure webhook handler (`app/api/webhooks/stripe/route.ts`) to listen for key Stripe events:
+  - `checkout.session.completed`
+  - `customer.subscription.updated`
+  - `customer.subscription.deleted`
+- Ensure the webhook correctly verifies the Stripe signature using a webhook secret and updates the user's subscription status in the PostgreSQL database using the project's ORM.
+
+### 4. Code Quality & Edge Cases
+- Ensure all components are fully responsive (mobile-first).
+- Handle loading states and error states (e.g., Stripe API failures) gracefully using Toast notifications or inline alerts.
+- Write clean, modular components (e.g., separate the PricingCard, Hero, and Feature components from the main page).
+- Include TypeScript interfaces for all component props and API responses.
+
+Please output the code sequentially, starting with the schema updates, followed by the backend Stripe/Webhook logic, and finally the frontend Landing Page components.
