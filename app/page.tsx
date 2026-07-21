@@ -1,2 +1,7 @@
-import { Dashboard } from "@/components/dashboard";
-export default function HomePage() { return <Dashboard />; }
+import { auth } from "@/auth";
+import { LandingPage } from "@/components/landing/landing-page";
+
+export default async function HomePage() {
+  const session = await auth();
+  return <LandingPage signedIn={Boolean(session?.user)} />;
+}

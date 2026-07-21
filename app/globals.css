@@ -11,4 +11,6 @@
 body { margin: 0; color: #26312c; background: #f6f0e5; }
 body::before { content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .28; background-image: radial-gradient(#725a7a 0.6px, transparent 0.6px); background-size: 18px 18px; }
 button, a { -webkit-tap-highlight-color: transparent; }
+html { scroll-behavior: smooth; }
+::selection { color: #26312c; background: #ffc857; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; } }

@@ -3,6 +3,8 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), name TEXT, email TEXT UNIQUE NOT NULL,
   "emailVerified" TIMESTAMPTZ, image TEXT, password_hash TEXT, preferences JSONB NOT NULL DEFAULT '{}',
+  "stripeCustomerId" TEXT UNIQUE, "stripeSubscriptionId" TEXT UNIQUE, "stripePriceId" TEXT,
+  "stripeCurrentPeriodEnd" TIMESTAMPTZ, "subscriptionStatus" TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS accounts (
@@ -61,6 +63,14 @@ CREATE TABLE IF NOT EXISTS documents (
   kind TEXT NOT NULL CHECK (kind IN ('resume','cover_letter','other')), title TEXT NOT NULL,
   content JSONB NOT NULL DEFAULT '{}', target_job JSONB NOT NULL DEFAULT '{}', created_at TIMESTAMPTZ DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS document_generation_jobs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('resume','cover_letter','both')),
+  target_job JSONB NOT NULL, career_context JSONB NOT NULL DEFAULT '[]',
+  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','processing','completed','failed')),
+  result JSONB NOT NULL DEFAULT '{}', error TEXT, attempts SMALLINT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(), started_at TIMESTAMPTZ, completed_at TIMESTAMPTZ, updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 CREATE TABLE IF NOT EXISTS ai_conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   purpose TEXT NOT NULL, provider TEXT NOT NULL, messages JSONB NOT NULL DEFAULT '[]', context JSONB NOT NULL DEFAULT '{}',
@@ -78,4 +88,6 @@ CREATE INDEX IF NOT EXISTS jobs_user_idx ON jobs(user_id, started_on DESC);
 CREATE INDEX IF NOT EXISTS contacts_user_idx ON contacts(user_id);
 CREATE INDEX IF NOT EXISTS conversations_context_gin ON ai_conversations USING GIN(context);
 CREATE INDEX IF NOT EXISTS provider_connections_user_idx ON provider_connections(user_id, active);
+CREATE INDEX IF NOT EXISTS document_generation_jobs_queue_idx ON document_generation_jobs(status, created_at);
+CREATE INDEX IF NOT EXISTS document_generation_jobs_user_idx ON document_generation_jobs(user_id, created_at DESC);
 ALTER TABLE skills ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'other';

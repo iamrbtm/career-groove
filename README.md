@@ -28,7 +28,15 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Open http://localhost:3000. The app container applies the idempotent schema and compatibility migrations before starting. OAuth, passkeys, AI providers, and GitHub feedback activate when their corresponding environment variables are configured. Passkeys additionally require `AUTH_EXPERIMENTAL_ENABLE_PASSKEYS=true` and a secure origin outside localhost.
+Open http://breath.local:3000 (or use the server's LAN IP). The app container applies the idempotent schema and compatibility migrations before starting. OAuth, passkeys, AI providers, and GitHub feedback activate when their corresponding environment variables are configured. Passkeys additionally require `AUTH_EXPERIMENTAL_ENABLE_PASSKEYS=true` and a secure origin outside localhost.
+
+### Nginx and mixed public/LAN access
+
+Do not set `AUTH_URL` when the same container is accessed through public HTTPS and direct LAN HTTP. CareerGroove trusts the request host and Nginx forwarding headers, allowing Auth.js to derive the correct origin for each request. Use the proxy-header pattern in [`deploy/nginx.conf.example`](deploy/nginx.conf.example); in particular, preserve `$host` and `$scheme` rather than hardcoding either one.
+
+Nginx should redirect public port 80 traffic to HTTPS, but direct access to the published app port (for example, `http://192.168.1.20:3000`) remains HTTP and does not enter that redirect. For better isolation, use a firewall rule to expose port 3000 only to the LAN.
+
+OAuth providers require every callback origin to be registered with the provider. Register the public callback (for example, `https://career.example.com/api/auth/callback/github`) and any LAN callback only if the provider permits plain HTTP callbacks. Credentials sign-in works on LAN HTTP. Passkeys generally require HTTPS except on `localhost`, so use the public HTTPS hostname for passkeys.
 
 Compose includes an Ollama service with persistent model storage. Install a model once with `docker compose exec ollama ollama pull llama3.2`, then connect Ollama from Settings. If the Compose service is unavailable, CareerGroove falls back through `OLLAMA_BASE_URL`, `host.docker.internal:11434`, and `localhost:11434`.
 

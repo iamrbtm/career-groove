@@ -9,6 +9,7 @@ import {
   ChevronRight,
   GraduationCap,
   Home,
+  MessageCircleQuestion,
   Pencil,
   Plus,
   RefreshCw,
@@ -143,8 +144,8 @@ export function JourneyManager() {
           {notice}
         </p>
       )}
-      <section className={`mt-6 grid gap-6 ${tab === "skills" ? "" : "lg:grid-cols-[.75fr_1.25fr]"}`}>
-        <div className="rounded-3xl border-2 border-ink bg-white p-5 shadow-[0_5px_0_#26312c]">
+      <section className={`mt-6 grid items-start gap-6 ${tab === "skills" ? "" : "lg:grid-cols-[.75fr_1.25fr]"}`}>
+        <div className="h-fit rounded-3xl border-2 border-ink bg-white p-5 shadow-[0_5px_0_#26312c]">
           {tab === "jobs" && (
             <div>
               <FormTitle icon={<BriefcaseBusiness />} text="Add a work chapter" />
@@ -485,30 +486,40 @@ function ChapterEditor({
       metadata,
     };
     try {
-      const providerData = await json("/api/providers");
-      const activeConnections = (providerData.connections as AnyRow[]).filter((connection) => connection.active && connection.selectedModel);
-      const connection = activeConnections.find((item) => item.provider === providerData.defaultProvider) || activeConnections[0];
-      if (!connection) throw new Error("Connect an AI provider in Settings before saving so skills can be discovered.");
-      const aiResponse = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          provider: connection.provider,
-          purpose: "job-interviewer",
-          context: { company: body.company, title: body.title },
-          messages: [{ role: "user", content: `Analyze this saved work chapter and return resume bullets plus every supported skill and category. Chapter: ${JSON.stringify(body)}` }],
-        }),
-      });
-      if (!aiResponse.ok) {
-        const aiError = await aiResponse.json().catch(() => null);
-        throw new Error(aiError?.error || "AI could not discover skills from this chapter.");
-      }
-      const inferredSkills = parseChapterAI(await aiResponse.text()).skills;
-      const result = await json(`/api/jobs/${job.id}`, {
+      let result = await json(`/api/jobs/${job.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...body, inferredSkills }),
+        body: JSON.stringify(body),
       });
+      try {
+        const providerData = await json("/api/providers");
+        const activeConnections = (providerData.connections as AnyRow[]).filter((connection) => connection.active && connection.selectedModel);
+        const connection = activeConnections.find((item) => item.provider === providerData.defaultProvider) || activeConnections[0];
+        if (connection) {
+          const aiResponse = await fetch("/api/ai", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              provider: connection.provider,
+              purpose: "job-interviewer",
+              context: { company: body.company, title: body.title },
+              messages: [{ role: "user", content: `Analyze this saved work chapter and return resume bullets plus every supported skill and category. Chapter: ${JSON.stringify(body)}` }],
+            }),
+          });
+          if (aiResponse.ok) {
+            const inferredSkills = parseChapterAI(await aiResponse.text()).skills;
+            if (inferredSkills.length) {
+              result = await json(`/api/jobs/${job.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...body, inferredSkills }),
+              });
+            }
+          }
+        }
+      } catch (aiError) {
+        console.warn("Chapter saved without refreshing skills", aiError);
+      }
       await onSaved(result.job);
     } catch (caught) {
       setError(
@@ -622,10 +633,15 @@ function ChapterEditor({
             {error}
           </p>
         )}
-        <div className="mt-5 flex justify-end gap-3">
-          <button type="button" onClick={reprocess} disabled={saving || reprocessing} className="mr-auto flex items-center gap-2 rounded-2xl border-2 border-ink bg-mint px-5 py-3 text-sm font-black shadow-[0_3px_0_#26312c] disabled:opacity-50">
+        <div className="mt-5 flex flex-wrap justify-end gap-3">
+          <div className="mr-auto flex flex-wrap gap-3">
+          <Link href={`/interview?jobId=${job.id}`} className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-coral px-5 py-3 text-sm font-black shadow-[0_3px_0_#26312c]">
+            <MessageCircleQuestion size={17}/> Re-interview
+          </Link>
+          <button type="button" onClick={reprocess} disabled={saving || reprocessing} className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-mint px-5 py-3 text-sm font-black shadow-[0_3px_0_#26312c] disabled:opacity-50">
             <RefreshCw size={17} className={reprocessing ? "animate-spin" : ""}/>{reprocessing ? "Re-processing…" : "Re-process with AI"}
           </button>
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -646,6 +662,13 @@ function ChapterEditor({
   );
 }
 
+function formatNumericMonthYear(value?: string | null) {
+  if (!value) return null;
+  const [year, month] = value.slice(0, 10).split("-");
+  if (!year || !month) return null;
+  return `${month.padStart(2, "0")}/${year.slice(-2)}`;
+}
+
 function JobCard({
   job,
   onView,
@@ -655,6 +678,14 @@ function JobCard({
   onView: () => void;
   onDelete: () => void;
 }) {
+  const startedOn = formatNumericMonthYear(job.startedOn);
+  const endedOn = formatNumericMonthYear(job.endedOn);
+  const dateRange = startedOn
+    ? `${startedOn} – ${job.current || !endedOn ? "Present" : endedOn}`
+    : endedOn
+      ? `— – ${endedOn}`
+      : null;
+
   return (
     <article className="rounded-3xl border-2 border-ink/15 bg-white/70 p-5">
       <div className="flex gap-4">
@@ -666,9 +697,19 @@ function JobCard({
           <BriefcaseBusiness />
         </button>
         <button onClick={onView} className="min-w-0 flex-1 text-left">
-          <h3 className="font-[var(--font-display)] text-lg font-black">
-            {job.title}
-          </h3>
+          <div className="flex min-w-0 items-baseline justify-between gap-3">
+            <h3
+              className="min-w-0 truncate font-[var(--font-display)] text-lg font-black"
+              title={job.title}
+            >
+              {job.title}
+            </h3>
+            {dateRange && (
+              <span className="shrink-0 text-xs font-black tabular-nums text-plum">
+                {dateRange}
+              </span>
+            )}
+          </div>
           <p className="text-sm text-ink/55">
             {job.company}
             {job.location ? ` · ${job.location}` : ""}

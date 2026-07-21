@@ -8,7 +8,8 @@ export async function GET() {
   const result = await db.query(
     `SELECT id, company, title, location, started_on AS "startedOn", ended_on AS "endedOn",
       current, raw_notes AS "rawNotes", achievements, metadata, created_at AS "createdAt"
-     FROM jobs WHERE user_id = $1 ORDER BY current DESC, started_on DESC NULLS LAST, created_at DESC`,
+     FROM jobs WHERE user_id = $1
+     ORDER BY current DESC, ended_on DESC NULLS LAST, started_on DESC NULLS LAST, created_at DESC`,
     [session.user.id],
   );
   return Response.json({ jobs: result.rows });

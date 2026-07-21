@@ -6,6 +6,8 @@ import { db } from "@/lib/db";
 import { decryptSecret } from "@/lib/secret-box";
 import { providerSchema } from "@/lib/provider-models";
 
+const AI_MAX_RETRIES = 0;
+
 const requestSchema = z.object({
   provider: z.enum(["openai", "anthropic", "google", "ollama"]).optional(),
   model: z.string().optional(),
@@ -49,63 +51,47 @@ export async function POST(request: Request) {
     [session.user.id],
   );
   const saved = preferences.rows[0]?.preferences ?? {};
-  const providerResult = providerSchema.safeParse(
-    parsed.data.provider ?? saved.aiProvider,
+  const preferredProvider = providerSchema.safeParse(saved.aiProvider).success
+    ? saved.aiProvider
+    : parsed.data.provider;
+  const connections = await db.query(
+    `SELECT provider,encrypted_api_key,selected_model,base_url
+     FROM provider_connections
+     WHERE user_id=$1 AND active=true AND selected_model IS NOT NULL
+     ORDER BY CASE WHEN provider=$2 THEN 0 ELSE 1 END,last_checked_at DESC NULLS LAST,provider`,
+    [session.user.id, preferredProvider ?? ""],
   );
-  if (!providerResult.success)
+  if (!connections.rowCount)
     return Response.json(
       { error: "Connect and select an AI provider in Settings first." },
       { status: 409 },
     );
-  const provider = providerResult.data;
-  const connection = await db.query(
-    `SELECT encrypted_api_key,selected_model,base_url FROM provider_connections WHERE user_id=$1 AND provider=$2 AND active=true`,
-    [session.user.id, provider],
-  );
-  if (!connection.rowCount)
-    return Response.json(
-      { error: "This AI provider is not fully configured." },
-      { status: 409 },
-    );
-  let apiKey: string | undefined;
-  try {
-    apiKey = connection.rows[0].encrypted_api_key
-      ? decryptSecret(connection.rows[0].encrypted_api_key)
-      : undefined;
-  } catch {
-    return Response.json(
-      {
-        error: `The saved ${provider} API key can no longer be decrypted. Reconnect ${provider} in Settings.`,
-      },
-      { status: 409 },
-    );
+  const failures: string[] = [];
+  for (const connection of connections.rows) {
+    const provider = providerSchema.parse(connection.provider);
+    const model = connection.selected_model;
+    try {
+      const apiKey = connection.encrypted_api_key
+        ? decryptSecret(connection.encrypted_api_key)
+        : undefined;
+      const result = await generateText({
+        model: getModel(provider, model, apiKey, connection.base_url),
+        maxRetries: AI_MAX_RETRIES,
+        system: `${prompts[purpose]}\nContext: ${JSON.stringify(context ?? {})}`,
+        messages,
+      });
+      if (!result.text.trim()) throw new Error("The provider returned an empty response.");
+      return new Response(result.text, {
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Cache-Control": "no-store",
+          "X-AI-Provider": provider,
+        },
+      });
+    } catch (error) {
+      failures.push(`${provider}/${model}`);
+      console.error("AI provider attempt failed",{provider,model,error:error instanceof Error?error.message:String(error)});
+    }
   }
-  const model = parsed.data.model ?? connection.rows[0].selected_model;
-  try {
-    const result = await generateText({
-      model: getModel(provider, model, apiKey, connection.rows[0].base_url),
-      system: `${prompts[purpose]}\nContext: ${JSON.stringify(context ?? {})}`,
-      messages,
-    });
-    if (!result.text.trim())
-      throw new Error("The provider returned an empty response.");
-    return new Response(result.text, {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "no-store",
-      },
-    });
-  } catch (error) {
-    console.error("AI generation failed", {
-      provider,
-      model,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return Response.json(
-      {
-        error: `The ${provider} model ${model} could not complete this request. Try another active model in Settings.`,
-      },
-      { status: 502 },
-    );
-  }
+  return Response.json({error:`None of your active AI providers could complete this request. Tried: ${failures.join(", ")}. Your entered information is still available.`},{status:502});
 }

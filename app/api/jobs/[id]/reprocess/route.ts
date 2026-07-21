@@ -7,6 +7,8 @@ import { decryptSecret } from "@/lib/secret-box";
 import { providerSchema } from "@/lib/provider-models";
 import { parseChapterAI } from "@/lib/chapter-ai";
 
+const AI_MAX_RETRIES = 0;
+
 const idSchema = z.string().uuid();
 const draftSchema = z.object({
   company: z.string().trim().min(1).max(160),
@@ -51,6 +53,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     const generated = await generateText({
       model: getModel(provider, selected.selected_model, apiKey, selected.base_url),
+      maxRetries: AI_MAX_RETRIES,
       system: prompt,
       messages: [{ role: "user", content: JSON.stringify(draft.data) }],
     });
