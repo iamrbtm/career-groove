@@ -23,7 +23,7 @@ services:
     env_file: [.env]
     environment:
       DATABASE_URL: postgresql://career_groove:career_groove@db:5432/career_groove
-      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_BASE_URL: ${CAREER_GROOVE_OLLAMA_BASE_URL:-http://ollama:11434}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -37,7 +37,7 @@ services:
     env_file: [.env]
     environment:
       DATABASE_URL: postgresql://career_groove:career_groove@db:5432/career_groove
-      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_BASE_URL: ${CAREER_GROOVE_OLLAMA_BASE_URL:-http://ollama:11434}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -45,8 +45,9 @@ services:
   ollama:
     image: ollama/ollama:latest
     restart: unless-stopped
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
     volumes:
-      - career_groove_ollama:/root/.ollama
+      - ${OLLAMA_MODELS_DIR:-./.ollama}:/root/.ollama
 volumes:
   career_groove_data:
-  career_groove_ollama:
