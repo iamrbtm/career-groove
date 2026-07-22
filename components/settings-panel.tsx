@@ -7,6 +7,7 @@ import { DefaultAISelector } from "./default-ai-selector";
 import { ProviderConnections } from "./provider-connections";
 
 export function SettingsPanel() {
+  const [providerRefreshKey, setProviderRefreshKey] = useState(0);
   const [settings, setSettings] = useState({
     musicStation: "Lo-Fi",
     reducedMotion: false,
@@ -56,8 +57,8 @@ export function SettingsPanel() {
         copy="Connect AI providers, choose from models available to your keys, and adjust the atmosphere."
       />
       <div className="mt-7 grid items-start gap-6 lg:grid-cols-2">
-        <ProviderConnections />
-        <DefaultAISelector />
+        <ProviderConnections onConnectionsChanged={() => setProviderRefreshKey((value) => value + 1)} />
+        <DefaultAISelector refreshKey={providerRefreshKey} />
         <form
           onSubmit={save}
           className="h-fit rounded-3xl border-2 border-ink bg-white p-6 shadow-[0_5px_0_#26312c]"

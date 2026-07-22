@@ -38,7 +38,17 @@ Nginx should redirect public port 80 traffic to HTTPS, but direct access to the 
 
 OAuth providers require every callback origin to be registered with the provider. Register the public callback (for example, `https://career.example.com/api/auth/callback/github`) and any LAN callback only if the provider permits plain HTTP callbacks. Credentials sign-in works on LAN HTTP. Passkeys generally require HTTPS except on `localhost`, so use the public HTTPS hostname for passkeys.
 
-Compose includes an Ollama service with persistent model storage. Install a model once with `docker compose exec ollama ollama pull llama3.2`, then connect Ollama from Settings. If the Compose service is unavailable, CareerGroove falls back through `OLLAMA_BASE_URL`, `host.docker.internal:11434`, and `localhost:11434`.
+Compose includes an Ollama service with persistent model storage bind-mounted from `OLLAMA_MODELS_DIR` on the server into `/root/.ollama` in the Ollama container. By default this uses `./.ollama` next to the project and is ignored by Git.
+
+Install a model into that shared store with:
+
+```bash
+docker compose exec ollama ollama pull llama3.2
+```
+
+Then connect Ollama from Settings and CareerGroove will discover the installed models through `http://ollama:11434`.
+
+If you already run Ollama directly on the server and want CareerGroove to use that daemon instead of the Compose service, set `CAREER_GROOVE_OLLAMA_BASE_URL=http://host.docker.internal:11434` in `.env` and configure the host Ollama daemon to listen on `0.0.0.0:11434`. If you want the Compose Ollama service to reuse an existing host model store, set `OLLAMA_MODELS_DIR` to that host directory before starting Compose.
 
 ## API routes
 

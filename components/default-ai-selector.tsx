@@ -13,7 +13,7 @@ const names: Record<Provider, string> = {
   ollama: "Ollama",
 };
 
-export function DefaultAISelector() {
+export function DefaultAISelector({ refreshKey = 0 }: { refreshKey?: number }) {
   const [connections, setConnections] = useState<Connection[]>([]);
   const [selected, setSelected] = useState<Provider | "">("");
   const [saving, setSaving] = useState(false);
@@ -33,7 +33,7 @@ export function DefaultAISelector() {
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, refreshKey]);
 
   async function choose(provider: Provider) {
     setSelected(provider);
