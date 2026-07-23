@@ -42,6 +42,23 @@ services:
       - "host.docker.internal:host-gateway"
     depends_on:
       db: { condition: service_healthy }
+  backup-scheduler:
+    build:
+      context: .
+      target: backup-scheduler
+    restart: unless-stopped
+    user: "${CAREER_GROOVE_BACKUP_UID:-1000}:${CAREER_GROOVE_BACKUP_GID:-1000}"
+    working_dir: /workspace
+    command: ["node", "scripts/backup/scheduler.mjs"]
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql://career_groove:career_groove@db:5432/career_groove
+      CAREER_GROOVE_BACKUP_ROOT: /workspace/backups
+      TZ: ${TZ:-America/Los_Angeles}
+    volumes:
+      - .:/workspace
+    depends_on:
+      db: { condition: service_healthy }
   ollama:
     image: ollama/ollama:latest
     restart: unless-stopped

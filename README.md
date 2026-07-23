@@ -50,6 +50,29 @@ Then connect Ollama from Settings and CareerGroove will discover the installed m
 
 If you already run Ollama directly on the server and want CareerGroove to use that daemon instead of the Compose service, set `CAREER_GROOVE_OLLAMA_BASE_URL=http://host.docker.internal:11434` in `.env` and configure the host Ollama daemon to listen on `0.0.0.0:11434`. If you want the Compose Ollama service to reuse an existing host model store, set `OLLAMA_MODELS_DIR` to that host directory before starting Compose.
 
+## Backups
+
+CareerGroove runs backups from an application-owned Docker Compose service named `backup-scheduler`; it does not depend on cron, systemd timers, or host OS jobs.
+
+- Source backups run every Wednesday at midnight local container time.
+- Database backups run every hour at minute `30`.
+- Source backups use `.gitignore` rules through `git ls-files -co --exclude-standard`.
+- Database backups use `pg_dump` against `DATABASE_URL`.
+
+Database backups are organized as:
+
+```text
+backups/database/<year>/<week>/<day-date>/<hour>/
+```
+
+Example:
+
+```text
+backups/database/2026/WK30/Wed22/13/career_groove_db_20260722_133000.dump
+```
+
+The scheduler stores its last-run state in `backups/.scheduler-state.json` to avoid duplicate backups after restarts. `backups/` is ignored by Git and Docker.
+
 ## API routes
 
 - `POST /api/ai` streams interviewer, mock-interview, resume, or cover-letter responses with provider switching.
