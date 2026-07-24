@@ -14,8 +14,8 @@
     }
   },
   "background": {
-    "service_worker": "service-worker.js",
-    "type": "module"
+    "scripts": ["service-worker.js"],
+    "service_worker": "service-worker.js"
   },
   "content_scripts": [
     {
@@ -28,7 +28,14 @@
     "http://localhost:3000/*",
     "http://127.0.0.1:3000/*",
     "http://*.local:3000/*",
+    "http://*/*",
     "https://*/*"
   ],
-  "permissions": ["activeTab", "contextMenus", "scripting", "storage", "tabs"]
+  "permissions": ["activeTab", "contextMenus", "scripting", "storage", "tabs"],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "job-capture@careergroove.local",
+      "strict_min_version": "121.0"
+    }
+  }
 }

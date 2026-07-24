@@ -12,6 +12,8 @@ const JOB_SELECTORS = [
   "main",
 ];
 
+const extensionApi = globalThis.browser || globalThis.chrome;
+
 function normalizeText(value) {
   return String(value || "")
     .replace(/\u00a0/g, " ")
@@ -75,7 +77,7 @@ function captureJobPost() {
   };
 }
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+extensionApi.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type !== "CAREER_GROOVE_CAPTURE_JOB") return false;
   try {
     sendResponse({ ok: true, capture: captureJobPost() });

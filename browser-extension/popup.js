@@ -1,4 +1,6 @@
 const DEFAULT_APP_URL = "http://localhost:3000";
+const extensionApi = globalThis.browser || globalThis.chrome;
+const usesPromiseApi = typeof globalThis.browser !== "undefined";
 const elements = {
   appUrl: document.querySelector("#app-url"),
   saveUrl: document.querySelector("#save-url"),
@@ -22,6 +24,26 @@ const elements = {
 let captured = null;
 let parsedJob = null;
 
+function toPromise(method, ...args) {
+  if (usesPromiseApi) return method(...args);
+  return new Promise((resolve, reject) => {
+    try {
+      method(...args, (result) => {
+        const lastError = extensionApi.runtime.lastError;
+        if (lastError) reject(new Error(lastError.message));
+        else resolve(result);
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+function storageArea(kind) {
+  if (kind === "session") return extensionApi.storage.session || extensionApi.storage.local;
+  return extensionApi.storage.sync || extensionApi.storage.local;
+}
+
 function setStatus(message, type = "") {
   elements.status.textContent = message;
   elements.status.className = `status ${type}`.trim();
@@ -37,14 +59,16 @@ function normalizeAppUrl(value) {
 }
 
 async function getAppUrl() {
-  const stored = await chrome.storage.sync.get({ appUrl: DEFAULT_APP_URL });
+  const area = storageArea("sync");
+  const stored = await toPromise(area.get.bind(area), { appUrl: DEFAULT_APP_URL });
   return normalizeAppUrl(stored.appUrl);
 }
 
 async function saveAppUrl() {
   const appUrl = normalizeAppUrl(elements.appUrl.value);
   elements.appUrl.value = appUrl;
-  await chrome.storage.sync.set({ appUrl });
+  const area = storageArea("sync");
+  await toPromise(area.set.bind(area), { appUrl });
   setStatus("Connection saved. The next capture will use this URL.", "success");
 }
 
@@ -56,16 +80,17 @@ function numberOrNull(value) {
 }
 
 async function getActiveTab() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tabs = await toPromise(extensionApi.tabs.query.bind(extensionApi.tabs), { active: true, currentWindow: true });
+  const [tab] = tabs || [];
   return tab;
 }
 
 async function sendCaptureMessage(tabId) {
   try {
-    return await chrome.tabs.sendMessage(tabId, { type: "CAREER_GROOVE_CAPTURE_JOB" });
+    return await toPromise(extensionApi.tabs.sendMessage.bind(extensionApi.tabs), tabId, { type: "CAREER_GROOVE_CAPTURE_JOB" });
   } catch {
-    await chrome.scripting.executeScript({ target: { tabId }, files: ["content-script.js"] });
-    return chrome.tabs.sendMessage(tabId, { type: "CAREER_GROOVE_CAPTURE_JOB" });
+    await toPromise(extensionApi.scripting.executeScript.bind(extensionApi.scripting), { target: { tabId }, files: ["content-script.js"] });
+    return toPromise(extensionApi.tabs.sendMessage.bind(extensionApi.tabs), tabId, { type: "CAREER_GROOVE_CAPTURE_JOB" });
   }
 }
 
@@ -81,7 +106,8 @@ async function captureCurrentPage() {
     throw new Error(response?.error || "This page did not expose enough job text.");
   }
   captured = response.capture;
-  const session = await chrome.storage.session.get("careerGrooveContextCapture");
+  const sessionArea = storageArea("session");
+  const session = await toPromise(sessionArea.get.bind(sessionArea), "careerGrooveContextCapture");
   const contextCapture = session.careerGrooveContextCapture;
   if (contextCapture?.tabId === tab.id && contextCapture.selectionText?.trim().length > 40) {
     const selection = contextCapture.selectionText.trim();
@@ -89,8 +115,8 @@ async function captureCurrentPage() {
       ? captured.description
       : `${selection}\n\n${captured.description}`.slice(0, 50000);
   }
-  await chrome.storage.session.remove("careerGrooveContextCapture");
-  await chrome.storage.session.set({ careerGrooveLastCapture: captured });
+  await toPromise(sessionArea.remove.bind(sessionArea), "careerGrooveContextCapture");
+  await toPromise(sessionArea.set.bind(sessionArea), { careerGrooveLastCapture: captured });
   return captured;
 }
 
@@ -212,7 +238,8 @@ async function saveApplication() {
     elements.saveApplication.disabled = false;
     throw new Error(data.error || "CareerGroove could not save this role.");
   }
-  await chrome.storage.session.set({ careerGrooveLastSavedApplicationId: data.application?.id || "" });
+  const sessionArea = storageArea("session");
+  await toPromise(sessionArea.set.bind(sessionArea), { careerGrooveLastSavedApplicationId: data.application?.id || "" });
   setStatus("Saved. It is queued in Applications with Career DJ ready.", "success");
 }
 
@@ -229,7 +256,7 @@ async function refresh() {
 
 async function openTracker() {
   const appUrl = await getAppUrl();
-  await chrome.tabs.create({ url: `${appUrl}/applications` });
+  await toPromise(extensionApi.tabs.create.bind(extensionApi.tabs), { url: `${appUrl}/applications` });
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
