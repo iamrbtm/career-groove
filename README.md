@@ -14,6 +14,7 @@ A mobile-first personal career and life CRM built with Next.js, PostgreSQL, Auth
 - GitHub Issues and Projects v2 feedback automation
 - Persistent AI/music preferences and a global four-station ambient player
 - Installable, offline-capable PWA shell with responsive bottom/side navigation
+- Browser extension for capturing job posts into Tracker Studio
 
 ## Run locally
 
@@ -98,6 +99,10 @@ The scheduler stores its last-run state in `backups/.scheduler-state.json` to av
 - `/api/settings` stores provider, model, motion, and music preferences.
 
 All career, life, settings, AI, and GitHub API routes require an authenticated session. User-entered provider keys are encrypted with AES-256-GCM using `PROVIDER_ENCRYPTION_KEY` (or `AUTH_SECRET` as a fallback), never returned to the browser, and only decrypted server-side for provider requests.
+
+## Browser extension
+
+CareerGroove includes an unpacked Manifest V3 extension in [`browser-extension`](browser-extension). It captures the active job post page, previews the parsed opportunity, and saves it through the existing authenticated Tracker Studio APIs.
 
 ## Verification
 

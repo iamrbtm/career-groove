@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CareerGroove Job Capture</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="brand">
+        <img src="icons/icon.svg" alt="" />
+        <div>
+          <p class="eyebrow">CareerGroove</p>
+          <h1>Job Capture</h1>
+        </div>
+      </header>
+
+      <section class="panel" aria-label="Connection">
+        <label for="app-url">CareerGroove URL</label>
+        <div class="inline">
+          <input id="app-url" type="url" autocomplete="url" spellcheck="false" />
+          <button id="save-url" type="button" class="icon-button" title="Save URL">Save</button>
+        </div>
+      </section>
+
+      <section id="status" class="status" role="status">Reading the page...</section>
+
+      <section id="preview" class="panel hidden" aria-label="Captured job">
+        <div class="grid">
+          <label>Title <input id="title" maxlength="200" /></label>
+          <label>Company <input id="company" maxlength="200" /></label>
+          <label>Location <input id="location" maxlength="200" /></label>
+          <label>Work mode
+            <select id="work-mode">
+              <option value="unknown">Unknown</option>
+              <option value="remote">Remote</option>
+              <option value="hybrid">Hybrid</option>
+              <option value="onsite">Onsite</option>
+              <option value="flexible">Flexible</option>
+            </select>
+          </label>
+          <label>Salary min <input id="salary-min" inputmode="numeric" /></label>
+          <label>Salary max <input id="salary-max" inputmode="numeric" /></label>
+          <label class="wide">Source URL <input id="source-url" type="url" spellcheck="false" /></label>
+          <label class="wide">Notes <textarea id="notes" rows="4"></textarea></label>
+        </div>
+        <details>
+          <summary>Captured posting text</summary>
+          <textarea id="description" rows="8"></textarea>
+        </details>
+      </section>
+
+      <section id="insights" class="insights hidden" aria-label="Parser notes"></section>
+
+      <footer class="actions">
+        <button id="open-app" type="button" class="secondary">Open Tracker</button>
+        <button id="refresh" type="button" class="secondary">Refresh</button>
+        <button id="save-application" type="button" class="primary" disabled>Save role</button>
+      </footer>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

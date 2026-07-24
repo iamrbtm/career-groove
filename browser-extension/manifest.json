@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "CareerGroove Job Capture",
+  "description": "Capture job posts from the browser and save them into CareerGroove Tracker Studio.",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "Save to CareerGroove",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon.svg",
+      "32": "icons/icon.svg",
+      "48": "icons/icon.svg",
+      "128": "icons/icon.svg"
+    }
+  },
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "host_permissions": [
+    "http://localhost:3000/*",
+    "http://127.0.0.1:3000/*",
+    "http://*.local:3000/*",
+    "https://*/*"
+  ],
+  "permissions": ["activeTab", "contextMenus", "scripting", "storage", "tabs"]
+}
