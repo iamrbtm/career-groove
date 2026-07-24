@@ -44,7 +44,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const created = await db.query(
     `INSERT INTO application_contacts(user_id,application_id,contact_id,name,company,role,email,phone,relationship,notes)
      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-     RETURNING id,name,company,role,email,phone,relationship,created_at AS "createdAt"`,
+     RETURNING id,name,company,role,email,phone,relationship,notes,created_at AS "createdAt"`,
     [
       user,
       parsedParams.data.id,
@@ -54,10 +54,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       input.role || base.role || null,
       input.email || base.email || null,
       input.phone || base.phone || null,
-      input.relationship || null,
+      input.relationship || base.relationship || null,
       input.notes || null,
     ],
   );
+  if (!input.contactId && (input.name || base.name)) {
+    await db.query(
+      `INSERT INTO contacts(user_id,name,company,role,email,phone,relationship_strength,notes,links)
+       VALUES($1,$2,$3,$4,$5,$6,3,$7::jsonb,$8::jsonb)
+       ON CONFLICT DO NOTHING`,
+      [
+        user,
+        created.rows[0].name,
+        created.rows[0].company,
+        created.rows[0].role,
+        created.rows[0].email,
+        created.rows[0].phone,
+        JSON.stringify(input.notes ? [{ text: input.notes, at: new Date().toISOString() }] : []),
+        JSON.stringify({ applications: [parsedParams.data.id], relationship: created.rows[0].relationship }),
+      ],
+    );
+  }
   await db.query(
     `INSERT INTO application_events(user_id,application_id,event_type,title,body,metadata)
      VALUES($1,$2,'contact_linked',$3,$4,$5::jsonb)`,

@@ -11,6 +11,7 @@ const paramsSchema = z.object({
 const bodySchema = z.object({
   status: z.enum(["completed", "skipped", "snoozed"]),
   skipReason: z.string().trim().max(500).optional(),
+  snoozeUntil: z.string().datetime().or(z.literal("")).optional(),
 });
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string; actionId: string }> }) {
@@ -74,27 +75,36 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       );
       completedEventId = event.rows[0].id;
       if (nextStatus) {
+        const preferences = await client.query(
+          `SELECT COALESCE(default_follow_up_days,7)::int AS "defaultFollowUpDays"
+           FROM user_job_preferences WHERE user_id=$1`,
+          [user],
+        );
+        const defaultFollowUpDays = preferences.rows[0]?.defaultFollowUpDays ?? 7;
         await client.query(
           `UPDATE applications
            SET status=$3,
              applied_at=CASE WHEN $3='applied' THEN COALESCE(applied_at,now()) ELSE applied_at END,
+             follow_up_due_at=CASE WHEN $3='applied' THEN COALESCE(follow_up_due_at,now() + ($4::int || ' days')::interval) ELSE follow_up_due_at END,
              archived_at=CASE WHEN $3='archived' THEN COALESCE(archived_at,now()) ELSE archived_at END,
              updated_at=now()
            WHERE id=$1 AND user_id=$2`,
-          [existing.rows[0].applicationId, user, nextStatus],
+          [existing.rows[0].applicationId, user, nextStatus, defaultFollowUpDays],
         );
       }
     }
 
     const updated = await client.query(
       `UPDATE command_session_actions
-       SET status=$4,skip_reason=$5,completed_at=CASE WHEN $4='completed' THEN now() ELSE completed_at END,
+       SET status=$4,skip_reason=$5,
+         due_at=CASE WHEN $4='snoozed' THEN COALESCE($7::timestamptz,now() + interval '2 days') ELSE due_at END,
+         completed_at=CASE WHEN $4='completed' THEN now() ELSE completed_at END,
          completed_event_id=COALESCE($6,completed_event_id),updated_at=now()
        WHERE id=$1 AND command_session_id=$2 AND user_id=$3
        RETURNING id,application_id AS "applicationId",action_type AS "actionType",title,reason,route_target AS "routeTarget",
         status,completed_event_id AS "completedEventId",skip_reason AS "skipReason",position,due_at AS "dueAt",
         completed_at AS "completedAt",created_at AS "createdAt",updated_at AS "updatedAt"`,
-      [parsedParams.data.actionId, parsedParams.data.id, user, parsedBody.data.status, parsedBody.data.skipReason ?? null, completedEventId],
+      [parsedParams.data.actionId, parsedParams.data.id, user, parsedBody.data.status, parsedBody.data.skipReason ?? null, completedEventId, parsedBody.data.snoozeUntil || null],
     );
 
     const pending = await client.query(
@@ -104,11 +114,33 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       [parsedParams.data.id, user],
     );
     if ((pending.rows[0]?.count ?? 0) === 0) {
+      const totals = await client.query(
+        `SELECT
+          count(*)::int AS total,
+          count(*) FILTER (WHERE status='completed')::int AS completed,
+          count(*) FILTER (WHERE status='skipped')::int AS skipped,
+          count(*) FILTER (WHERE status='snoozed')::int AS snoozed
+         FROM command_session_actions
+         WHERE command_session_id=$1 AND user_id=$2`,
+        [parsedParams.data.id, user],
+      );
       await client.query(
         `UPDATE command_sessions
-         SET status='finished',finished_at=now(),updated_at=now()
+         SET status='finished',finished_at=now(),
+          recap=recap || $3::jsonb,
+          updated_at=now()
          WHERE id=$1 AND user_id=$2`,
-        [parsedParams.data.id, user],
+        [
+          parsedParams.data.id,
+          user,
+          JSON.stringify({
+            finished: {
+              ...totals.rows[0],
+              message: "Session wrapped. Completed, skipped, and snoozed actions all count as useful steering.",
+              finishedAt: new Date().toISOString(),
+            },
+          }),
+        ],
       );
     }
 

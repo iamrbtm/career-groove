@@ -12,7 +12,7 @@ const requestSchema = z.object({
   provider: z.enum(["openai", "anthropic", "google", "ollama"]).optional(),
   model: z.string().optional(),
   purpose: z
-    .enum(["job-interviewer", "job-interview-probe", "mock-interview", "resume", "cover-letter"])
+    .enum(["job-interviewer", "job-interview-probe", "mock-interview", "resume", "cover-letter", "application-answers", "outreach-draft", "soundcheck-brief"])
     .default("job-interviewer"),
   messages: z
     .array(
@@ -36,6 +36,12 @@ const prompts = {
     "Create precise, ATS-friendly resume content. Never invent facts; mark missing metrics clearly.",
   "cover-letter":
     "Write a specific, human cover letter grounded only in supplied experience and target-role context.",
+  "application-answers":
+    "Answer job application screening questions using only the supplied profile, career, and application context. Be concise, honest, and practical. If context is missing, say what information is needed instead of inventing. Return each answer with a short source/confidence note.",
+  "outreach-draft":
+    "Draft a concise editable outreach note for a recruiter, referral, hiring manager, thank-you, negotiation, or relationship follow-up. Ground it only in the supplied application/contact context. Do not imply messages were sent.",
+  "soundcheck-brief":
+    "Create a role-specific interview prep brief using only supplied application, research, documents, and career context. Include likely questions, stories to prepare, weak spots to rehearse, and questions to ask. Do not invent experience.",
 };
 
 export async function POST(request: Request) {

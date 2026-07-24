@@ -22,6 +22,10 @@ const inputSchema = z.object({
   userNote: z.string().trim().max(5000).optional(),
   source: z.string().trim().max(120).optional(),
   contactUsed: z.boolean().optional(),
+  resumeDocumentId: z.string().uuid().optional().nullable(),
+  coverLetterDocumentId: z.string().uuid().optional().nullable(),
+  roleFit: z.enum(["stretch", "fit", "mismatch", "unclear"]).optional(),
+  similarStrategy: z.enum(["prioritize", "deprioritize", "neutral"]).optional(),
   occurredAt: z.string().datetime().or(z.literal("")).optional(),
   offer: offerSchema.optional(),
 });
@@ -64,8 +68,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       [parsedParams.data.id, user],
     );
     const created = await client.query(
-      `INSERT INTO application_outcomes(user_id,application_id,score_snapshot_id,outcome,stage,reason,user_note,source,contact_used,offer,occurred_at)
-       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,COALESCE($11::timestamptz,now()))
+      `INSERT INTO application_outcomes(user_id,application_id,score_snapshot_id,outcome,stage,reason,user_note,source,contact_used,resume_document_id,cover_letter_document_id,offer,occurred_at)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,COALESCE($13::timestamptz,now()))
        RETURNING id,outcome,stage,reason,user_note AS "userNote",source,contact_used AS "contactUsed",offer,
         occurred_at AS "occurredAt",created_at AS "createdAt"`,
       [
@@ -78,7 +82,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         input.userNote || null,
         input.source || null,
         input.contactUsed ?? false,
-        JSON.stringify(input.offer ?? {}),
+        input.resumeDocumentId || null,
+        input.coverLetterDocumentId || null,
+        JSON.stringify({
+          ...(input.offer ?? {}),
+          roleFit: input.roleFit ?? null,
+          similarStrategy: input.similarStrategy ?? null,
+        }),
         input.occurredAt || null,
       ],
     );

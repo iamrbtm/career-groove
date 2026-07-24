@@ -1,6 +1,6 @@
 "use client";
 import { motion } from "framer-motion";
-import { ArrowUpRight, BookOpen, BriefcaseBusiness, ClipboardList, FileText, Home, MessageCircleMore, Network, Plus, Settings2, Sparkles } from "lucide-react";
+import { ArrowUpRight, BarChart3, BookOpen, BriefcaseBusiness, ClipboardList, FileText, Home, MessageCircleMore, Network, Plus, Settings2, Sparkles } from "lucide-react";
 import { MotionButton } from "./motion-button";
 import { MusicPlayer } from "./music-player";
 import { useRouter } from "next/navigation";
@@ -12,11 +12,13 @@ const tools = [
   { icon: MessageCircleMore, title: "Tell your story", copy: "Rambling welcome. We'll find the strongest bullets.", color: "bg-coral", tag: "AI Interviewer", href: "/interview" },
   { icon: Sparkles, title: "Practice the room", copy: "A mock interview that already knows your history.", color: "bg-sun", tag: "Interview Prep", href: "/mock-interview" },
   { icon: FileText, title: "Make it shine", copy: "Shape a tailored resume or cover letter in a few beats.", color: "bg-mint", tag: "Documents", href: "/documents" },
+  { icon: BarChart3, title: "Read the signal", copy: "See source quality, follow-up health, and what to adjust next.", color: "bg-lilac/40", tag: "Analytics", href: "/analytics" },
 ];
 const nav = [
   { icon: Home, name: "Home", href: "/dashboard" },
   { icon: BriefcaseBusiness, name: "Journey", href: "/journey" },
   { icon: ClipboardList, name: "Applications", href: "/applications" },
+  { icon: BarChart3, name: "Analytics", href: "/analytics" },
   { icon: Network, name: "Network", href: "/network" },
   { icon: FileText, name: "Documents", href: "/documents" },
   { icon: Settings2, name: "Settings", href: "/settings" },
@@ -96,7 +98,7 @@ export function Dashboard() {
       </section>
 
       <section className="mt-9"><div className="flex items-end justify-between"><div><p className="text-xs font-black uppercase tracking-[.2em] text-plum">Pick up the beat</p><h2 className="font-[var(--font-display)] text-2xl font-black">What are we working on?</h2></div><button className="hidden text-sm font-bold underline decoration-coral decoration-2 underline-offset-4 sm:block">See all tools</button></div>
-        <div className="mt-5 grid gap-4 lg:grid-cols-4">{tools.map(({ icon: Icon, title, copy, color, tag, href }, i) => <motion.button onClick={() => href && router.push(href)} key={title} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .1 + i * .08 }} whileHover={{ y: -5, rotate: i - 1 }} whileTap={{ scale: .98 }} className="group rounded-3xl border-2 border-ink bg-white p-5 text-left shadow-[0_5px_0_#26312c]">
+        <div className="mt-5 grid gap-4 lg:grid-cols-5">{tools.map(({ icon: Icon, title, copy, color, tag, href }, i) => <motion.button onClick={() => href && router.push(href)} key={title} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .1 + i * .08 }} whileHover={{ y: -5, rotate: i - 1 }} whileTap={{ scale: .98 }} className="group rounded-3xl border-2 border-ink bg-white p-5 text-left shadow-[0_5px_0_#26312c]">
           <div className={`grid size-12 place-items-center rounded-2xl border-2 border-ink ${color}`}><Icon size={23}/></div><p className="mt-5 text-[10px] font-black uppercase tracking-[.18em] text-plum">{tag}</p><h3 className="mt-1 font-[var(--font-display)] text-xl font-black">{title}</h3><p className="mt-2 text-sm leading-5 text-ink/60">{copy}</p><span className="mt-5 flex items-center gap-1 text-sm font-black group-hover:text-coral">Start a session <ArrowUpRight size={16}/></span>
         </motion.button>)}</div>
       </section>
@@ -105,6 +107,6 @@ export function Dashboard() {
         <div className="rounded-3xl border-2 border-ink bg-mint/30 p-5"><BookOpen size={24}/><p className="mt-5 font-[var(--font-display)] text-xl font-black">Life counts, too.</p><p className="mt-2 text-sm text-ink/60">Keep residences, education, and licenses close at hand.</p></div></section>
     </main>
     <MusicPlayer />
-    <nav className="fixed inset-x-3 bottom-3 z-30 flex justify-around rounded-3xl border-2 border-ink bg-ink px-2 py-2 text-cream shadow-soft md:hidden">{nav.map(({ icon: Icon, name, href }, i) => <button onClick={()=>router.push(href)} key={name} className={`flex min-w-14 flex-col items-center gap-1 rounded-2xl py-2 text-[10px] font-bold ${i === 0 ? "bg-cream text-ink" : "text-cream/60"}`}><Icon size={19}/>{name}</button>)}<AccountMenu mobile/></nav>
+    <nav className="fixed inset-x-3 bottom-3 z-30 flex justify-start gap-1 overflow-x-auto rounded-3xl border-2 border-ink bg-ink px-2 py-2 text-cream shadow-soft md:hidden">{nav.map(({ icon: Icon, name, href }, i) => <button onClick={()=>router.push(href)} key={name} className={`flex min-w-16 flex-col items-center gap-1 rounded-2xl py-2 text-[10px] font-bold ${i === 0 ? "bg-cream text-ink" : "text-cream/60"}`}><Icon size={19}/>{name}</button>)}<AccountMenu mobile/></nav>
   </div>;
 }

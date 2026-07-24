@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { requireUser, unauthorized } from "@/lib/api-auth";
 import { applicationCreateSchema } from "@/lib/application-schema";
+import { parseJobPost } from "@/lib/job-post-parser";
 import { buildTrackerReadiness, loadTrackerContext, refreshApplicationScore } from "@/lib/tracker-studio";
 
 const applicationSelect = `
@@ -52,6 +53,12 @@ export async function POST(request: Request) {
   const client = await db.connect();
   try {
     await client.query("BEGIN");
+    const parsedJob = parseJobPost({
+      text: input.description,
+      sourceUrl: input.sourceUrl || undefined,
+      fallbackTitle: input.title,
+      fallbackCompany: input.company,
+    });
     const created = await client.query(
       `INSERT INTO applications(user_id,title,company,location,work_mode,salary_min,salary_max,salary_currency,source_url,source,description,notes,metadata)
        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb)
@@ -74,7 +81,7 @@ export async function POST(request: Request) {
         input.source || null,
         input.description,
         input.notes || null,
-        JSON.stringify(input.metadata),
+        JSON.stringify({ ...input.metadata, parsedJob }),
       ],
     );
     await client.query(

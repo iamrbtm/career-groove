@@ -165,6 +165,10 @@ function scoreLabelReason(label: string): string {
   }
 }
 
+function routeFor(applicationId: string, section?: string) {
+  return `/applications?applicationId=${applicationId}${section ? `#application-section-${section}` : ""}`;
+}
+
 export function buildTrackerReadiness(context: TrackerContext): TrackerReadiness {
   const checklist = [
     { label: "Profile has your name and phone", done: Boolean(context.profile.name && context.profile.phone) },
@@ -464,6 +468,7 @@ export async function refreshApplicationScore(client: PoolClient, userId: string
 }
 
 export function buildCommandSession(mode: CommandSessionSummary["mode"], applications: ApplicationRow[], readiness: TrackerReadiness): CommandSessionSummary {
+  const now = new Date();
   const ordered = [...applications].sort((left, right) => {
     const leftDue = left.followUpDueAt ? new Date(left.followUpDueAt).getTime() : Number.MAX_SAFE_INTEGER;
     const rightDue = right.followUpDueAt ? new Date(right.followUpDueAt).getTime() : Number.MAX_SAFE_INTEGER;
@@ -477,22 +482,49 @@ export function buildCommandSession(mode: CommandSessionSummary["mode"], applica
     actions.push(action);
   };
 
+  const offerDeadline = (application: ApplicationRow) => {
+    const offer = application.metadata?.offer;
+    if (!offer || typeof offer !== "object") return null;
+    const value = (offer as Record<string, unknown>).decisionDeadline;
+    return typeof value === "string" && value ? new Date(value) : null;
+  };
+  const daysUntil = (date: Date) => Math.ceil((date.getTime() - now.getTime()) / 86400000);
+  const offers = ordered
+    .filter((application) => application.status === "offer")
+    .sort((left, right) => {
+      const leftDeadline = offerDeadline(left)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+      const rightDeadline = offerDeadline(right)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+      return leftDeadline - rightDeadline;
+    });
   const followUps = ordered.filter((application) => application.status === "follow_up" || application.status === "applied").filter((application) => {
     if (!application.followUpDueAt) return application.status === "applied";
-    return new Date(application.followUpDueAt) <= new Date();
+    return new Date(application.followUpDueAt) <= now;
   });
-  const interviews = ordered.filter((application) => application.status === "interviewing" || application.status === "offer");
+  const interviews = ordered.filter((application) => application.status === "interviewing");
   const remixRoles = ordered.filter((application) => application.priorityLabel === "remix_resume_first" || application.priorityLabel === "stretch_role");
   const networkRoles = ordered.filter((application) => application.priorityLabel === "network_first");
   const applyNow = ordered.filter((application) => application.priorityLabel === "apply_first" || application.status === "ready_to_apply");
   const researchRoles = ordered.filter((application) => application.priorityLabel === "research_before_applying" || application.priorityLabel === "low_signal_lead");
+  const rejections = ordered.filter((application) => application.status === "rejected" || application.status === "withdrawn");
 
+  for (const application of offers) {
+    const deadline = offerDeadline(application);
+    pushAction({
+      actionType: "compare_offer",
+      title: deadline && daysUntil(deadline) <= 3 ? "Review offer deadline" : actionLabels.compare_offer,
+      reason: deadline && daysUntil(deadline) <= 3
+        ? "The decision window is close. Keep this calm and concrete."
+        : "Quiet the noise and focus on decision clarity.",
+      routeTarget: routeFor(application.id, "offer"),
+      applicationId: application.id,
+    });
+  }
   for (const application of interviews) {
     pushAction({
-      actionType: application.status === "offer" ? "compare_offer" : "prep_interview",
-      title: actionLabels[application.status === "offer" ? "compare_offer" : "prep_interview"],
-      reason: application.status === "offer" ? "Quiet the noise and focus on decision clarity." : "This role is already active, so prep beats more browsing.",
-      routeTarget: `/applications?applicationId=${application.id}`,
+      actionType: "prep_interview",
+      title: mode === "interview" ? "Soundcheck this interview" : actionLabels.prep_interview,
+      reason: "This role is already active, so prep beats more browsing.",
+      routeTarget: routeFor(application.id, "timeline"),
       applicationId: application.id,
     });
   }
@@ -501,7 +533,7 @@ export function buildCommandSession(mode: CommandSessionSummary["mode"], applica
       actionType: "follow_up",
       title: actionLabels.follow_up,
       reason: "The timing is right for a nudge or a clear log entry.",
-      routeTarget: `/applications?applicationId=${application.id}`,
+      routeTarget: routeFor(application.id, "timeline"),
       applicationId: application.id,
     });
   }
@@ -510,7 +542,7 @@ export function buildCommandSession(mode: CommandSessionSummary["mode"], applica
       actionType: "apply",
       title: actionLabels.apply,
       reason: "This looks like one of today's strongest opportunities.",
-      routeTarget: `/applications?applicationId=${application.id}`,
+      routeTarget: routeFor(application.id, "submission"),
       applicationId: application.id,
     });
   }
@@ -519,7 +551,7 @@ export function buildCommandSession(mode: CommandSessionSummary["mode"], applica
       actionType: "remix_resume",
       title: actionLabels.remix_resume,
       reason: "A tighter story should improve this role before you submit.",
-      routeTarget: `/applications?applicationId=${application.id}`,
+      routeTarget: routeFor(application.id, "documents"),
       applicationId: application.id,
     });
   }
@@ -528,7 +560,7 @@ export function buildCommandSession(mode: CommandSessionSummary["mode"], applica
       actionType: "contact_referral",
       title: actionLabels.contact_referral,
       reason: "This role looks stronger with a warm intro or recruiter note.",
-      routeTarget: `/applications?applicationId=${application.id}`,
+      routeTarget: routeFor(application.id, "network"),
       applicationId: application.id,
     });
   }
@@ -537,9 +569,20 @@ export function buildCommandSession(mode: CommandSessionSummary["mode"], applica
       actionType: "research_company",
       title: actionLabels.research_company,
       reason: "Get one more concrete signal before you spend document energy.",
-      routeTarget: `/applications?applicationId=${application.id}`,
+      routeTarget: routeFor(application.id, "research"),
       applicationId: application.id,
     });
+  }
+  if (mode === "recovery" || actions.length < 2) {
+    for (const application of rejections) {
+      pushAction({
+        actionType: "review_rejection",
+        title: actionLabels.review_rejection,
+        reason: "Optional, low-pressure pattern spotting. No blame, just signal.",
+        routeTarget: routeFor(application.id, "rejection"),
+        applicationId: application.id,
+      });
+    }
   }
   if (!actions.length || (mode === "recovery" && actions.length > 1)) {
     actions.splice(0, actions.length);
@@ -556,7 +599,7 @@ export function buildCommandSession(mode: CommandSessionSummary["mode"], applica
         actionType: "log_outcome",
         title: "Log one gentle update",
         reason: "A tiny update counts. Keep momentum without pressure.",
-        routeTarget: `/applications?applicationId=${ordered[0].id}`,
+        routeTarget: routeFor(ordered[0].id, "outcome"),
         applicationId: ordered[0].id,
       });
     } else {

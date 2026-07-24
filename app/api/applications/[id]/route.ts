@@ -40,13 +40,14 @@ async function getApplication(user: string, id: string) {
       [id, user],
     ),
     db.query(
-      `SELECT id,name,company,role,email,phone,relationship_strength AS "relationshipStrength"
+      `SELECT id,name,company,role,email,phone,relationship,notes
        FROM application_contacts WHERE application_id=$1 AND user_id=$2
        ORDER BY updated_at DESC,created_at DESC`,
       [id, user],
     ),
     db.query(
-      `SELECT id,kind,title,status,submitted_at AS "submittedAt",metadata,created_at AS "createdAt"
+      `SELECT id,document_generation_job_id AS "documentGenerationJobId",document_id AS "documentId",
+        kind,title,status,submitted_at AS "submittedAt",metadata,created_at AS "createdAt"
        FROM application_documents WHERE application_id=$1 AND user_id=$2
        ORDER BY created_at DESC`,
       [id, user],
@@ -60,6 +61,7 @@ async function getApplication(user: string, id: string) {
     ),
     db.query(
       `SELECT id,outcome,stage,reason,user_note AS "userNote",source,contact_used AS "contactUsed",
+        resume_document_id AS "resumeDocumentId",cover_letter_document_id AS "coverLetterDocumentId",
         offer,occurred_at AS "occurredAt",created_at AS "createdAt"
        FROM application_outcomes WHERE application_id=$1 AND user_id=$2
        ORDER BY occurred_at DESC,created_at DESC`,
@@ -121,8 +123,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!entries.length) return Response.json({ error: "No changes supplied" }, { status: 400 });
   const values = entries.map(([key, value]) => key === "metadata" ? JSON.stringify(value) : valueOrNull(value));
   const setters = entries.map(([key], index) => `${columns[key]}=$${index + 3}${key === "metadata" ? "::jsonb" : ""}`);
-  if (input.status === "archived") setters.push("archived_at=COALESCE(archived_at,now())");
-  if (input.status === "applied") setters.push("applied_at=COALESCE(applied_at,now())");
+    if (input.status === "archived") setters.push("archived_at=COALESCE(archived_at,now())");
+    if (input.status === "applied") setters.push("applied_at=COALESCE(applied_at,now())");
+    if (input.status === "applied") setters.push("follow_up_due_at=COALESCE(follow_up_due_at,now() + (COALESCE((SELECT default_follow_up_days FROM user_job_preferences WHERE user_id=$2),7)::int || ' days')::interval)");
 
   const client = await db.connect();
   try {

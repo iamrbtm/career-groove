@@ -19,6 +19,7 @@ type GenerationJob = {
   createdAt: string;
   archivedAt?: string | null;
 };
+type ApplicationOption = { id: string; title: string; company: string };
 
 const kindLabels: Record<Kind, string> = { resume: "Resume", cover_letter: "Cover Letter", both: "Both" };
 const draftKindOrder = ["cover_letter", "resume", "both"] as const;
@@ -31,6 +32,9 @@ export function DocumentStudio() {
   const [jobs, setJobs] = useState<GenerationJob[]>([]);
   const [selectedId, setSelectedId] = useState<string>();
   const [selectedResult, setSelectedResult] = useState<"resume" | "cover_letter">("resume");
+  const [applications, setApplications] = useState<ApplicationOption[]>([]);
+  const [linkApplicationId, setLinkApplicationId] = useState("");
+  const [linkStatus, setLinkStatus] = useState<"generated" | "submitted">("generated");
   const [submitting, setSubmitting] = useState(false);
   const [pendingActionId, setPendingActionId] = useState<string>();
   const [notice, setNotice] = useState("");
@@ -45,6 +49,13 @@ export function DocumentStudio() {
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => {
+    fetch("/api/applications", { cache: "no-store" }).then(async (response) => {
+      if (!response.ok) return;
+      const data = await response.json();
+      setApplications(data.applications || []);
+    }).catch(() => undefined);
+  }, []);
   useEffect(() => {
     if (!jobs.some((job) => job.status === "queued" || job.status === "processing")) return;
     const timer = window.setInterval(() => void refresh(), 3000);
@@ -154,6 +165,30 @@ export function DocumentStudio() {
     } finally { setPendingActionId(undefined); }
   }
 
+  async function linkSelectedToApplication() {
+    if (!selected || !linkApplicationId) return;
+    setPendingActionId(selected.id);
+    setNotice("");
+    try {
+      const kind = selectedResult === "cover_letter" ? "cover_letter" : "resume";
+      const response = await fetch(`/api/applications/${linkApplicationId}/documents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          documentGenerationJobId: selected.id,
+          kind,
+          status: linkStatus,
+          submittedAt: linkStatus === "submitted" ? new Date().toISOString() : "",
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "The draft could not be linked.");
+      setNotice("Draft linked to the application workspace.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "The draft could not be linked.");
+    } finally { setPendingActionId(undefined); }
+  }
+
   const output = selected?.result?.[selectedResult] || "";
   return <AppShell>
     <PageHeading eyebrow="Document studio" title="Make your next move sing." copy="Queue tailored resumes and cover letters, then keep moving while CareerGroove writes them in the background." />
@@ -206,6 +241,19 @@ export function DocumentStudio() {
           {availableResults.length > 1 && <div className="flex gap-2">{availableResults.map((value) => <button key={value} onClick={() => setSelectedResult(value)} className={`rounded-xl px-3 py-2 text-xs font-black ${selectedResult === value ? "bg-sun" : "bg-ink/5"}`}>{kindLabels[value]}</button>)}</div>}
           {output && <button onClick={() => void download(output, selectedResult)} className="rounded-xl bg-sun p-2" title={selectedResult === "resume" ? "Download one-page PDF" : "Download text file"}><FileDown size={18} /></button>}
         </div>
+        {selected && output && <div className="mt-4 rounded-2xl bg-cream p-4">
+          <p className="text-xs font-black uppercase tracking-[.18em] text-plum">Link to application</p>
+          <div className="mt-3 grid gap-3 md:grid-cols-[1fr_auto]">
+            <select value={linkApplicationId} onChange={(event) => setLinkApplicationId(event.target.value)} className="rounded-2xl bg-white px-4 py-3 text-sm font-bold outline-none">
+              <option value="">Choose application</option>
+              {applications.map((application) => <option key={application.id} value={application.id}>{application.title} · {application.company}</option>)}
+            </select>
+            <div className="flex gap-2">
+              {(["generated", "submitted"] as const).map((status) => <button key={status} onClick={() => setLinkStatus(status)} className={`rounded-2xl px-3 py-2 text-xs font-black ${linkStatus === status ? "bg-sun" : "bg-white"}`}>{status}</button>)}
+            </div>
+          </div>
+          <button disabled={!linkApplicationId || pendingActionId === selected.id} onClick={() => void linkSelectedToApplication()} className="mt-3 rounded-2xl border-2 border-ink bg-mint px-4 py-2.5 text-sm font-black disabled:opacity-60">Link selected draft</button>
+        </div>}
         {output ? <pre className="mt-5 whitespace-pre-wrap font-[var(--font-body)] text-sm leading-6">{output}</pre>
           : selected?.status === "failed" ? <div className="mt-5 rounded-2xl bg-coral/15 p-4 text-sm font-bold">{selected.error || "Generation failed. Please try again."}</div>
           : selected ? <div className="grid min-h-[440px] place-items-center text-center"><div><LoaderCircle className="mx-auto animate-spin text-plum" /><p className="mt-3 text-sm font-black">{statusLabel(selected.status)}</p><p className="mt-1 text-xs font-bold text-ink/45">It is safe to leave this page.</p></div></div>

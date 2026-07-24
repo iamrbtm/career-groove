@@ -3,5 +3,14 @@ import { db } from "@/lib/db";
 import { requireUser, unauthorized } from "@/lib/api-auth";
 
 const input = z.object({ name: z.string().trim().min(1).max(160), company: z.string().trim().max(160).optional(), role: z.string().trim().max(160).optional(), email: z.string().email().or(z.literal("")).optional(), phone: z.string().trim().max(60).optional(), relationshipStrength: z.number().int().min(1).max(5).default(1), note: z.string().max(3000).optional() });
-export async function GET() { const user = await requireUser(); if (!user) return unauthorized(); const result=await db.query(`SELECT id,job_id AS "jobId",name,company,role,email,phone,relationship_strength AS "relationshipStrength",notes,links,created_at AS "createdAt" FROM contacts WHERE user_id=$1 ORDER BY relationship_strength DESC,name`,[user]); return Response.json({ contacts: result.rows }); }
+export async function GET() { const user = await requireUser(); if (!user) return unauthorized(); const result=await db.query(`SELECT c.id,c.job_id AS "jobId",c.name,c.company,c.role,c.email,c.phone,c.relationship_strength AS "relationshipStrength",c.notes,c.links,c.created_at AS "createdAt",
+  COALESCE(a.applications,'[]'::jsonb) AS applications
+ FROM contacts c
+ LEFT JOIN LATERAL (
+   SELECT jsonb_agg(jsonb_build_object('id',app.id,'title',app.title,'company',app.company,'status',app.status,'relationship',ac.relationship) ORDER BY app.updated_at DESC) AS applications
+   FROM application_contacts ac
+   JOIN applications app ON app.id=ac.application_id AND app.user_id=ac.user_id
+   WHERE ac.user_id=c.user_id AND (ac.contact_id=c.id OR lower(ac.name)=lower(c.name))
+ ) a ON true
+ WHERE c.user_id=$1 ORDER BY c.relationship_strength DESC,c.name`,[user]); return Response.json({ contacts: result.rows }); }
 export async function POST(request: Request) { const user = await requireUser(); if (!user) return unauthorized(); const parsed=input.safeParse(await request.json()); if(!parsed.success)return Response.json({error:parsed.error.flatten()},{status:400}); const x=parsed.data; const result=await db.query(`INSERT INTO contacts(user_id,name,company,role,email,phone,relationship_strength,notes) VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb) RETURNING id,name,company,role,email,phone,relationship_strength AS "relationshipStrength",notes,links`,[user,x.name,x.company||null,x.role||null,x.email||null,x.phone||null,x.relationshipStrength,JSON.stringify(x.note?[{text:x.note,at:new Date().toISOString()}]:[])]); return Response.json({contact:result.rows[0]},{status:201}); }
