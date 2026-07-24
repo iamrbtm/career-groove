@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { requireUser, unauthorized } from "@/lib/api-auth";
 import { applicationCreateSchema } from "@/lib/application-schema";
+import { buildTrackerReadiness, loadTrackerContext, refreshApplicationScore } from "@/lib/tracker-studio";
 
 const applicationSelect = `
   SELECT a.id,a.status,a.title,a.company,a.location,a.work_mode AS "workMode",
@@ -27,13 +28,19 @@ export async function GET(request: Request) {
   const user = await requireUser();
   if (!user) return unauthorized();
   const includeArchived = new URL(request.url).searchParams.get("includeArchived") === "true";
-  const result = await db.query(
-    `${applicationSelect}
-     WHERE a.user_id=$1 ${includeArchived ? "" : "AND a.archived_at IS NULL AND a.status <> 'archived'"}
-     ORDER BY a.follow_up_due_at ASC NULLS LAST,a.created_at DESC`,
-    [user],
-  );
-  return Response.json({ applications: result.rows });
+  const client = await db.connect();
+  try {
+    const result = await client.query(
+      `${applicationSelect}
+       WHERE a.user_id=$1 ${includeArchived ? "" : "AND a.archived_at IS NULL AND a.status <> 'archived'"}
+       ORDER BY a.follow_up_due_at ASC NULLS LAST,a.created_at DESC`,
+      [user],
+    );
+    const context = await loadTrackerContext(client, user);
+    return Response.json({ applications: result.rows, trackerReadiness: buildTrackerReadiness(context) });
+  } finally {
+    client.release();
+  }
 }
 
 export async function POST(request: Request) {
@@ -75,8 +82,18 @@ export async function POST(request: Request) {
        VALUES($1,$2,'created','Opportunity saved',$3,$4::jsonb)`,
       [user, created.rows[0].id, `${input.title} at ${input.company}`, JSON.stringify({ status: "saved" })],
     );
+    const score = await refreshApplicationScore(client, user, created.rows[0].id);
     await client.query("COMMIT");
-    return Response.json({ application: created.rows[0] }, { status: 201 });
+    return Response.json({
+      application: {
+        ...created.rows[0],
+        priorityLabel: score?.priorityLabel ?? created.rows[0].priorityLabel,
+        nextActionType: score?.nextActionType ?? created.rows[0].nextActionType,
+        nextActionReason: score?.nextActionReason ?? created.rows[0].nextActionReason,
+        latestScore: score?.latestScore ?? null,
+      },
+      trackerReadiness: score?.trackerReadiness ?? null,
+    }, { status: 201 });
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Application creation failed", error);

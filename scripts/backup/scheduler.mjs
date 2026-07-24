@@ -6,6 +6,7 @@ const repoRoot = path.resolve(new URL("../..", import.meta.url).pathname);
 const backupRoot = process.env.CAREER_GROOVE_BACKUP_ROOT || path.join(repoRoot, "backups");
 const statePath = process.env.CAREER_GROOVE_BACKUP_STATE || path.join(backupRoot, ".scheduler-state.json");
 const checkEveryMs = Number(process.env.CAREER_GROOVE_BACKUP_CHECK_MS || 60_000);
+const maintenanceScript = path.join(repoRoot, "scripts/backup/maintenance.mjs");
 
 let state = await readState();
 let running = false;
@@ -38,6 +39,8 @@ async function tick() {
     for (const [kind, key, script] of jobs) {
       await runBackup(kind, key, script);
     }
+
+    await runMaintenance();
   } catch (error) {
     console.error("Backup scheduler tick failed.", error);
   } finally {
@@ -57,9 +60,17 @@ async function runBackup(kind, key, script) {
   console.log(`Finished ${kind} backup for period ${key}.`);
 }
 
-function run(command) {
+async function runMaintenance() {
+  try {
+    await run("node", [maintenanceScript]);
+  } catch (error) {
+    console.error("Backup maintenance failed.", error);
+  }
+}
+
+function run(command, args = []) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, {
+    const child = spawn(command, args, {
       cwd: repoRoot,
       env: process.env,
       stdio: "inherit",

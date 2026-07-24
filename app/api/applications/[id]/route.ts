@@ -2,6 +2,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser, unauthorized } from "@/lib/api-auth";
 import { applicationStatusSchema, applicationUpdateSchema, statusLabels } from "@/lib/application-schema";
+import { refreshApplicationScore } from "@/lib/tracker-studio";
 
 const idSchema = z.string().uuid();
 
@@ -10,15 +11,26 @@ function valueOrNull(value: unknown) {
 }
 
 async function getApplication(user: string, id: string) {
-  const [application, events] = await Promise.all([
+  const [application, events, contacts, documents, interviews, outcomes] = await Promise.all([
     db.query(
-      `SELECT id,status,title,company,location,work_mode AS "workMode",
-        salary_min AS "salaryMin",salary_max AS "salaryMax",salary_currency AS "salaryCurrency",
-        source_url AS "sourceUrl",source,description,notes,priority_label AS "priorityLabel",
-        next_action_type AS "nextActionType",next_action_reason AS "nextActionReason",
-        follow_up_due_at AS "followUpDueAt",applied_at AS "appliedAt",archived_at AS "archivedAt",
-        metadata,created_at AS "createdAt",updated_at AS "updatedAt"
-       FROM applications WHERE id=$1 AND user_id=$2`,
+      `SELECT a.id,a.status,a.title,a.company,a.location,a.work_mode AS "workMode",
+        a.salary_min AS "salaryMin",a.salary_max AS "salaryMax",a.salary_currency AS "salaryCurrency",
+        a.source_url AS "sourceUrl",a.source,a.description,a.notes,a.priority_label AS "priorityLabel",
+        a.next_action_type AS "nextActionType",a.next_action_reason AS "nextActionReason",
+        a.follow_up_due_at AS "followUpDueAt",a.applied_at AS "appliedAt",a.archived_at AS "archivedAt",
+        a.metadata,a.created_at AS "createdAt",a.updated_at AS "updatedAt",
+        CASE WHEN s.id IS NULL THEN NULL ELSE jsonb_build_object(
+          'id',s.id,'label',s.label,'fit',s.fit,'readiness',s.readiness,'desire',s.desire,
+          'leverage',s.leverage,'risk',s.risk,'timing',s.timing,'reasons',s.reasons,'gaps',s.gaps,
+          'nextAction',s.next_action,'createdAt',s.created_at
+        ) END AS "latestScore"
+       FROM applications a
+       LEFT JOIN LATERAL (
+         SELECT * FROM application_scores
+         WHERE user_id=a.user_id AND application_id=a.id
+         ORDER BY created_at DESC LIMIT 1
+       ) s ON true
+       WHERE a.id=$1 AND a.user_id=$2`,
       [id, user],
     ),
     db.query(
@@ -27,9 +39,42 @@ async function getApplication(user: string, id: string) {
        ORDER BY occurred_at DESC,created_at DESC`,
       [id, user],
     ),
+    db.query(
+      `SELECT id,name,company,role,email,phone,relationship_strength AS "relationshipStrength"
+       FROM application_contacts WHERE application_id=$1 AND user_id=$2
+       ORDER BY updated_at DESC,created_at DESC`,
+      [id, user],
+    ),
+    db.query(
+      `SELECT id,kind,title,status,submitted_at AS "submittedAt",metadata,created_at AS "createdAt"
+       FROM application_documents WHERE application_id=$1 AND user_id=$2
+       ORDER BY created_at DESC`,
+      [id, user],
+    ),
+    db.query(
+      `SELECT id,round_type AS "roundType",scheduled_at AS "scheduledAt",interviewer,meeting_link AS "meetingLink",
+        prep_status AS "prepStatus",notes,metadata,created_at AS "createdAt"
+       FROM application_interviews WHERE application_id=$1 AND user_id=$2
+       ORDER BY scheduled_at NULLS LAST,created_at DESC`,
+      [id, user],
+    ),
+    db.query(
+      `SELECT id,outcome,stage,reason,user_note AS "userNote",source,contact_used AS "contactUsed",
+        offer,occurred_at AS "occurredAt",created_at AS "createdAt"
+       FROM application_outcomes WHERE application_id=$1 AND user_id=$2
+       ORDER BY occurred_at DESC,created_at DESC`,
+      [id, user],
+    ),
   ]);
   if (!application.rowCount) return null;
-  return { application: application.rows[0], events: events.rows };
+  return {
+    application: application.rows[0],
+    events: events.rows,
+    contacts: contacts.rows,
+    documents: documents.rows,
+    interviews: interviews.rows,
+    outcomes: outcomes.rows,
+  };
 }
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -113,8 +158,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         [user, id.data, JSON.stringify({ fields: entries.map(([key]) => key) })],
       );
     }
+    const score = await refreshApplicationScore(client, user, id.data);
     await client.query("COMMIT");
-    return Response.json({ application: updated.rows[0] });
+    return Response.json({
+      application: {
+        ...updated.rows[0],
+        priorityLabel: score?.priorityLabel ?? updated.rows[0].priorityLabel,
+        nextActionType: score?.nextActionType ?? updated.rows[0].nextActionType,
+        nextActionReason: score?.nextActionReason ?? updated.rows[0].nextActionReason,
+        latestScore: score?.latestScore ?? null,
+      },
+      trackerReadiness: score?.trackerReadiness ?? null,
+    });
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Application update failed", error);

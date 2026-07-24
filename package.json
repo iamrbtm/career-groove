@@ -8,7 +8,7 @@
     "start": "node scripts/migrate.mjs && next start",
     "db:migrate": "node scripts/migrate.mjs",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "next build"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.12",

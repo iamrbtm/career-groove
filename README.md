@@ -56,8 +56,10 @@ CareerGroove runs backups from an application-owned Docker Compose service named
 
 - Source backups run every Wednesday at midnight local container time.
 - Database backups run every hour at minute `30`.
+- Database backup maintenance runs from the same scheduler and catches up after restarts.
 - Source backups use `.gitignore` rules through `git ls-files -co --exclude-standard`.
 - Database backups use `pg_dump` against `DATABASE_URL`.
+- Database archives are kept for `CAREER_GROOVE_DATABASE_BACKUP_RETENTION_MONTHS` calendar months, defaulting to `6`; source backups are kept indefinitely.
 
 Database backups are organized as:
 
@@ -70,6 +72,20 @@ Example:
 ```text
 backups/database/2026/WK30/Wed22/13/career_groove_db_20260722_133000.dump
 ```
+
+After the `23:30` database backup, that day's hour folders are compressed into the week folder:
+
+```text
+backups/database/2026/WK30/Thu23_database_backup.tar.gz
+```
+
+After Sunday's `23:30` database backup, the completed week is compressed and moved to:
+
+```text
+backups/archive/2026_Wk30_database.tar.gz
+```
+
+If daily or weekly compression fails, the scheduler logs the failure, retries once, and leaves the original files in place if the retry also fails.
 
 The scheduler stores its last-run state in `backups/.scheduler-state.json` to avoid duplicate backups after restarts. `backups/` is ignored by Git and Docker.
 

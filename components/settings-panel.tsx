@@ -12,6 +12,17 @@ export function SettingsPanel() {
     musicStation: "Lo-Fi",
     reducedMotion: false,
   });
+  const [preferences, setPreferences] = useState({
+    desiredTitles: [""] as string[],
+    workModes: [] as string[],
+    salaryTarget: "",
+    locationPreference: "",
+    industries: [""] as string[],
+    values: [""] as string[],
+    redFlags: [""] as string[],
+    weeklyPace: "",
+    defaultFollowUpDays: "7",
+  });
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
@@ -19,6 +30,22 @@ export function SettingsPanel() {
       if (response.ok) {
         const body = await response.json();
         setSettings((current) => ({ ...current, ...body.settings }));
+      }
+    });
+    fetch("/api/application-preferences").then(async (response) => {
+      if (response.ok) {
+        const body = await response.json();
+        setPreferences({
+          desiredTitles: body.preferences.desiredTitles?.length ? body.preferences.desiredTitles : [""],
+          workModes: body.preferences.workModes || [],
+          salaryTarget: body.preferences.salaryTarget ? String(body.preferences.salaryTarget) : "",
+          locationPreference: body.preferences.locationPreference || "",
+          industries: body.preferences.industries?.length ? body.preferences.industries : [""],
+          values: body.preferences.values?.length ? body.preferences.values : [""],
+          redFlags: body.preferences.redFlags?.length ? body.preferences.redFlags : [""],
+          weeklyPace: body.preferences.weeklyPace ? String(body.preferences.weeklyPace) : "",
+          defaultFollowUpDays: String(body.preferences.defaultFollowUpDays || 7),
+        });
       }
     });
   }, []);
@@ -47,6 +74,26 @@ export function SettingsPanel() {
       form.reset();
       setNotice(`Feedback published as GitHub issue #${body.number}.`);
     } else setNotice(body.error || "Feedback could not be published.");
+  }
+
+  async function savePreferences(event: FormEvent) {
+    event.preventDefault();
+    const response = await fetch("/api/application-preferences", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        desiredTitles: compact(preferences.desiredTitles),
+        workModes: preferences.workModes,
+        salaryTarget: preferences.salaryTarget ? Number(preferences.salaryTarget) : null,
+        locationPreference: preferences.locationPreference || null,
+        industries: compact(preferences.industries),
+        values: compact(preferences.values),
+        redFlags: compact(preferences.redFlags),
+        weeklyPace: preferences.weeklyPace ? Number(preferences.weeklyPace) : null,
+        defaultFollowUpDays: Number(preferences.defaultFollowUpDays || 7),
+      }),
+    });
+    setNotice(response.ok ? "Tracker preferences saved." : "Tracker preferences could not be saved.");
   }
 
   return (
@@ -95,6 +142,31 @@ export function SettingsPanel() {
             <CheckCircle2 /> Save preferences
           </button>
         </form>
+        <form onSubmit={savePreferences} className="rounded-3xl border-2 border-ink bg-white p-6 shadow-[0_5px_0_#26312c]">
+          <h2 className="font-[var(--font-display)] text-xl font-black">Tracker preferences</h2>
+          <p className="mt-2 text-sm text-ink/55">These guide Career DJ, follow-up timing, and offer comparisons.</p>
+          <FieldList label="Desired titles" values={preferences.desiredTitles} setValues={(desiredTitles) => setPreferences({ ...preferences, desiredTitles })} />
+          <FieldList label="Industries" values={preferences.industries} setValues={(industries) => setPreferences({ ...preferences, industries })} />
+          <FieldList label="Values" values={preferences.values} setValues={(values) => setPreferences({ ...preferences, values })} />
+          <FieldList label="Red flags" values={preferences.redFlags} setValues={(redFlags) => setPreferences({ ...preferences, redFlags })} />
+          <label className="mt-4 block text-xs font-black uppercase tracking-wider text-plum">
+            Work modes
+            <div className="mt-2 flex flex-wrap gap-2">
+              {["remote", "hybrid", "onsite", "flexible"].map((mode) => <button type="button" key={mode} onClick={() => setPreferences((current) => ({ ...current, workModes: current.workModes.includes(mode) ? current.workModes.filter((item) => item !== mode) : [...current.workModes, mode] }))} className={`rounded-full px-3 py-1.5 text-xs font-black ${preferences.workModes.includes(mode) ? "bg-sun" : "bg-cream"}`}>{mode}</button>)}
+            </div>
+          </label>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <Input label="Salary target" value={preferences.salaryTarget} onChange={(salaryTarget) => setPreferences({ ...preferences, salaryTarget })} />
+            <Input label="Location preference" value={preferences.locationPreference} onChange={(locationPreference) => setPreferences({ ...preferences, locationPreference })} />
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <Input label="Weekly pace" value={preferences.weeklyPace} onChange={(weeklyPace) => setPreferences({ ...preferences, weeklyPace })} />
+            <Input label="Default follow-up days" value={preferences.defaultFollowUpDays} onChange={(defaultFollowUpDays) => setPreferences({ ...preferences, defaultFollowUpDays })} />
+          </div>
+          <button className="mt-5 flex w-full justify-center gap-2 rounded-2xl border-2 border-ink bg-sun py-3 font-black shadow-[0_4px_0_#26312c]">
+            <CheckCircle2 /> Save tracker preferences
+          </button>
+        </form>
         <div className="space-y-6">
           <form onSubmit={feedback} className="rounded-3xl border-2 border-ink bg-sun/30 p-6">
             <h2 className="flex items-center gap-2 font-[var(--font-display)] text-xl font-black">
@@ -127,4 +199,25 @@ export function SettingsPanel() {
       </div>
     </AppShell>
   );
+}
+
+function compact(values: string[]) {
+  return values.map((value) => value.trim()).filter(Boolean);
+}
+
+function Input({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return <label className="block text-xs font-black uppercase tracking-wider text-plum">
+    {label}
+    <input value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 w-full rounded-2xl border-2 border-ink/15 px-3 py-3 text-sm font-bold normal-case" />
+  </label>;
+}
+
+function FieldList({ label, values, setValues }: { label: string; values: string[]; setValues: (values: string[]) => void }) {
+  return <div className="mt-4">
+    <p className="text-xs font-black uppercase tracking-wider text-plum">{label}</p>
+    <div className="mt-2 space-y-2">
+      {values.map((value, index) => <input key={`${label}-${index}`} value={value} onChange={(event) => setValues(values.map((current, currentIndex) => currentIndex === index ? event.target.value : current))} className="w-full rounded-2xl border-2 border-ink/15 px-3 py-3 text-sm font-bold normal-case" />)}
+    </div>
+    <button type="button" onClick={() => setValues([...values, ""])} className="mt-2 text-xs font-black underline decoration-coral decoration-2 underline-offset-4">Add another</button>
+  </div>;
 }
