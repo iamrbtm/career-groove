@@ -4,6 +4,7 @@ import {
   Bot,
   ChevronRight,
   FileText,
+  MessagesSquare,
   UserRound,
 } from "lucide-react-native";
 import { Pressable, Text, View } from "react-native";
@@ -21,6 +22,7 @@ export default function MoreRoute() {
         {[
           { href: "/(tabs)/documents", icon: FileText, title: "Documents" },
           { href: "/(tabs)/analytics", icon: BarChart3, title: "Analytics" },
+          { href: "/(tabs)/interview", icon: MessagesSquare, title: "Interview practice" },
           { href: "/(tabs)/providers", icon: Bot, title: "AI providers" },
           { href: "/(tabs)/profile", icon: UserRound, title: "Profile & settings" },
         ].map(({ href, icon: Icon, title }) => (

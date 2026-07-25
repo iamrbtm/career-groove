@@ -8,6 +8,7 @@ import { secureHeaders } from "hono/secure-headers";
 
 import type { ApiConfig } from "./config.js";
 import type { Database } from "./db.js";
+import { createAiRoutes } from "./domains/ai/routes.js";
 import {
   createBillingStatusRoutes,
   createProfileRoutes,
@@ -49,6 +50,7 @@ import { errorPayload } from "./http.js";
 
 export interface AppDependencies {
   config: ApiConfig;
+  fetch?: typeof fetch;
   appStore?: AppStoreVerifier;
   database?: Database;
   sessions?: SessionService;
@@ -59,6 +61,7 @@ export function createApp({
   appStore,
   config,
   database,
+  fetch,
   sessions,
   stripe,
 }: AppDependencies) {
@@ -117,6 +120,10 @@ export function createApp({
       createJobRoutes({ database, sessions: sessionService }),
     );
     const coreDependencies = { database, sessions: sessionService };
+    app.route(
+      "/api/ai",
+      createAiRoutes({ config, database, fetch, sessions: sessionService }),
+    );
     const billingDependencies = {
       config,
       database,

@@ -74,6 +74,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="analytics" options={{ href: null }} />
       <Tabs.Screen name="providers" options={{ href: null }} />
       <Tabs.Screen name="profile" options={{ href: null }} />
+      <Tabs.Screen name="interview" options={{ href: null }} />
     </Tabs>
     <MusicPlayer />
     </>
