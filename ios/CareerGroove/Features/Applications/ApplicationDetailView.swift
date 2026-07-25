@@ -112,7 +112,7 @@ struct ApplicationDetailView: View {
     }
 
     private func itemList<T: Identifiable, Content: View>(
-        _ items: [T], empty: String, @ViewBuilder row: (T) -> Content
+        _ items: [T], empty: String, @ViewBuilder row: @escaping (T) -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             if items.isEmpty { Text(empty).foregroundStyle(Color.plum) }

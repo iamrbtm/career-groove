@@ -57,8 +57,16 @@ struct AppShellView: View {
         Group {
             if sizeClass == .regular {
                 NavigationSplitView {
-                    List(AppDestination.allCases, selection: $selection) { destination in
-                        Label(destination.title, systemImage: destination.icon).tag(destination)
+                    List {
+                        ForEach(AppDestination.allCases) { destination in
+                            Button {
+                                selection = destination
+                            } label: {
+                                Label(destination.title, systemImage: destination.icon)
+                                    .foregroundStyle(selection == destination ? Color.coral : Color.ink)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                     .navigationTitle("Career Groove")
                     .safeAreaInset(edge: .bottom) {

@@ -15,7 +15,8 @@ final class StoreKitManager {
     var purchasedProductIDs: Set<String> = []
     var isLoading = false
     var errorMessage: String?
-    private var updatesTask: Task<Void, Never>?
+    @ObservationIgnored
+    private nonisolated(unsafe) var updatesTask: Task<Void, Never>?
 
     init() {
         updatesTask = observeTransactions()
