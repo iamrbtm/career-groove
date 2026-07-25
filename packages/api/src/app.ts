@@ -21,6 +21,11 @@ import {
   createStripeWebhookRoutes,
   type StripeClient,
 } from "./domains/billing/routes.js";
+import {
+  createAppStoreWebhookRoutes,
+  createStoreKitRoutes,
+  type AppStoreVerifier,
+} from "./domains/billing/app-store-routes.js";
 import { createApplicationRoutes } from "./domains/applications/routes.js";
 import { createApplicationPortabilityRoutes } from "./domains/applications/portability-routes.js";
 import {
@@ -44,12 +49,19 @@ import { errorPayload } from "./http.js";
 
 export interface AppDependencies {
   config: ApiConfig;
+  appStore?: AppStoreVerifier;
   database?: Database;
   sessions?: SessionService;
   stripe?: StripeClient;
 }
 
-export function createApp({ config, database, sessions, stripe }: AppDependencies) {
+export function createApp({
+  appStore,
+  config,
+  database,
+  sessions,
+  stripe,
+}: AppDependencies) {
   const app = new Hono<{ Variables: AppVariables }>();
 
   app.use("*", requestId({ generator: () => randomUUID() }));
@@ -118,6 +130,19 @@ export function createApp({ config, database, sessions, stripe }: AppDependencie
     app.route(
       "/api/webhooks/stripe",
       createStripeWebhookRoutes(billingDependencies),
+    );
+    const appStoreDependencies = {
+      appStore,
+      database,
+      sessions: sessionService,
+    };
+    app.route(
+      "/api/mobile/storekit/transactions",
+      createStoreKitRoutes(appStoreDependencies),
+    );
+    app.route(
+      "/api/webhooks/app-store",
+      createAppStoreWebhookRoutes(appStoreDependencies),
     );
     app.route("/api/contacts", createContactRoutes(coreDependencies));
     app.route("/api/residences", createResidenceRoutes(coreDependencies));
