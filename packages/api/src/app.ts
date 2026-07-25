@@ -9,6 +9,11 @@ import { secureHeaders } from "hono/secure-headers";
 import type { ApiConfig } from "./config.js";
 import type { Database } from "./db.js";
 import { createAuthRoutes } from "./domains/auth/routes.js";
+import { createApplicationRoutes } from "./domains/applications/routes.js";
+import {
+  createApplicationAnalyticsRoutes,
+  createApplicationPreferenceRoutes,
+} from "./domains/applications/support-routes.js";
 import { SessionService } from "./domains/auth/session-service.js";
 import { createJobRoutes } from "./domains/jobs/routes.js";
 import {
@@ -88,6 +93,18 @@ export function createApp({ config, database, sessions }: AppDependencies) {
     app.route("/api/skills", createSkillRoutes(coreDependencies));
     app.route("/api/documents", createDocumentRoutes(coreDependencies));
     app.route("/api/settings", createSettingsRoutes(coreDependencies));
+    app.route(
+      "/api/applications",
+      createApplicationRoutes(coreDependencies),
+    );
+    app.route(
+      "/api/application-analytics",
+      createApplicationAnalyticsRoutes(coreDependencies),
+    );
+    app.route(
+      "/api/application-preferences",
+      createApplicationPreferenceRoutes(coreDependencies),
+    );
   }
 
   app.notFound((context) =>
