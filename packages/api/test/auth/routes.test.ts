@@ -127,4 +127,38 @@ describe("authentication routes", () => {
     expect(sessions.rotate).toHaveBeenCalledWith(tokens.refreshToken);
     expect(sessions.revoke).toHaveBeenCalledWith(tokens.refreshToken);
   });
+
+  it("restores the authenticated user from an access token", async () => {
+    const database = {
+      query: vi.fn().mockResolvedValue({
+        rowCount: 1,
+        rows: [
+          {
+            email: "user@example.com",
+            id: "user-1",
+            image: null,
+            name: "Ada",
+          },
+        ],
+      }),
+    } as unknown as Database;
+    const response = await createApp({
+      config,
+      database,
+      sessions: sessionStub(),
+    }).request("/api/mobile/auth/session", {
+      headers: { Authorization: `Bearer ${tokens.accessToken}` },
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual({
+      user: {
+        email: "user@example.com",
+        id: "user-1",
+        image: null,
+        name: "Ada",
+      },
+    });
+  });
 });

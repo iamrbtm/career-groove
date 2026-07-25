@@ -10,6 +10,7 @@ import type { Database } from "../../db.js";
 import type { AppVariables } from "../../http.js";
 import { jsonError } from "../../http.js";
 import {
+  bearerToken,
   hashAuthIdentifier,
   type SessionService,
 } from "./session-service.js";
@@ -40,6 +41,28 @@ export function createAuthRoutes({
   sessions,
 }: AuthRouteDependencies) {
   const routes = new Hono<{ Variables: AppVariables }>();
+
+  routes.get("/session", async (context) => {
+    const token = bearerToken(context.req.header("Authorization"));
+    const userId = token ? await sessions.userIdForAccessToken(token) : null;
+    if (!userId) {
+      return jsonError(
+        context,
+        401,
+        "unauthorized",
+        "Authentication required",
+      );
+    }
+    const result = await database.query(
+      "SELECT id,name,email,image FROM users WHERE id=$1",
+      [userId],
+    );
+    if (!result.rows[0]) {
+      return jsonError(context, 401, "unauthorized", "Authentication required");
+    }
+    context.header("Cache-Control", "no-store");
+    return context.json({ user: result.rows[0] });
+  });
 
   routes.get("/capabilities", (context) =>
     context.json(
