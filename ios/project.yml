@@ -40,9 +40,11 @@ targets:
         Debug:
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
           API_BASE_URL: https://careergroove.website
+          DATABASE_URL: postgresql://career_groove:career_groove@careergroove.website:5432/career_groove
           APS_ENVIRONMENT: development
         Release:
           API_BASE_URL: https://careergroove.website
+          DATABASE_URL: postgresql://career_groove:career_groove@careergroove.website:5432/career_groove
           APS_ENVIRONMENT: production
     scheme:
       storeKitConfiguration: Config/Products.storekit

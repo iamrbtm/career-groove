@@ -27,6 +27,8 @@
   </array>
   <key>APIBaseURL</key>
   <string>$(API_BASE_URL)</string>
+  <key>DatabaseURL</key>
+  <string>$(DATABASE_URL)</string>
   <key>ITSAppUsesNonExemptEncryption</key>
   <false/>
   <key>UIApplicationSceneManifest</key>
