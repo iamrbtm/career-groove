@@ -89,4 +89,74 @@ describe("application routes", () => {
     expect(query.mock.calls[0]?.[0]).not.toContain("applied'");
     expect(query.mock.calls[0]?.[1]).toEqual([applicationId, userId, "applied"]);
   });
+
+  it("links a contact only through an authenticated application CTE", async () => {
+    const query = vi.fn().mockResolvedValue({
+      rowCount: 1,
+      rows: [{ id: "link-1", name: "Grace Hopper" }],
+    });
+    const response = await createApp({
+      config,
+      database: { query } as unknown as Database,
+      sessions,
+    }).request(`/api/applications/${applicationId}/contacts`, {
+      body: JSON.stringify({ name: "Grace Hopper", relationship: "mentor" }),
+      headers,
+      method: "POST",
+    });
+
+    expect(response.status).toBe(201);
+    expect(query.mock.calls[0]?.[0]).toContain("WHERE id=$1 AND user_id=$2");
+    expect(query.mock.calls[0]?.[1]?.slice(0, 2)).toEqual([
+      applicationId,
+      userId,
+    ]);
+  });
+
+  it("records a submission and event in one statement", async () => {
+    const query = vi.fn().mockResolvedValue({
+      rowCount: 1,
+      rows: [{ id: applicationId, status: "applied" }],
+    });
+    const response = await createApp({
+      config,
+      database: { query } as unknown as Database,
+      sessions,
+    }).request(`/api/applications/${applicationId}/submission`, {
+      body: JSON.stringify({ confirmationNumber: "ABC-42" }),
+      headers,
+      method: "POST",
+    });
+
+    expect(response.status).toBe(200);
+    expect(query.mock.calls[0]?.[0]).toContain("WITH updated AS");
+    expect(query.mock.calls[0]?.[0]).toContain("application_events");
+  });
+
+  it.each([
+    ["documents", { kind: "resume", title: "Platform resume" }],
+    ["interviews", { roundType: "technical", prepStatus: "prepping" }],
+    ["outcomes", { outcome: "offer", userNote: "Strong team" }],
+  ])("creates tenant-scoped application %s", async (resource, body) => {
+    const query = vi.fn().mockResolvedValue({
+      rowCount: 1,
+      rows: [{ id: `${resource}-1` }],
+    });
+    const response = await createApp({
+      config,
+      database: { query } as unknown as Database,
+      sessions,
+    }).request(`/api/applications/${applicationId}/${resource}`, {
+      body: JSON.stringify(body),
+      headers,
+      method: "POST",
+    });
+
+    expect(response.status).toBe(201);
+    expect(query.mock.calls[0]?.[0]).toContain("WHERE id=$1 AND user_id=$2");
+    expect(query.mock.calls[0]?.[1]?.slice(0, 2)).toEqual([
+      applicationId,
+      userId,
+    ]);
+  });
 });

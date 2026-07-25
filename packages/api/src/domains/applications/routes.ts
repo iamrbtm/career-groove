@@ -14,6 +14,74 @@ import { createAuthMiddleware } from "../../middleware/auth.js";
 import type { SessionService } from "../auth/session-service.js";
 
 const idSchema = z.string().uuid();
+const linkedContactSchema = z
+  .object({
+    contactId: z.string().uuid().optional(),
+    name: z.string().trim().max(160).optional(),
+    company: z.string().trim().max(160).optional(),
+    role: z.string().trim().max(160).optional(),
+    email: z.string().email().or(z.literal("")).optional(),
+    phone: z.string().trim().max(60).optional(),
+    relationship: z.string().trim().max(160).optional(),
+    notes: z.string().trim().max(3_000).optional(),
+  })
+  .strict()
+  .refine((value) => value.contactId || value.name, {
+    message: "A contact or name is required",
+  });
+const submissionSchema = z
+  .object({
+    appliedAt: z.string().datetime().or(z.literal("")).optional(),
+    confirmationNumber: z.string().trim().max(200).optional(),
+    applicationUrl: z.string().trim().url().max(2_000).or(z.literal("")).optional(),
+    resumeDocumentId: z.string().uuid().optional().nullable(),
+    coverLetterDocumentId: z.string().uuid().optional().nullable(),
+    contactUsed: z.boolean().default(false),
+    followUpDueAt: z.string().datetime().or(z.literal("")).optional(),
+    notes: z.string().trim().max(5_000).optional(),
+  })
+  .strict();
+const applicationDocumentSchema = z
+  .object({
+    documentGenerationJobId: z.string().uuid().optional(),
+    kind: z.enum(["resume", "cover_letter", "other"]),
+    title: z.string().trim().max(200).optional(),
+    status: z.enum(["draft", "generated", "submitted", "archived"]).default("draft"),
+    submittedAt: z.string().datetime().or(z.literal("")).optional(),
+  })
+  .strict();
+const interviewSchema = z
+  .object({
+    roundType: z.string().trim().min(1).max(80).default("screen"),
+    scheduledAt: z.string().datetime().or(z.literal("")).optional(),
+    interviewer: z.string().trim().max(160).optional(),
+    meetingLink: z.string().trim().url().max(2_000).or(z.literal("")).optional(),
+    prepStatus: z
+      .enum(["not_started", "prepping", "ready", "completed"])
+      .default("not_started"),
+    notes: z.string().trim().max(5_000).optional(),
+  })
+  .strict();
+const outcomeSchema = z
+  .object({
+    outcome: z.enum([
+      "rejected",
+      "no_response",
+      "withdrew",
+      "offer",
+      "accepted",
+      "declined",
+      "archived",
+    ]),
+    stage: z.string().trim().max(120).optional(),
+    reason: z.string().trim().max(3_000).optional(),
+    userNote: z.string().trim().max(5_000).optional(),
+    source: z.string().trim().max(120).optional(),
+    contactUsed: z.boolean().default(false),
+    occurredAt: z.string().datetime().or(z.literal("")).optional(),
+    offer: z.record(z.string(), z.unknown()).default({}),
+  })
+  .strict();
 const applicationSelect = `
   SELECT a.id,a.status,a.title,a.company,a.location,a.work_mode AS "workMode",
     a.salary_min AS "salaryMin",a.salary_max AS "salaryMax",
@@ -328,6 +396,309 @@ export function createApplicationRoutes({
       );
     }
     return context.body(null, 204);
+  });
+
+  routes.post("/:id/contacts", async (context) => {
+    const id = idSchema.safeParse(context.req.param("id"));
+    const parsed = linkedContactSchema.safeParse(
+      await context.req.json().catch(() => null),
+    );
+    if (!id.success || !parsed.success) {
+      return jsonError(
+        context,
+        400,
+        "invalid_contact_link",
+        "Invalid contact link",
+        parsed.success ? undefined : parsed.error.flatten(),
+      );
+    }
+    const input = parsed.data;
+    const result = await database.query(
+      `WITH owned_application AS (
+         SELECT id FROM applications WHERE id=$1 AND user_id=$2
+       ), owned_contact AS (
+         SELECT id,name,company,role,email,phone FROM contacts
+         WHERE id=$3 AND user_id=$2
+       ), inserted AS (
+         INSERT INTO application_contacts
+          (user_id,application_id,contact_id,name,company,role,email,phone,
+           relationship,notes)
+         SELECT $2,a.id,$3,
+          COALESCE(NULLIF($4,''),c.name),COALESCE(NULLIF($5,''),c.company),
+          COALESCE(NULLIF($6,''),c.role),COALESCE(NULLIF($7,''),c.email),
+          COALESCE(NULLIF($8,''),c.phone),NULLIF($9,''),NULLIF($10,'')
+         FROM owned_application a
+         LEFT JOIN owned_contact c ON c.id=$3
+         WHERE $3::uuid IS NULL OR c.id IS NOT NULL
+         RETURNING id,name,company,role,email,phone,relationship,notes,
+          created_at AS "createdAt"
+       ), logged AS (
+         INSERT INTO application_events
+          (user_id,application_id,event_type,title,body,metadata)
+         SELECT $2,$1,'contact_linked','Contact linked',
+          CASE WHEN name IS NULL THEN NULL ELSE name || ' added to this opportunity.' END,
+          jsonb_build_object('contactId',$3)
+         FROM inserted
+       )
+       SELECT * FROM inserted`,
+      [
+        id.data,
+        context.get("userId"),
+        input.contactId ?? null,
+        input.name ?? null,
+        input.company ?? null,
+        input.role ?? null,
+        input.email ?? null,
+        input.phone ?? null,
+        input.relationship ?? null,
+        input.notes ?? null,
+      ],
+    );
+    if (!result.rows[0]) {
+      return jsonError(
+        context,
+        404,
+        "not_found",
+        "Application or contact not found",
+      );
+    }
+    return context.json({ contact: result.rows[0] }, 201);
+  });
+
+  routes.post("/:id/submission", async (context) => {
+    const id = idSchema.safeParse(context.req.param("id"));
+    const parsed = submissionSchema.safeParse(
+      await context.req.json().catch(() => null),
+    );
+    if (!id.success || !parsed.success) {
+      return jsonError(
+        context,
+        400,
+        "invalid_submission",
+        "Invalid submission details",
+        parsed.success ? undefined : parsed.error.flatten(),
+      );
+    }
+    const input = parsed.data;
+    const appliedAt = input.appliedAt || new Date().toISOString();
+    const metadata = {
+      applicationUrl: input.applicationUrl || null,
+      confirmationNumber: input.confirmationNumber || null,
+      contactUsed: input.contactUsed,
+      coverLetterDocumentId: input.coverLetterDocumentId || null,
+      notes: input.notes || null,
+      resumeDocumentId: input.resumeDocumentId || null,
+      submittedAt: appliedAt,
+    };
+    const result = await database.query(
+      `WITH updated AS (
+         UPDATE applications SET status='applied',
+          applied_at=COALESCE($3::timestamptz,now()),
+          follow_up_due_at=COALESCE($4::timestamptz,follow_up_due_at),
+          metadata=jsonb_set(metadata,'{submission}',$5::jsonb,true),
+          updated_at=now()
+         WHERE id=$1 AND user_id=$2
+         RETURNING id,status,applied_at AS "appliedAt",
+          follow_up_due_at AS "followUpDueAt",metadata
+       ), documents AS (
+         UPDATE application_documents SET status='submitted',
+          submitted_at=COALESCE(submitted_at,$3::timestamptz),updated_at=now()
+         WHERE user_id=$2 AND id IN ($6::uuid,$7::uuid)
+       ), logged AS (
+         INSERT INTO application_events
+          (user_id,application_id,event_type,title,body,metadata)
+         SELECT $2,id,'status_changed','Application submitted',$8,$5::jsonb
+         FROM updated
+       )
+       SELECT * FROM updated`,
+      [
+        id.data,
+        context.get("userId"),
+        appliedAt,
+        input.followUpDueAt || null,
+        JSON.stringify(metadata),
+        input.resumeDocumentId ?? null,
+        input.coverLetterDocumentId ?? null,
+        input.notes || input.confirmationNumber || null,
+      ],
+    );
+    if (!result.rows[0]) {
+      return jsonError(context, 404, "not_found", "Application not found");
+    }
+    return context.json({ application: result.rows[0] });
+  });
+
+  routes.post("/:id/documents", async (context) => {
+    const id = idSchema.safeParse(context.req.param("id"));
+    const parsed = applicationDocumentSchema.safeParse(
+      await context.req.json().catch(() => null),
+    );
+    if (!id.success || !parsed.success) {
+      return jsonError(context, 400, "invalid_document_link", "Invalid document link");
+    }
+    const input = parsed.data;
+    const result = await database.query(
+      `WITH owned_application AS (
+         SELECT id FROM applications WHERE id=$1 AND user_id=$2
+       ), owned_job AS (
+         SELECT id,target_job FROM document_generation_jobs
+         WHERE id=$3 AND user_id=$2
+       ), inserted AS (
+         INSERT INTO application_documents
+          (user_id,application_id,document_generation_job_id,kind,title,status,
+           submitted_at,metadata)
+         SELECT $2,a.id,$3,$4,COALESCE(NULLIF($5,''),j.target_job->>'title'),
+          $6,NULLIF($7,'')::timestamptz,jsonb_build_object('fromDocumentJob',$3)
+         FROM owned_application a LEFT JOIN owned_job j ON j.id=$3
+         WHERE $3::uuid IS NULL OR j.id IS NOT NULL
+         RETURNING id,kind,title,status,submitted_at AS "submittedAt",metadata,
+          created_at AS "createdAt"
+       ), logged AS (
+         INSERT INTO application_events
+          (user_id,application_id,event_type,title,metadata)
+         SELECT $2,$1,'document_linked',
+          CASE WHEN $4='cover_letter' THEN 'Cover letter linked'
+            WHEN $4='resume' THEN 'Resume linked' ELSE 'Document linked' END,
+          jsonb_build_object('kind',$4,'documentGenerationJobId',$3)
+         FROM inserted
+       )
+       SELECT * FROM inserted`,
+      [
+        id.data,
+        context.get("userId"),
+        input.documentGenerationJobId ?? null,
+        input.kind,
+        input.title ?? null,
+        input.status,
+        input.submittedAt ?? null,
+      ],
+    );
+    if (!result.rows[0]) {
+      return jsonError(context, 404, "not_found", "Application or draft not found");
+    }
+    return context.json({ document: result.rows[0] }, 201);
+  });
+
+  routes.post("/:id/interviews", async (context) => {
+    const id = idSchema.safeParse(context.req.param("id"));
+    const parsed = interviewSchema.safeParse(
+      await context.req.json().catch(() => null),
+    );
+    if (!id.success || !parsed.success) {
+      return jsonError(context, 400, "invalid_interview", "Invalid interview details");
+    }
+    const input = parsed.data;
+    const result = await database.query(
+      `WITH owned_application AS (
+         SELECT id FROM applications WHERE id=$1 AND user_id=$2
+       ), inserted AS (
+         INSERT INTO application_interviews
+          (user_id,application_id,round_type,scheduled_at,interviewer,
+           meeting_link,prep_status,notes)
+         SELECT $2,id,$3,NULLIF($4,'')::timestamptz,NULLIF($5,''),
+          NULLIF($6,''),$7,NULLIF($8,'') FROM owned_application
+         RETURNING id,round_type AS "roundType",scheduled_at AS "scheduledAt",
+          interviewer,meeting_link AS "meetingLink",prep_status AS "prepStatus",
+          notes,metadata,created_at AS "createdAt"
+       ), advanced AS (
+         UPDATE applications SET
+          status=CASE WHEN status IN
+            ('saved','researching','ready_to_apply','applied','follow_up')
+            THEN 'interviewing' ELSE status END,updated_at=now()
+         WHERE id=$1 AND user_id=$2 AND EXISTS (SELECT 1 FROM inserted)
+       ), logged AS (
+         INSERT INTO application_events
+          (user_id,application_id,event_type,title,body,metadata)
+         SELECT $2,$1,'interview',initcap($3) || ' interview added',
+          CASE WHEN $4='' OR $4 IS NULL THEN 'Interview round recorded'
+            ELSE 'Scheduled for ' || $4 END,
+          jsonb_build_object('roundType',$3,'interviewer',NULLIF($5,''))
+         FROM inserted
+       )
+       SELECT * FROM inserted`,
+      [
+        id.data,
+        context.get("userId"),
+        input.roundType,
+        input.scheduledAt ?? null,
+        input.interviewer ?? null,
+        input.meetingLink ?? null,
+        input.prepStatus,
+        input.notes ?? null,
+      ],
+    );
+    if (!result.rows[0]) {
+      return jsonError(context, 404, "not_found", "Application not found");
+    }
+    return context.json({ interview: result.rows[0] }, 201);
+  });
+
+  routes.post("/:id/outcomes", async (context) => {
+    const id = idSchema.safeParse(context.req.param("id"));
+    const parsed = outcomeSchema.safeParse(
+      await context.req.json().catch(() => null),
+    );
+    if (!id.success || !parsed.success) {
+      return jsonError(context, 400, "invalid_outcome", "Invalid outcome details");
+    }
+    const input = parsed.data;
+    const nextStatus =
+      input.outcome === "offer" ||
+      input.outcome === "accepted" ||
+      input.outcome === "declined"
+        ? "offer"
+        : input.outcome === "rejected"
+          ? "rejected"
+          : input.outcome === "withdrew"
+            ? "withdrawn"
+            : input.outcome === "archived"
+              ? "archived"
+              : null;
+    const result = await database.query(
+      `WITH owned_application AS (
+         SELECT id,status FROM applications WHERE id=$1 AND user_id=$2
+       ), inserted AS (
+         INSERT INTO application_outcomes
+          (user_id,application_id,outcome,stage,reason,user_note,source,
+           contact_used,offer,occurred_at)
+         SELECT $2,id,$3,NULLIF($4,''),NULLIF($5,''),NULLIF($6,''),
+          NULLIF($7,''),$8,$9::jsonb,COALESCE(NULLIF($10,'')::timestamptz,now())
+         FROM owned_application
+         RETURNING id,outcome,stage,reason,user_note AS "userNote",source,
+          contact_used AS "contactUsed",offer,occurred_at AS "occurredAt",
+          created_at AS "createdAt"
+       ), advanced AS (
+         UPDATE applications SET status=COALESCE($11,status),
+          archived_at=CASE WHEN $11='archived'
+            THEN COALESCE(archived_at,now()) ELSE archived_at END,updated_at=now()
+         WHERE id=$1 AND user_id=$2 AND EXISTS (SELECT 1 FROM inserted)
+       ), logged AS (
+         INSERT INTO application_events
+          (user_id,application_id,event_type,title,body,metadata)
+         SELECT $2,$1,'outcome','Outcome logged: ' || replace($3,'_',' '),
+          COALESCE(NULLIF($6,''),NULLIF($5,'')),
+          jsonb_build_object('outcome',$3,'stage',NULLIF($4,''))
+         FROM inserted
+       )
+       SELECT * FROM inserted`,
+      [
+        id.data,
+        context.get("userId"),
+        input.outcome,
+        input.stage ?? null,
+        input.reason ?? null,
+        input.userNote ?? null,
+        input.source ?? null,
+        input.contactUsed,
+        JSON.stringify(input.offer),
+        input.occurredAt ?? null,
+        nextStatus,
+      ],
+    );
+    if (!result.rows[0]) {
+      return jsonError(context, 404, "not_found", "Application not found");
+    }
+    return context.json({ outcome: result.rows[0] }, 201);
   });
 
   routes.post("/:id/events", async (context) => {
