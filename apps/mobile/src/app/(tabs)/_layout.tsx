@@ -68,6 +68,10 @@ export default function TabsLayout() {
           title: "More",
         }}
       />
+      <Tabs.Screen name="documents" options={{ href: null }} />
+      <Tabs.Screen name="analytics" options={{ href: null }} />
+      <Tabs.Screen name="providers" options={{ href: null }} />
+      <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   );
 }
