@@ -1,12 +1,35 @@
 # Tracker Studio Product Contract
 
-Generated: 2026-07-23
+Generated: 2026-07-24
 
 Tracker Studio turns saved opportunities into a guided job-search workflow. It must feel like a continuation of CareerGroove, not a separate project-management board.
 
 ## Navigation
 
 Use `Applications` as the clear top-level label. `Tracker Studio` can appear as a page eyebrow or product concept, and `Command Session` is the dashboard entry point for daily action.
+
+## Layout: Canvas + Progress
+
+The main page uses a split layout: a slim role list (left) and a stepped accordion workspace (right). Each role shows a small readiness badge. Selecting a role opens its step-by-step progress in the canvas.
+
+## 6-Step Workflow
+
+Each application moves through 6 numbered steps in a vertical accordion. Past steps collapse. The current step is highlighted and auto-expanded. All steps remain expandable to revisit.
+
+| Step | Title | What happens |
+| --- | --- | --- |
+| 1 | Research | View job description, source URL, key metadata. Skip advances to step 2. |
+| 2 | Documents | Score breakdown, document list + generation status. "Mark ready" sets status to `ready_to_apply`. |
+| 3 | Follow-up | Set a follow-up reminder date and draft outreach notes via AI. |
+| 4 | Interview | Log interviews (round type, scheduled date, prep status). |
+| 5 | Decision | Record offer details (salary, bonus, benefits) and negotiation status. |
+| 6 | Closed | View rejection intelligence or manually archive. |
+
+Each step handles its own data and API calls. The page orchestrates refresh and advance.
+
+## Capture
+
+A single "Capture Role" button opens a modal accepting a URL (auto-fetched and parsed) or a raw description. One field is required.
 
 ## Status Model
 
