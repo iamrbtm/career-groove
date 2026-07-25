@@ -4,7 +4,7 @@ import { SessionClient } from "./session-client";
 import { tokenStore } from "./token-store";
 
 const configuredUrl = process.env.EXPO_PUBLIC_API_URL;
-if (!configuredUrl && !__DEV__) {
+if (!configuredUrl && !__DEV__ && Platform.OS !== "web") {
   throw new Error("EXPO_PUBLIC_API_URL is required in production");
 }
 
@@ -12,7 +12,7 @@ const developmentUrl =
   Platform.OS === "android" ? "http://10.0.2.2:3001" : "http://localhost:3001";
 
 export const apiClient = new SessionClient({
-  baseUrl: configuredUrl ?? developmentUrl,
+  baseUrl: configuredUrl ?? (Platform.OS === "web" ? "" : developmentUrl),
   store: tokenStore,
 });
 

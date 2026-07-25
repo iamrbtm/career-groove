@@ -1,60 +1,99 @@
+name: career-groove
+
 services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: career_groove
-      POSTGRES_USER: career_groove
-      POSTGRES_PASSWORD: career_groove
+      POSTGRES_DB: ${POSTGRES_DB:-career_groove}
+      POSTGRES_USER: ${POSTGRES_USER:-career_groove}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
       - career_groove_data:/var/lib/postgresql/data
       - ./db/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
-    ports:
-      - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U career_groove -d career_groove"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 3s
-      retries: 10
-  app:
+      retries: 20
+      start_period: 10s
+    stop_grace_period: 30s
+
+  api:
     build:
       context: .
-      target: runner
+      dockerfile: packages/api/Dockerfile
     restart: unless-stopped
-    ports: ["3000:3000"]
-    env_file: [.env]
+    env_file:
+      - path: .env
+        required: false
     environment:
-      DATABASE_URL: postgresql://career_groove:career_groove@db:5432/career_groove
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-career_groove}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-career_groove}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?ALLOWED_ORIGINS is required}
+      INTERNAL_WORKER_SECRET: ${INTERNAL_WORKER_SECRET:?INTERNAL_WORKER_SECRET is required}
+      PROVIDER_ENCRYPTION_KEY: ${PROVIDER_ENCRYPTION_KEY:?PROVIDER_ENCRYPTION_KEY is required}
       OLLAMA_BASE_URL: ${CAREER_GROOVE_OLLAMA_BASE_URL:-http://ollama:11434}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
       db: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    stop_grace_period: 30s
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/mobile/Dockerfile
+      args:
+        EXPO_PUBLIC_API_URL: ${EXPO_PUBLIC_API_URL:-}
+    restart: unless-stopped
+    ports: ["${CAREER_GROOVE_PORT:-3000}:8080"]
+    depends_on:
+      api: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    stop_grace_period: 10s
+
   document-worker:
     build:
       context: .
       target: worker
     restart: unless-stopped
     command: ["node", "scripts/document-worker.mjs"]
-    env_file: [.env]
+    env_file:
+      - path: .env
+        required: false
     environment:
-      DATABASE_URL: postgresql://career_groove:career_groove@db:5432/career_groove
+      DATABASE_URL: postgresql://${POSTGRES_USER:-career_groove}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-career_groove}
       OLLAMA_BASE_URL: ${CAREER_GROOVE_OLLAMA_BASE_URL:-http://ollama:11434}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    extra_hosts: ["host.docker.internal:host-gateway"]
     depends_on:
       db: { condition: service_healthy }
+    stop_grace_period: 60s
+
   mobile-notification-worker:
     build:
       context: .
       target: runner
     restart: unless-stopped
     command: ["node", "scripts/mobile-notification-worker.mjs"]
-    env_file: [.env]
+    env_file:
+      - path: .env
+        required: false
     environment:
-      MOBILE_NOTIFICATION_ENDPOINT: http://app:3000/api/internal/mobile-notifications
+      MOBILE_NOTIFICATION_ENDPOINT: http://api:3001/api/internal/mobile-notifications
     depends_on:
-      - app
+      api: { condition: service_healthy }
+    profiles: ["notifications"]
+
   backup-scheduler:
     build:
       context: .
@@ -63,21 +102,25 @@ services:
     user: "${CAREER_GROOVE_BACKUP_UID:-1000}:${CAREER_GROOVE_BACKUP_GID:-1000}"
     working_dir: /workspace
     command: ["node", "scripts/backup/scheduler.mjs"]
-    env_file: [.env]
+    env_file:
+      - path: .env
+        required: false
     environment:
-      DATABASE_URL: postgresql://career_groove:career_groove@db:5432/career_groove
+      DATABASE_URL: postgresql://${POSTGRES_USER:-career_groove}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-career_groove}
       CAREER_GROOVE_BACKUP_ROOT: /workspace/backups
       TZ: ${TZ:-America/Los_Angeles}
     volumes:
       - .:/workspace
     depends_on:
       db: { condition: service_healthy }
+    profiles: ["backups"]
+
   ollama:
     image: ollama/ollama:latest
     restart: unless-stopped
-    environment:
-      OLLAMA_HOST: 0.0.0.0:11434
     volumes:
       - ${OLLAMA_MODELS_DIR:-./.ollama}:/root/.ollama
+    profiles: ["local-ai"]
+
 volumes:
   career_groove_data:
