@@ -1,0 +1,78 @@
+name: Expo migration release gate
+
+on:
+  pull_request:
+    paths:
+      - "apps/mobile/**"
+      - "packages/api/**"
+      - "packages/shared/**"
+      - "db/**"
+      - "deploy/**"
+      - "docker-compose.yml"
+      - "package*.json"
+      - ".github/workflows/migration-release.yml"
+  push:
+    branches: [main, codex/expo-migration]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migration-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      ALLOWED_ORIGINS: https://careergroove.website
+      EXPO_PUBLIC_API_URL: https://careergroove.website
+      INTERNAL_WORKER_SECRET: ci-worker-secret-at-least-32-characters
+      POSTGRES_PASSWORD: ci-postgres-password-at-least-32-characters
+      PROVIDER_ENCRYPTION_KEY: ci-provider-key-at-least-32-characters
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Verify shared contracts
+        run: |
+          npm test --workspace @career-groove/shared
+          npm run typecheck --workspace @career-groove/shared
+          npm run build --workspace @career-groove/shared
+
+      - name: Verify API
+        run: |
+          npm test --workspace @career-groove/api
+          npm run typecheck --workspace @career-groove/api
+          npm run build --workspace @career-groove/api
+
+      - name: Verify universal app
+        run: |
+          npm test --workspace @career-groove/mobile
+          npm run typecheck --workspace @career-groove/mobile
+          (cd apps/mobile && npx expo-doctor)
+          npm run build --workspace @career-groove/mobile
+          (cd apps/mobile && npx expo export --platform ios --output-dir dist-ios)
+          (cd apps/mobile && npx expo export --platform android --output-dir dist-android)
+
+      - name: Validate production topology
+        run: docker compose config --quiet
+
+      - name: Build production images
+        run: |
+          docker build -f packages/api/Dockerfile -t career-groove-api:${{ github.sha }} .
+          docker build -f apps/mobile/Dockerfile -t career-groove-web:${{ github.sha }} .
+
+      - name: Audit API runtime image
+        run: |
+          docker run --rm career-groove-api:${{ github.sha }} \
+            npm audit --omit=dev --workspace @career-groove/api \
+              --workspace @career-groove/shared --include-workspace-root=false
