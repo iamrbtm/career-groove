@@ -425,6 +425,12 @@ export async function refreshApplicationScore(client: PoolClient, userId: string
   const context = await loadTrackerContext(client, userId);
   const readiness = buildTrackerReadiness(context);
   const score = computeScore(applicationResult.rows[0], context);
+  const stepFromStatus: Record<string, number> = {
+    saved: 1, researching: 1, ready_to_apply: 2,
+    applied: 3, follow_up: 3, interviewing: 4,
+    offer: 5, rejected: 6, withdrawn: 6, archived: 6,
+  };
+  const currentStep = stepFromStatus[applicationResult.rows[0].status] ?? 1;
   const inserted = await client.query(
     `INSERT INTO application_scores(user_id,application_id,fit,readiness,desire,leverage,risk,timing,label,reasons,gaps,next_action,context_snapshot)
      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12,$13::jsonb)
@@ -450,9 +456,9 @@ export async function refreshApplicationScore(client: PoolClient, userId: string
   );
   await client.query(
     `UPDATE applications
-     SET priority_label=$3,next_action_type=$4,next_action_reason=$5,updated_at=now()
+     SET priority_label=$3,next_action_type=$4,next_action_reason=$5,current_step=$6,updated_at=now()
      WHERE id=$1 AND user_id=$2`,
-    [applicationId, userId, score.label, score.nextAction, score.nextActionReason],
+    [applicationId, userId, score.label, score.nextAction, score.nextActionReason, currentStep],
   );
   return {
     latestScore: {
@@ -463,6 +469,7 @@ export async function refreshApplicationScore(client: PoolClient, userId: string
     nextActionType: score.nextAction,
     nextActionReason: score.nextActionReason,
     priorityLabel: score.label,
+    currentStep,
     trackerReadiness: readiness,
   };
 }

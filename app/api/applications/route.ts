@@ -11,7 +11,7 @@ const applicationSelect = `
     a.priority_label AS "priorityLabel",a.next_action_type AS "nextActionType",
     a.next_action_reason AS "nextActionReason",a.follow_up_due_at AS "followUpDueAt",
     a.applied_at AS "appliedAt",a.archived_at AS "archivedAt",a.metadata,
-    a.created_at AS "createdAt",a.updated_at AS "updatedAt",
+    a.current_step AS "currentStep",a.created_at AS "createdAt",a.updated_at AS "updatedAt",
     CASE WHEN s.id IS NULL THEN NULL ELSE jsonb_build_object(
       'id',s.id,'label',s.label,'fit',s.fit,'readiness',s.readiness,
       'desire',s.desire,'leverage',s.leverage,'risk',s.risk,'timing',s.timing,

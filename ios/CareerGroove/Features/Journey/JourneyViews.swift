@@ -42,7 +42,7 @@ struct JourneyListView: View {
                     ForEach(model.jobs) { job in
                         NavigationLink { JobDetailView(job: job, model: model) } label: {
                             HStack(alignment: .top, spacing: 12) {
-                                Circle().fill(job.current ? Color.mint : Color.plum.opacity(0.35))
+                                Circle().fill(job.current == true ? Color.mint : Color.plum.opacity(0.35))
                                     .frame(width: 12, height: 12).padding(.top, 5)
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(job.title).font(.headline).foregroundStyle(Color.ink)
@@ -75,7 +75,7 @@ struct JourneyListView: View {
     }
 
     private func period(_ job: Job) -> String {
-        [job.startedOn, job.current ? "Present" : job.endedOn].compactMap { $0 }.joined(separator: " – ")
+        [job.startedOn, job.current == true ? "Present" : job.endedOn].compactMap { $0 }.joined(separator: " – ")
     }
 }
 

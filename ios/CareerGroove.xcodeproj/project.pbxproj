@@ -71,7 +71,7 @@
 		5B1992B04C1405E1A945B00F /* Date+Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+Formatting.swift"; sourceTree = "<group>"; };
 		62547CBE71AAD8629D0C55F7 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		67DB894F08A13BDADE8E1613 /* CommandSessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandSessionView.swift; sourceTree = "<group>"; };
-		6A692B7CA61B60F293048D04 /* CareerGroove.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CareerGroove.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6A692B7CA61B60F293048D04 /* Career Groove.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Career Groove.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		6B4C47571C9BD5305DC4B651 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
 		700B960C8528BFE3FF4F5F36 /* APIError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIError.swift; sourceTree = "<group>"; };
 		703093D2A42E7AFCFA9EF9A6 /* ApplicationForms.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationForms.swift; sourceTree = "<group>"; };
@@ -141,7 +141,7 @@
 		1A0C4D72B06EB172DDFC6194 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				6A692B7CA61B60F293048D04 /* CareerGroove.app */,
+				6A692B7CA61B60F293048D04 /* Career Groove.app */,
 				FA4F1F6DE59FCE32689ACFD9 /* CareerGrooveTests.xctest */,
 			);
 			name = Products;
@@ -350,7 +350,7 @@
 			packageProductDependencies = (
 			);
 			productName = CareerGroove;
-			productReference = 6A692B7CA61B60F293048D04 /* CareerGroove.app */;
+			productReference = 6A692B7CA61B60F293048D04 /* Career Groove.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -367,7 +367,6 @@
 						ProvisioningStyle = Automatic;
 					};
 					7C4E97E5D5772346C6CAEAB0 = {
-						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -466,12 +465,13 @@
 				CODE_SIGN_ENTITLEMENTS = Config/CareerGroove.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DATABASE_URL = "postgresql://career_groove:career_groove@careergroove.website:5432/career_groove";
+				DEVELOPMENT_TEAM = VZ4JN6MV83;
 				INFOPLIST_FILE = Config/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.careergroove.careergroove;
+				PRODUCT_BUNDLE_IDENTIFIER = com.careergroove.careergroove1;
 				PRODUCT_NAME = "Career Groove";
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;
@@ -568,6 +568,7 @@
 				CODE_SIGN_ENTITLEMENTS = Config/CareerGroove.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DATABASE_URL = "postgresql://career_groove:career_groove@careergroove.website:5432/career_groove";
+				DEVELOPMENT_TEAM = VZ4JN6MV83;
 				INFOPLIST_FILE = Config/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

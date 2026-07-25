@@ -13,9 +13,10 @@ struct ApplicationDetailView: View {
 
     var body: some View {
         Group {
-            if isLoading && detail == nil { LoadingState() }
-            else if let errorMessage, detail == nil { ErrorState(message: errorMessage) { Task { await load() } } }
-            else if let detail {
+            if detail == nil {
+                if let errorMessage { ErrorState(message: errorMessage) { Task { await load() } } }
+                else { LoadingState() }
+            } else if let detail {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         PageHeadingView(detail.application.title, subtitle: detail.application.company)

@@ -12,7 +12,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   if (!id.success) return Response.json({ error: "Invalid job id" }, { status: 400 });
   const result = await db.query(
     `SELECT j.id,j.company,j.title,j.location,j.started_on AS "startedOn",j.ended_on AS "endedOn",
-      j.current,j.raw_notes AS "rawNotes",j.achievements,j.metadata,
+      COALESCE(j.current, false) AS "current",j.raw_notes AS "rawNotes",j.achievements,j.metadata,
       CASE WHEN c.id IS NULL THEN NULL ELSE jsonb_build_object('name',c.name,'phone',c.phone) END AS "networkContact"
      FROM jobs j LEFT JOIN LATERAL (
        SELECT id,name,phone FROM contacts WHERE user_id=j.user_id AND job_id=j.id ORDER BY created_at LIMIT 1
@@ -35,14 +35,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const fields = Object.entries(jobFields);
   if (!fields.length) return Response.json({ error: "No changes supplied" }, { status: 400 });
   const columns: Record<string, string> = { company: "company", title: "title", location: "location", startedOn: "started_on", endedOn: "ended_on", current: "current", rawNotes: "raw_notes", achievements: "achievements", metadata: "metadata" };
-  const values = fields.map(([, value]) => Array.isArray(value) || (value && typeof value === "object") ? JSON.stringify(value) : value || null);
+  const values = fields.map(([, value]) => Array.isArray(value) || (value && typeof value === "object") ? JSON.stringify(value) : value ?? null);
   const setters = fields.map(([key], index) => `${columns[key]} = $${index + 3}${key === "achievements" || key === "metadata" ? "::jsonb" : ""}`);
   const client = await db.connect();
   try {
     await client.query("BEGIN");
     const result = await client.query(
       `UPDATE jobs SET ${setters.join(", ")}, updated_at = now() WHERE id = $1 AND user_id = $2
-       RETURNING id, company, title, location, started_on AS "startedOn", ended_on AS "endedOn", current, raw_notes AS "rawNotes", achievements, metadata`,
+        RETURNING id, company, title, location, started_on AS "startedOn", ended_on AS "endedOn", COALESCE(current, false) AS "current", raw_notes AS "rawNotes", achievements, metadata`,
       [id.data, userId, ...values],
     );
     if (!result.rowCount) { await client.query("ROLLBACK"); return Response.json({ error: "Job not found" }, { status: 404 }); }

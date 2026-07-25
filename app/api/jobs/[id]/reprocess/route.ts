@@ -67,7 +67,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const metadata = { ...(result.rows[0].metadata || {}), polishedChapter, lastReprocessedAt: new Date().toISOString(), lastReprocessedProvider: provider, lastReprocessedModel: selected.selected_model };
       const updated = await client.query(
         `UPDATE jobs SET company=$3,title=$4,location=$5,raw_notes=$6,achievements=$7::jsonb,metadata=$8::jsonb,updated_at=now()
-         WHERE id=$1 AND user_id=$2 RETURNING id,company,title,location,started_on AS "startedOn",ended_on AS "endedOn",current,raw_notes AS "rawNotes",achievements,metadata,updated_at AS "updatedAt"`,
+         WHERE id=$1 AND user_id=$2 RETURNING id,company,title,location,started_on AS "startedOn",ended_on AS "endedOn",COALESCE(current, false) AS "current",raw_notes AS "rawNotes",achievements,metadata,updated_at AS "updatedAt"`,
         [id.data, userId, draft.data.company, draft.data.title, draft.data.location || null, draft.data.rawNotes, JSON.stringify(parsed.bullets), JSON.stringify(metadata)],
       );
       await client.query("DELETE FROM job_skills WHERE job_id=$1", [id.data]);

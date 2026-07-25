@@ -117,6 +117,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     nextActionReason: "next_action_reason",
     followUpDueAt: "follow_up_due_at",
     appliedAt: "applied_at",
+    step: "current_step",
     metadata: "metadata",
   };
   const entries = Object.entries(input).filter(([, value]) => value !== undefined);
