@@ -8,35 +8,28 @@ import { secureHeaders } from "hono/secure-headers";
 
 import type { ApiConfig } from "./config.js";
 import type { Database } from "./db.js";
-
-type Variables = {
-  requestId: string;
-  userId: string;
-};
+import { createAuthRoutes } from "./domains/auth/routes.js";
+import { SessionService } from "./domains/auth/session-service.js";
+import { createJobRoutes } from "./domains/jobs/routes.js";
+import {
+  createContactRoutes,
+  createCredentialRoutes,
+  createDocumentRoutes,
+  createResidenceRoutes,
+  createSettingsRoutes,
+  createSkillRoutes,
+} from "./domains/core/routes.js";
+import type { AppVariables } from "./http.js";
+import { errorPayload } from "./http.js";
 
 export interface AppDependencies {
   config: ApiConfig;
   database?: Database;
+  sessions?: SessionService;
 }
 
-function errorPayload(
-  requestIdValue: string,
-  code: string,
-  message: string,
-  details?: unknown,
-) {
-  return {
-    error: {
-      code,
-      message,
-      requestId: requestIdValue,
-      ...(details === undefined ? {} : { details }),
-    },
-  };
-}
-
-export function createApp({ config }: AppDependencies) {
-  const app = new Hono<{ Variables: Variables }>();
+export function createApp({ config, database, sessions }: AppDependencies) {
+  const app = new Hono<{ Variables: AppVariables }>();
 
   app.use("*", requestId({ generator: () => randomUUID() }));
   app.use("*", secureHeaders());
@@ -74,6 +67,28 @@ export function createApp({ config }: AppDependencies) {
       timestamp: new Date().toISOString(),
     }),
   );
+
+  if (database) {
+    const sessionService = sessions ?? new SessionService(database);
+    app.route(
+      "/api/mobile/auth",
+      createAuthRoutes({
+        database,
+        sessions: sessionService,
+      }),
+    );
+    app.route(
+      "/api/jobs",
+      createJobRoutes({ database, sessions: sessionService }),
+    );
+    const coreDependencies = { database, sessions: sessionService };
+    app.route("/api/contacts", createContactRoutes(coreDependencies));
+    app.route("/api/residences", createResidenceRoutes(coreDependencies));
+    app.route("/api/credentials", createCredentialRoutes(coreDependencies));
+    app.route("/api/skills", createSkillRoutes(coreDependencies));
+    app.route("/api/documents", createDocumentRoutes(coreDependencies));
+    app.route("/api/settings", createSettingsRoutes(coreDependencies));
+  }
 
   app.notFound((context) =>
     context.json(
