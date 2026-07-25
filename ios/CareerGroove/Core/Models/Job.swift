@@ -7,7 +7,7 @@ struct Job: Codable, Identifiable, Hashable, Sendable {
     var location: String?
     var startedOn: String?
     var endedOn: String?
-    var current: Bool
+    var current: Bool?
     var rawNotes: String?
     var achievements: [String]
     var metadata: [String: JSONValue]?

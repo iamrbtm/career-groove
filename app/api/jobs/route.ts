@@ -7,7 +7,7 @@ export async function GET() {
   if (!userId) return unauthorized();
   const result = await db.query(
     `SELECT id, company, title, location, started_on AS "startedOn", ended_on AS "endedOn",
-      current, raw_notes AS "rawNotes", achievements, metadata, created_at AS "createdAt"
+      COALESCE(current, false) AS "current", raw_notes AS "rawNotes", achievements, metadata, created_at AS "createdAt"
      FROM jobs WHERE user_id = $1
      ORDER BY current DESC, ended_on DESC NULLS LAST, started_on DESC NULLS LAST, created_at DESC`,
     [userId],
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     `INSERT INTO jobs (user_id, company, title, location, started_on, ended_on, current, raw_notes, achievements, metadata)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb)
      RETURNING id, company, title, location, started_on AS "startedOn", ended_on AS "endedOn",
-       current, raw_notes AS "rawNotes", achievements, metadata, created_at AS "createdAt"`,
+       COALESCE(current, false) AS "current", raw_notes AS "rawNotes", achievements, metadata, created_at AS "createdAt"`,
     [userId, job.company, job.title, job.location || null, job.startedOn || null, job.current ? null : job.endedOn || null,
       job.current, job.rawNotes || null, JSON.stringify(job.achievements), JSON.stringify(job.metadata)],
     );
