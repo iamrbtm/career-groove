@@ -1,0 +1,76 @@
+{
+  "identifier" : "9C76C43B-52A2-4D25-BAB0-C50162611015",
+  "nonRenewingSubscriptions" : [],
+  "products" : [],
+  "settings" : {
+    "_applicationInternalID" : "0",
+    "_developerTeamID" : "",
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_renewalBillingIssuesEnabled" : false,
+    "_storefront" : "USA",
+    "_storeKitErrors" : [],
+    "_timeRate" : 0
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "45B25FBB-6F86-4B97-87D8-7891D063411A",
+      "localizations" : [
+        {
+          "description" : "Career Groove Pro subscription",
+          "displayName" : "Career Groove Pro",
+          "locale" : "en_US"
+        }
+      ],
+      "name" : "Career Groove Pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "9.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "A4CB7C33-C5E5-48F4-B13C-AE807E8EA472",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Full access to Career Groove Pro.",
+              "displayName" : "Pro Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.careergroove.careergroove.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Career Groove Pro Monthly",
+          "subscriptionGroupID" : "45B25FBB-6F86-4B97-87D8-7891D063411A",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "99.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "7068178A-D346-4A04-B742-559363AB3187",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Full access to Career Groove Pro.",
+              "displayName" : "Pro Yearly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.careergroove.careergroove.pro.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Career Groove Pro Yearly",
+          "subscriptionGroupID" : "45B25FBB-6F86-4B97-87D8-7891D063411A",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

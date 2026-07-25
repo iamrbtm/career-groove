@@ -4,3 +4,8 @@ node_modules
 .env*
 npm-debug.log*
 backups/
+.ollama/
+ios/
+*.pdf
+tsconfig.tsbuildinfo
+.DS_Store

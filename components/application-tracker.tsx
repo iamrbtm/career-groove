@@ -1292,7 +1292,7 @@ function ApplicationWorkspaceContent({
     const response = await fetch(`/api/applications/${application.id}/answers`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ answers }),
+      body: JSON.stringify({ rawText: answersDraft }),
     });
     setAnswersNotice(response.ok ? "Application answers saved." : "Answers could not be saved.");
     if (response.ok) await refreshDetail();

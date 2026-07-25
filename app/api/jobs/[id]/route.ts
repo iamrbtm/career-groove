@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { requireUser, unauthorized } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { jobUpdate } from "@/lib/job-schema";
 import { z } from "zod";
@@ -6,8 +6,8 @@ import { z } from "zod";
 const idSchema = z.string().uuid();
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = await requireUser();
+  if (!userId) return unauthorized();
   const id = idSchema.safeParse((await params).id);
   if (!id.success) return Response.json({ error: "Invalid job id" }, { status: 400 });
   const result = await db.query(
@@ -18,7 +18,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
        SELECT id,name,phone FROM contacts WHERE user_id=j.user_id AND job_id=j.id ORDER BY created_at LIMIT 1
      ) c ON true
      WHERE j.id=$1 AND j.user_id=$2`,
-    [id.data, session.user.id],
+    [id.data, userId],
   );
   return result.rowCount
     ? Response.json({ job: result.rows[0] })
@@ -26,8 +26,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = await requireUser();
+  if (!userId) return unauthorized();
   const id = idSchema.safeParse((await params).id);
   const input = jobUpdate.safeParse(await request.json());
   if (!id.success || !input.success) return Response.json({ error: "Invalid job update" }, { status: 400 });
@@ -43,7 +43,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const result = await client.query(
       `UPDATE jobs SET ${setters.join(", ")}, updated_at = now() WHERE id = $1 AND user_id = $2
        RETURNING id, company, title, location, started_on AS "startedOn", ended_on AS "endedOn", current, raw_notes AS "rawNotes", achievements, metadata`,
-      [id.data, session.user.id, ...values],
+      [id.data, userId, ...values],
     );
     if (!result.rowCount) { await client.query("ROLLBACK"); return Response.json({ error: "Job not found" }, { status: 404 }); }
     if (inferredSkills) {
@@ -54,7 +54,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           `INSERT INTO skills(user_id,name,proficiency,category) VALUES($1,$2,3,$3)
            ON CONFLICT (user_id,lower(name)) DO UPDATE SET updated_at=now()
            RETURNING id`,
-          [session.user.id, skillInput.name, skillInput.category],
+          [userId, skillInput.name, skillInput.category],
         );
         await client.query("INSERT INTO job_skills(job_id,skill_id) VALUES($1,$2) ON CONFLICT DO NOTHING", [id.data, skill.rows[0].id]);
       }
@@ -65,7 +65,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         const existing = await client.query(
           `UPDATE contacts SET name=$3,company=$4,role=$5,phone=NULLIF($6,'')
            WHERE user_id=$1 AND job_id=$2 RETURNING id`,
-          [session.user.id,id.data,contactName,result.rows[0].company,result.rows[0].title,networkContact.phone],
+          [userId,id.data,contactName,result.rows[0].company,result.rows[0].title,networkContact.phone],
         );
         if (!existing.rowCount) {
           await client.query(
@@ -73,7 +73,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
              VALUES($1,$2,$3,$4,$5,NULLIF($6,''),3,$7::jsonb)
              ON CONFLICT (user_id,job_id,lower(name)) WHERE job_id IS NOT NULL
              DO UPDATE SET phone=EXCLUDED.phone,company=EXCLUDED.company,role=EXCLUDED.role`,
-            [session.user.id,id.data,contactName,result.rows[0].company,result.rows[0].title,networkContact.phone,JSON.stringify([{text:`Contact for ${result.rows[0].title} at ${result.rows[0].company}`,at:new Date().toISOString()}])],
+            [userId,id.data,contactName,result.rows[0].company,result.rows[0].title,networkContact.phone,JSON.stringify([{text:`Contact for ${result.rows[0].title} at ${result.rows[0].company}`,at:new Date().toISOString()}])],
           );
         }
       }
@@ -88,11 +88,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = await requireUser();
+  if (!userId) return unauthorized();
   const id = idSchema.safeParse((await params).id);
   if (!id.success) return Response.json({ error: "Invalid job id" }, { status: 400 });
-  const result = await db.query("DELETE FROM jobs WHERE id = $1 AND user_id = $2", [id.data, session.user.id]);
+  const result = await db.query("DELETE FROM jobs WHERE id = $1 AND user_id = $2", [id.data, userId]);
   if (!result.rowCount) return Response.json({ error: "Job not found" }, { status: 404 });
   return new Response(null, { status: 204 });
 }

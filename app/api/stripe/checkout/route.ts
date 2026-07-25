@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { requireUser } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { getStripe, isBillingPlan, priceIds } from "@/lib/stripe";
 import { NextRequest, NextResponse } from "next/server";
@@ -14,8 +14,8 @@ async function startCheckout(request: NextRequest, rawPlan: unknown) {
     return NextResponse.json({ error: "Choose a valid pricing plan." }, { status: 400 });
   }
 
-  const session = await auth();
-  if (!session?.user?.id) {
+  const userId = await requireUser();
+  if (!userId) {
     const registerUrl = new URL("/register", appUrl(request));
     registerUrl.searchParams.set("plan", rawPlan);
     return NextResponse.json(
@@ -31,7 +31,7 @@ async function startCheckout(request: NextRequest, rawPlan: unknown) {
 
   const result = await db.query<{ email: string; stripeCustomerId: string | null }>(
     `SELECT email, "stripeCustomerId" FROM users WHERE id = $1`,
-    [session.user.id],
+    [userId],
   );
   const user = result.rows[0];
   if (!user) return NextResponse.json({ error: "Account not found." }, { status: 404 });
@@ -42,10 +42,10 @@ async function startCheckout(request: NextRequest, rawPlan: unknown) {
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: user.email,
-        metadata: { userId: session.user.id },
+        metadata: { userId },
       });
       customerId = customer.id;
-      await db.query(`UPDATE users SET "stripeCustomerId" = $2, updated_at = now() WHERE id = $1`, [session.user.id, customerId]);
+      await db.query(`UPDATE users SET "stripeCustomerId" = $2, updated_at = now() WHERE id = $1`, [userId, customerId]);
     }
 
     const checkout = await stripe.checkout.sessions.create({
@@ -53,9 +53,9 @@ async function startCheckout(request: NextRequest, rawPlan: unknown) {
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
       allow_promotion_codes: rawPlan !== "lifetime",
-      client_reference_id: session.user.id,
-      metadata: { userId: session.user.id, plan: rawPlan },
-      subscription_data: rawPlan === "lifetime" ? undefined : { metadata: { userId: session.user.id, plan: rawPlan } },
+      client_reference_id: userId,
+      metadata: { userId, plan: rawPlan },
+      subscription_data: rawPlan === "lifetime" ? undefined : { metadata: { userId, plan: rawPlan } },
       success_url: `${appUrl(request)}/dashboard?checkout=success`,
       cancel_url: `${appUrl(request)}/?checkout=canceled#pricing`,
     });

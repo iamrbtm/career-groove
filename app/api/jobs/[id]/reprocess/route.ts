@@ -1,6 +1,6 @@
 import { generateText } from "ai";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireUser, unauthorized } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { getModel } from "@/lib/ai";
 import { decryptSecret } from "@/lib/secret-box";
@@ -23,15 +23,15 @@ function polishedSection(text: string) {
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = await requireUser();
+  if (!userId) return unauthorized();
   const id = idSchema.safeParse((await params).id);
   const draft = draftSchema.safeParse(await request.json());
   if (!id.success || !draft.success) return Response.json({ error: "Add some original-story details before re-processing." }, { status: 400 });
 
   const result = await db.query(
     `SELECT j.metadata,u.preferences FROM jobs j JOIN users u ON u.id=j.user_id WHERE j.id=$1 AND j.user_id=$2`,
-    [id.data, session.user.id],
+    [id.data, userId],
   );
   if (!result.rowCount) return Response.json({ error: "Chapter not found" }, { status: 404 });
   const preferred = providerSchema.safeParse(result.rows[0].preferences?.aiProvider);
@@ -39,7 +39,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     `SELECT provider,encrypted_api_key,selected_model,base_url FROM provider_connections
      WHERE user_id=$1 AND active=true AND selected_model IS NOT NULL
      ORDER BY (provider=$2) DESC,updated_at DESC LIMIT 1`,
-    [session.user.id, preferred.success ? preferred.data : ""],
+    [userId, preferred.success ? preferred.data : ""],
   );
   if (!connection.rowCount) return Response.json({ error: "Connect and select an AI provider in Settings first." }, { status: 409 });
 
@@ -68,14 +68,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const updated = await client.query(
         `UPDATE jobs SET company=$3,title=$4,location=$5,raw_notes=$6,achievements=$7::jsonb,metadata=$8::jsonb,updated_at=now()
          WHERE id=$1 AND user_id=$2 RETURNING id,company,title,location,started_on AS "startedOn",ended_on AS "endedOn",current,raw_notes AS "rawNotes",achievements,metadata,updated_at AS "updatedAt"`,
-        [id.data, session.user.id, draft.data.company, draft.data.title, draft.data.location || null, draft.data.rawNotes, JSON.stringify(parsed.bullets), JSON.stringify(metadata)],
+        [id.data, userId, draft.data.company, draft.data.title, draft.data.location || null, draft.data.rawNotes, JSON.stringify(parsed.bullets), JSON.stringify(metadata)],
       );
       await client.query("DELETE FROM job_skills WHERE job_id=$1", [id.data]);
       for (const skillInput of parsed.skills) {
         const skill = await client.query(
           `INSERT INTO skills(user_id,name,proficiency,category) VALUES($1,$2,3,$3)
            ON CONFLICT (user_id,lower(name)) DO UPDATE SET updated_at=now() RETURNING id`,
-          [session.user.id, skillInput.name, skillInput.category],
+          [userId, skillInput.name, skillInput.category],
         );
         await client.query("INSERT INTO job_skills(job_id,skill_id) VALUES($1,$2) ON CONFLICT DO NOTHING", [id.data, skill.rows[0].id]);
       }

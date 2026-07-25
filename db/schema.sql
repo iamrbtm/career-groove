@@ -5,7 +5,15 @@ CREATE TABLE IF NOT EXISTS users (
   "emailVerified" TIMESTAMPTZ, image TEXT, password_hash TEXT, preferences JSONB NOT NULL DEFAULT '{}',
   "stripeCustomerId" TEXT UNIQUE, "stripeSubscriptionId" TEXT UNIQUE, "stripePriceId" TEXT,
   "stripeCurrentPeriodEnd" TIMESTAMPTZ, "subscriptionStatus" TEXT,
+  "appStoreOriginalTransactionId" TEXT, "appStoreProductId" TEXT,
+  "appStoreEnvironment" TEXT, "appStoreExpiresAt" TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS users_app_store_original_transaction_idx
+  ON users("appStoreOriginalTransactionId") WHERE "appStoreOriginalTransactionId" IS NOT NULL;
+CREATE TABLE IF NOT EXISTS app_store_notifications (
+  notification_id TEXT PRIMARY KEY, notification_type TEXT, environment TEXT,
+  received_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS accounts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), "userId" UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -26,6 +34,50 @@ CREATE TABLE IF NOT EXISTS authenticators (
   "credentialDeviceType" TEXT NOT NULL, "credentialBackedUp" BOOLEAN NOT NULL, transports TEXT,
   PRIMARY KEY("userId", "credentialID")
 );
+CREATE TABLE IF NOT EXISTS mobile_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  access_token_hash TEXT NOT NULL UNIQUE, refresh_token_hash TEXT NOT NULL UNIQUE,
+  previous_refresh_token_hash TEXT UNIQUE,
+  access_expires_at TIMESTAMPTZ NOT NULL, refresh_expires_at TIMESTAMPTZ NOT NULL,
+  device_name TEXT, platform TEXT NOT NULL DEFAULT 'ios', last_used_at TIMESTAMPTZ, revoked_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS mobile_sessions_user_active_idx ON mobile_sessions(user_id, refresh_expires_at) WHERE revoked_at IS NULL;
+CREATE TABLE IF NOT EXISTS mobile_oauth_codes (
+  code_hash TEXT PRIMARY KEY, user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  code_challenge TEXT NOT NULL, state_hash TEXT NOT NULL, expires_at TIMESTAMPTZ NOT NULL,
+  used_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS mobile_oauth_codes_expiry_idx ON mobile_oauth_codes(expires_at);
+CREATE TABLE IF NOT EXISTS mobile_passkey_challenges (
+  request_id_hash TEXT PRIMARY KEY, challenge_hash TEXT NOT NULL, expires_at TIMESTAMPTZ NOT NULL,
+  used_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS mobile_passkey_challenges_expiry_idx ON mobile_passkey_challenges(expires_at);
+CREATE TABLE IF NOT EXISTS mobile_identity_assertions (
+  assertion_id TEXT PRIMARY KEY, expires_at TIMESTAMPTZ NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS mobile_auth_attempts (
+  identifier_hash TEXT NOT NULL, network_hash TEXT NOT NULL, attempted_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS mobile_auth_attempts_lookup_idx ON mobile_auth_attempts(identifier_hash, network_hash, attempted_at DESC);
+CREATE TABLE IF NOT EXISTS push_devices (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE, device_token TEXT NOT NULL,
+  environment TEXT NOT NULL CHECK (environment IN ('sandbox','production')),
+  enabled_categories JSONB NOT NULL DEFAULT '[]', app_version TEXT, locale TEXT,
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(), created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS push_devices_user_idx ON push_devices(user_id, last_seen_at DESC);
+CREATE TABLE IF NOT EXISTS mobile_notification_deliveries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), device_id UUID NOT NULL REFERENCES push_devices(id) ON DELETE CASCADE,
+  source_key TEXT NOT NULL, category TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'sending' CHECK (status IN ('sending','sent','failed')),
+  error TEXT, sent_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(device_id,source_key)
+);
+CREATE INDEX IF NOT EXISTS mobile_notification_deliveries_created_idx ON mobile_notification_deliveries(created_at);
 CREATE TABLE IF NOT EXISTS jobs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   company TEXT NOT NULL, title TEXT NOT NULL, location TEXT, started_on DATE, ended_on DATE, current BOOLEAN DEFAULT false,
@@ -131,6 +183,25 @@ CREATE TABLE IF NOT EXISTS application_outcomes (
   cover_letter_document_id UUID REFERENCES application_documents(id) ON DELETE SET NULL,
   offer JSONB NOT NULL DEFAULT '{}', occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(), created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS application_answer_library (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  question TEXT NOT NULL, question_key TEXT NOT NULL, canonical_answer TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'job_specific' CHECK (kind IN ('standard_profile','job_specific')),
+  confidence TEXT NOT NULL DEFAULT 'medium' CHECK (confidence IN ('low','medium','high')), source TEXT,
+  tags JSONB NOT NULL DEFAULT '[]', metadata JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(user_id, question_key)
+);
+CREATE TABLE IF NOT EXISTS application_answers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  application_id UUID NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+  library_answer_id UUID REFERENCES application_answer_library(id) ON DELETE SET NULL,
+  question TEXT NOT NULL, answer TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'job_specific' CHECK (kind IN ('standard_profile','job_specific')),
+  confidence TEXT NOT NULL DEFAULT 'medium' CHECK (confidence IN ('low','medium','high')), source TEXT,
+  position SMALLINT NOT NULL DEFAULT 0, metadata JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 CREATE TABLE IF NOT EXISTS command_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   mode TEXT NOT NULL CHECK (mode IN ('light','standard','deep','recovery','interview')),
@@ -183,6 +254,9 @@ CREATE INDEX IF NOT EXISTS application_documents_user_app_idx ON application_doc
 CREATE INDEX IF NOT EXISTS application_interviews_user_scheduled_idx ON application_interviews(user_id, scheduled_at);
 CREATE INDEX IF NOT EXISTS application_scores_user_app_created_idx ON application_scores(user_id, application_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS application_outcomes_user_app_created_idx ON application_outcomes(user_id, application_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS application_answer_library_user_updated_idx ON application_answer_library(user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS application_answers_user_app_position_idx ON application_answers(user_id, application_id, position);
+CREATE INDEX IF NOT EXISTS application_answers_library_idx ON application_answers(library_answer_id);
 CREATE INDEX IF NOT EXISTS command_sessions_user_status_created_idx ON command_sessions(user_id, status, created_at DESC);
 CREATE INDEX IF NOT EXISTS command_session_actions_user_session_position_idx ON command_session_actions(user_id, command_session_id, position);
 ALTER TABLE skills ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'other';

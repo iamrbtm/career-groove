@@ -1,7 +1,7 @@
 import { generateText } from "ai";
 import { z } from "zod";
 import { getModel } from "@/lib/ai";
-import { auth } from "@/auth";
+import { requireUser, unauthorized } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { decryptSecret } from "@/lib/secret-box";
 import { providerSchema } from "@/lib/provider-models";
@@ -45,16 +45,15 @@ const prompts = {
 };
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id)
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = await requireUser();
+  if (!userId) return unauthorized();
   const parsed = requestSchema.safeParse(await request.json());
   if (!parsed.success)
     return Response.json({ error: parsed.error.flatten() }, { status: 400 });
   const { purpose, messages, context } = parsed.data;
   const preferences = await db.query(
     "SELECT preferences FROM users WHERE id=$1",
-    [session.user.id],
+    [userId],
   );
   const saved = preferences.rows[0]?.preferences ?? {};
   const preferredProvider = providerSchema.safeParse(saved.aiProvider).success
@@ -65,7 +64,7 @@ export async function POST(request: Request) {
      FROM provider_connections
      WHERE user_id=$1 AND active=true AND selected_model IS NOT NULL
      ORDER BY CASE WHEN provider=$2 THEN 0 ELSE 1 END,last_checked_at DESC NULLS LAST,provider`,
-    [session.user.id, preferredProvider ?? ""],
+    [userId, preferredProvider ?? ""],
   );
   if (!connections.rowCount)
     return Response.json(

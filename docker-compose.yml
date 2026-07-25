@@ -42,6 +42,17 @@ services:
       - "host.docker.internal:host-gateway"
     depends_on:
       db: { condition: service_healthy }
+  mobile-notification-worker:
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    command: ["node", "scripts/mobile-notification-worker.mjs"]
+    env_file: [.env]
+    environment:
+      MOBILE_NOTIFICATION_ENDPOINT: http://app:3000/api/internal/mobile-notifications
+    depends_on:
+      - app
   backup-scheduler:
     build:
       context: .
