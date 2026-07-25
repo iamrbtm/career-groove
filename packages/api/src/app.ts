@@ -22,6 +22,7 @@ import {
 } from "./domains/applications/support-routes.js";
 import { SessionService } from "./domains/auth/session-service.js";
 import { createJobRoutes } from "./domains/jobs/routes.js";
+import { createDocumentJobRoutes } from "./domains/documents/routes.js";
 import { createProviderRoutes } from "./domains/providers/routes.js";
 import {
   createContactRoutes,
@@ -100,6 +101,10 @@ export function createApp({ config, database, sessions }: AppDependencies) {
     app.route("/api/credentials", createCredentialRoutes(coreDependencies));
     app.route("/api/skills", createSkillRoutes(coreDependencies));
     app.route("/api/documents", createDocumentRoutes(coreDependencies));
+    app.route(
+      "/api/document-jobs",
+      createDocumentJobRoutes(coreDependencies),
+    );
     app.route("/api/settings", createSettingsRoutes(coreDependencies));
     app.route(
       "/api/applications",
