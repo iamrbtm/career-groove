@@ -159,4 +159,29 @@ describe("application routes", () => {
       userId,
     ]);
   });
+
+  it("builds a deterministic remix from only owned career evidence", async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ id: applicationId, title: "Platform Engineer", company: "Acme", description: "Docker PostgreSQL systems" }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ id: "job-1", title: "Engineer", company: "Past", achievements: ["Built Docker systems"], rawNotes: "" }],
+      })
+      .mockResolvedValueOnce({ rows: [{ name: "PostgreSQL" }] })
+      .mockResolvedValueOnce({ rows: [] });
+    const response = await createApp({
+      config,
+      database: { query } as unknown as Database,
+      sessions,
+    }).request(`/api/applications/${applicationId}/remix`, {
+      headers,
+      method: "POST",
+    });
+    expect(response.status).toBe(200);
+    expect(query.mock.calls[0]?.[1]).toEqual([applicationId, userId]);
+    expect(query.mock.calls[3]?.[0]).toContain("user_id=$2");
+  });
 });

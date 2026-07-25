@@ -14,6 +14,21 @@ import { createAuthMiddleware } from "../../middleware/auth.js";
 import type { SessionService } from "../auth/session-service.js";
 
 const idSchema = z.string().uuid();
+const remixStopWords = new Set([
+  "and", "the", "with", "for", "you", "your", "will", "are", "that", "this",
+  "from", "have", "has", "our", "but", "not", "all",
+]);
+function remixTerms(value: string) {
+  const counts = new Map<string, number>();
+  for (const token of value.toLowerCase().split(/[^a-z0-9+#.-]+/)) {
+    if (token.length <= 2 || remixStopWords.has(token)) continue;
+    counts.set(token, (counts.get(token) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .slice(0, 12)
+    .map(([token]) => token);
+}
 const linkedContactSchema = z
   .object({
     contactId: z.string().uuid().optional(),
@@ -699,6 +714,93 @@ export function createApplicationRoutes({
       return jsonError(context, 404, "not_found", "Application not found");
     }
     return context.json({ outcome: result.rows[0] }, 201);
+  });
+
+  routes.post("/:id/remix", async (context) => {
+    const id = idSchema.safeParse(context.req.param("id"));
+    if (!id.success) {
+      return jsonError(context, 400, "invalid_id", "Invalid application id");
+    }
+    const userId = context.get("userId");
+    const [application, jobs, skills] = await Promise.all([
+      database.query<{
+        company: string;
+        description: string;
+        id: string;
+        title: string;
+      }>(
+        `SELECT id,title,company,description,metadata FROM applications
+         WHERE id=$1 AND user_id=$2`,
+        [id.data, userId],
+      ),
+      database.query<{
+        achievements: string[];
+        company: string;
+        id: string;
+        rawNotes: string;
+        title: string;
+      }>(
+        `SELECT id,title,company,achievements,raw_notes AS "rawNotes"
+         FROM jobs WHERE user_id=$1
+         ORDER BY current DESC,ended_on DESC NULLS LAST,
+          started_on DESC NULLS LAST LIMIT 8`,
+        [userId],
+      ),
+      database.query<{ name: string }>(
+        `SELECT name FROM skills WHERE user_id=$1
+         ORDER BY proficiency DESC,name LIMIT 80`,
+        [userId],
+      ),
+    ]);
+    const app = application.rows[0];
+    if (!app) return jsonError(context, 404, "not_found", "Application not found");
+    const keywords = remixTerms(`${app.title} ${app.description}`);
+    const skillNames = skills.rows.map((row) => row.name);
+    const matchedSkills = skillNames.filter((skill) =>
+      keywords.includes(skill.toLowerCase()),
+    );
+    const ranked = jobs.rows
+      .map((job) => {
+        const text =
+          `${job.title} ${job.company} ${job.rawNotes ?? ""} ${(job.achievements ?? []).join(" ")}`.toLowerCase();
+        return {
+          ...job,
+          score: keywords.filter((keyword) => text.includes(keyword)).length,
+          text,
+        };
+      })
+      .sort((left, right) => right.score - left.score);
+    const chapters = ranked.filter((job) => job.score > 0).slice(0, 3);
+    const missingEvidence = keywords
+      .filter(
+        (keyword) =>
+          !matchedSkills.some((skill) => skill.toLowerCase() === keyword) &&
+          !chapters.some((job) => job.text.includes(keyword)),
+      )
+      .slice(0, 6);
+    const remix = {
+      angle: chapters.length
+        ? `Lead with ${chapters[0]!.title} evidence and connect it directly to ${app.title}.`
+        : `Keep the resume honest and targeted to ${app.title}; add Journey evidence before over-tailoring.`,
+      chapters: chapters.map((job) => ({
+        company: job.company,
+        id: job.id,
+        reason: `${job.score} role keyword${job.score === 1 ? "" : "s"} overlap.`,
+        title: job.title,
+      })),
+      coverLetterAngle: `Use a specific note about why ${app.company} and this ${app.title} scope, then point to one concrete chapter as proof.`,
+      keywords,
+      missingEvidence,
+      skills: matchedSkills.slice(0, 10),
+      updatedAt: new Date().toISOString(),
+    };
+    await database.query(
+      `UPDATE applications
+       SET metadata=jsonb_set(metadata,'{applicationRemix}',$3::jsonb,true),
+        updated_at=now() WHERE id=$1 AND user_id=$2`,
+      [id.data, userId, JSON.stringify(remix)],
+    );
+    return context.json({ remix });
   });
 
   routes.post("/:id/events", async (context) => {
