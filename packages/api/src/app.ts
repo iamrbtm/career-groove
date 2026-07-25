@@ -37,6 +37,7 @@ import { SessionService } from "./domains/auth/session-service.js";
 import { createJobRoutes } from "./domains/jobs/routes.js";
 import { createDocumentJobRoutes } from "./domains/documents/routes.js";
 import { createProviderRoutes } from "./domains/providers/routes.js";
+import { createNotificationRoutes } from "./domains/notifications/routes.js";
 import {
   createContactRoutes,
   createCredentialRoutes,
@@ -190,6 +191,13 @@ export function createApp({
     app.route(
       "/api/mobile/push-devices",
       createPushDeviceRoutes(coreDependencies),
+    );
+    app.route(
+      "/api/internal/mobile-notifications",
+      createNotificationRoutes({
+        database,
+        secret: config.internalWorkerSecret,
+      }),
     );
   }
 

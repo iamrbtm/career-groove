@@ -90,6 +90,7 @@ services:
         required: false
     environment:
       MOBILE_NOTIFICATION_ENDPOINT: http://api:3001/api/internal/mobile-notifications
+      MOBILE_NOTIFICATION_WORKER_SECRET: ${INTERNAL_WORKER_SECRET:?INTERNAL_WORKER_SECRET is required}
     depends_on:
       api: { condition: service_healthy }
     profiles: ["notifications"]
