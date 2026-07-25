@@ -107,6 +107,7 @@ export function createApp({
     app.route(
       "/api/mobile/auth",
       createAuthRoutes({
+        config,
         database,
         sessions: sessionService,
       }),

@@ -1,17 +1,26 @@
 import { useRouter } from "expo-router";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Text, View } from "react-native";
 
 import { Field, GrooveButton, Heading, Screen } from "@/components/ui";
 import { useAuth } from "@/providers/auth-provider";
+import { apiJson } from "@/lib/api";
 
 export default function SignInRoute() {
   const router = useRouter();
-  const { signIn } = useAuth();
+  const { signIn, signInWithOAuth } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const capabilities = useQuery({
+    queryFn: () =>
+      apiJson<{
+        methods: { github: boolean; google: boolean };
+      }>("/api/mobile/auth/capabilities"),
+    queryKey: ["auth-capabilities"],
+  });
 
   async function submit() {
     setSubmitting(true);
@@ -60,6 +69,30 @@ export default function SignInRoute() {
           >
             {submitting ? "Signing in…" : "Sign in"}
           </GrooveButton>
+          {(["google", "github"] as const).map((provider) =>
+            capabilities.data?.methods[provider] ? (
+              <GrooveButton
+                key={provider}
+                onPress={() => {
+                  setSubmitting(true);
+                  setError("");
+                  void signInWithOAuth(provider)
+                    .then(() => router.replace("/(tabs)"))
+                    .catch((caught: unknown) =>
+                      setError(
+                        caught instanceof Error
+                          ? caught.message
+                          : "Sign in failed",
+                      ),
+                    )
+                    .finally(() => setSubmitting(false));
+                }}
+                variant="secondary"
+              >
+                Continue with {provider === "google" ? "Google" : "GitHub"}
+              </GrooveButton>
+            ) : null,
+          )}
           <GrooveButton onPress={() => router.back()} variant="quiet">
             Back
           </GrooveButton>

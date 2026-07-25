@@ -16,6 +16,15 @@ export const apiClient = new SessionClient({
   store: tokenStore,
 });
 
+export function absoluteApiUrl(path: string): string {
+  const base =
+    configuredUrl ??
+    (Platform.OS === "web" && typeof window !== "undefined"
+      ? window.location.origin
+      : developmentUrl);
+  return `${base.replace(/\/$/, "")}${path}`;
+}
+
 export async function apiJson<T>(
   path: string,
   init?: RequestInit,

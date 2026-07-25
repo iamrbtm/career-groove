@@ -161,4 +161,31 @@ describe("authentication routes", () => {
       },
     });
   });
+
+  it("starts Google OAuth with a fixed server callback and PKCE state", async () => {
+    const oauthConfig: ApiConfig = {
+      ...config,
+      googleClientId: "google-client",
+      googleClientSecret: "google-secret",
+    };
+    const state = "s".repeat(43);
+    const challenge = "c".repeat(43);
+    const response = await createApp({
+      config: oauthConfig,
+      database: { query: vi.fn() } as unknown as Database,
+      sessions: sessionStub(),
+    }).request(
+      `/api/mobile/auth/oauth/start?provider=google&state=${state}&code_challenge=${challenge}`,
+    );
+
+    expect(response.status).toBe(302);
+    const location = new URL(response.headers.get("location")!);
+    expect(location.origin).toBe("https://accounts.google.com");
+    expect(location.searchParams.get("state")).toBe(state);
+    const callback = new URL(location.searchParams.get("redirect_uri")!);
+    expect(`${callback.origin}${callback.pathname}`).toBe(
+      "https://careergroove.example/api/mobile/auth/oauth/complete",
+    );
+    expect(callback.searchParams.get("code_challenge")).toBe(challenge);
+  });
 });

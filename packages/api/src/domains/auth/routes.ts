@@ -1,5 +1,7 @@
 import { compare } from "bcryptjs";
+import { createHash, randomBytes } from "node:crypto";
 import { Hono } from "hono";
+import { z } from "zod";
 
 import {
   credentialsLoginSchema,
@@ -7,6 +9,7 @@ import {
 } from "@career-groove/shared";
 
 import type { Database } from "../../db.js";
+import type { ApiConfig } from "../../config.js";
 import type { AppVariables } from "../../http.js";
 import { jsonError } from "../../http.js";
 import {
@@ -16,7 +19,9 @@ import {
 } from "./session-service.js";
 
 interface AuthRouteDependencies {
+  config: ApiConfig;
   database: Database;
+  fetch?: typeof fetch;
   sessions: SessionService;
 }
 
@@ -37,7 +42,9 @@ function clientAddress(headers: Headers): string {
 }
 
 export function createAuthRoutes({
+  config,
   database,
+  fetch: transport = fetch,
   sessions,
 }: AuthRouteDependencies) {
   const routes = new Hono<{ Variables: AppVariables }>();
@@ -70,12 +77,8 @@ export function createAuthRoutes({
         methods: {
           apple: Boolean(process.env.AUTH_APPLE_IOS_CLIENT_ID),
           credentials: true,
-          github: Boolean(
-            process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET,
-          ),
-          google: Boolean(
-            process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET,
-          ),
+          github: Boolean(config.githubClientId && config.githubClientSecret),
+          google: Boolean(config.googleClientId && config.googleClientSecret),
           passkey: process.env.AUTH_EXPERIMENTAL_ENABLE_PASSKEYS === "true",
         },
         tokenPolicy: {
@@ -87,6 +90,240 @@ export function createAuthRoutes({
       { "Cache-Control": "private, max-age=60" },
     ),
   );
+
+  const oauthStart = z.object({
+    provider: z.enum(["google", "github"]),
+    state: z.string().regex(/^[A-Za-z0-9_-]{32,128}$/),
+    code_challenge: z.string().regex(/^[A-Za-z0-9_-]{43,128}$/),
+  });
+  routes.get("/oauth/start", (context) => {
+    const parsed = oauthStart.safeParse(context.req.query());
+    if (!parsed.success) {
+      return jsonError(
+        context,
+        400,
+        "invalid_oauth_request",
+        "Invalid authorization request",
+      );
+    }
+    const input = parsed.data;
+    const clientId =
+      input.provider === "google"
+        ? config.googleClientId
+        : config.githubClientId;
+    const clientSecret =
+      input.provider === "google"
+        ? config.googleClientSecret
+        : config.githubClientSecret;
+    if (!clientId || !clientSecret) {
+      return jsonError(
+        context,
+        503,
+        "provider_unavailable",
+        "This sign-in provider is not configured",
+      );
+    }
+    const callback = new URL(
+      "/api/mobile/auth/oauth/complete",
+      config.allowedOrigins[0],
+    );
+    callback.searchParams.set("provider", input.provider);
+    callback.searchParams.set("state", input.state);
+    callback.searchParams.set("code_challenge", input.code_challenge);
+    const authorization =
+      input.provider === "google"
+        ? new URL("https://accounts.google.com/o/oauth2/v2/auth")
+        : new URL("https://github.com/login/oauth/authorize");
+    authorization.searchParams.set("client_id", clientId);
+    authorization.searchParams.set("redirect_uri", callback.toString());
+    authorization.searchParams.set("state", input.state);
+    if (input.provider === "google") {
+      authorization.searchParams.set("response_type", "code");
+      authorization.searchParams.set("scope", "openid email profile");
+    } else {
+      authorization.searchParams.set("scope", "read:user user:email");
+    }
+    return context.redirect(authorization.toString(), 302);
+  });
+
+  routes.get("/oauth/complete", async (context) => {
+    const parsed = oauthStart.extend({
+      code: z.string().min(1).max(2_000),
+    }).safeParse(context.req.query());
+    if (!parsed.success) {
+      return jsonError(context, 400, "invalid_oauth_callback", "Invalid authorization callback");
+    }
+    const input = parsed.data;
+    const clientId =
+      input.provider === "google" ? config.googleClientId : config.githubClientId;
+    const clientSecret =
+      input.provider === "google"
+        ? config.googleClientSecret
+        : config.githubClientSecret;
+    if (!clientId || !clientSecret) {
+      return jsonError(context, 503, "provider_unavailable", "Provider is not configured");
+    }
+    const redirectUri = new URL(
+      "/api/mobile/auth/oauth/complete",
+      config.allowedOrigins[0],
+    );
+    redirectUri.searchParams.set("provider", input.provider);
+    redirectUri.searchParams.set("state", input.state);
+    redirectUri.searchParams.set("code_challenge", input.code_challenge);
+    const tokenResponse = await transport(
+      input.provider === "google"
+        ? "https://oauth2.googleapis.com/token"
+        : "https://github.com/login/oauth/access_token",
+      {
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          code: input.code,
+          redirect_uri: redirectUri.toString(),
+          ...(input.provider === "google" ? { grant_type: "authorization_code" } : {}),
+        }),
+        headers: { Accept: "application/json" },
+        method: "POST",
+        signal: AbortSignal.timeout(10_000),
+      },
+    );
+    if (!tokenResponse.ok) {
+      return jsonError(context, 401, "oauth_failed", "Authorization could not be verified");
+    }
+    const tokenPayload = (await tokenResponse.json()) as { access_token?: string };
+    if (!tokenPayload.access_token) {
+      return jsonError(context, 401, "oauth_failed", "Authorization could not be verified");
+    }
+    const profileResponse = await transport(
+      input.provider === "google"
+        ? "https://openidconnect.googleapis.com/v1/userinfo"
+        : "https://api.github.com/user",
+      {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${tokenPayload.access_token}`,
+          "User-Agent": "CareerGroove",
+        },
+        signal: AbortSignal.timeout(10_000),
+      },
+    );
+    if (!profileResponse.ok) {
+      return jsonError(context, 401, "oauth_failed", "Profile could not be verified");
+    }
+    const profile = (await profileResponse.json()) as {
+      avatar_url?: string;
+      email?: string;
+      email_verified?: boolean;
+      id?: number;
+      login?: string;
+      name?: string;
+      picture?: string;
+      sub?: string;
+    };
+    let email = profile.email?.toLowerCase();
+    if (input.provider === "google" && profile.email_verified !== true) email = undefined;
+    if (!email || !(input.provider === "google" ? profile.sub : profile.id)) {
+      return jsonError(context, 401, "oauth_failed", "A verified email is required");
+    }
+    const providerAccountId = String(
+      input.provider === "google" ? profile.sub : profile.id,
+    );
+    type OAuthUser = {
+      email: string;
+      id: string;
+      image: string | null;
+      name: string | null;
+    };
+    const existingAccount = await database.query<OAuthUser>(
+      `SELECT u.id,u.name,u.email,u.image FROM accounts a
+       JOIN users u ON u.id=a."userId"
+       WHERE a.provider=$1 AND a."providerAccountId"=$2`,
+      [input.provider, providerAccountId],
+    );
+    const user = existingAccount.rows[0]
+      ? existingAccount
+      : await database.query<OAuthUser>(
+      `WITH saved_user AS (
+         INSERT INTO users(name,email,image) VALUES($1,$2,$3)
+         ON CONFLICT(email) DO UPDATE SET
+          name=COALESCE(users.name,EXCLUDED.name),
+          image=COALESCE(users.image,EXCLUDED.image),updated_at=now()
+         RETURNING id,name,email,image
+       ), linked AS (
+         INSERT INTO accounts("userId",type,provider,"providerAccountId")
+         SELECT id,'oauth',$4,$5 FROM saved_user
+         ON CONFLICT(provider,"providerAccountId") DO NOTHING
+       )
+       SELECT id,name,email,image FROM saved_user`,
+      [
+        profile.name || profile.login || null,
+        email,
+        profile.picture || profile.avatar_url || null,
+        input.provider,
+        providerAccountId,
+      ],
+    );
+    const account = user.rows[0];
+    if (!account) {
+      return jsonError(context, 500, "oauth_failed", "Account could not be created");
+    }
+    const code = randomBytes(32).toString("base64url");
+    await database.query(
+      `INSERT INTO mobile_oauth_codes
+        (code_hash,user_id,code_challenge,state_hash,expires_at)
+       VALUES($1,$2,$3,$4,now() + interval '2 minutes')`,
+      [
+        hashAuthIdentifier(code),
+        account.id,
+        input.code_challenge,
+        hashAuthIdentifier(input.state),
+      ],
+    );
+    const callback = new URL("careergroove://auth/callback");
+    callback.searchParams.set("code", code);
+    callback.searchParams.set("state", input.state);
+    return context.redirect(callback.toString(), 302);
+  });
+
+  routes.post("/oauth/exchange", async (context) => {
+    const parsed = z.object({
+      code: z.string().regex(/^[A-Za-z0-9_-]{32,128}$/),
+      state: z.string().regex(/^[A-Za-z0-9_-]{32,128}$/),
+      codeVerifier: z.string().regex(/^[A-Za-z0-9._~-]{43,128}$/),
+      deviceName: z.string().trim().max(120).optional(),
+      platform: z.enum(["ios", "android", "web"]).default("ios"),
+    }).strict().safeParse(await context.req.json().catch(() => null));
+    if (!parsed.success) {
+      return jsonError(context, 401, "invalid_oauth_code", "Invalid authorization code");
+    }
+    const input = parsed.data;
+    const challenge = createHash("sha256")
+      .update(input.codeVerifier, "ascii")
+      .digest("base64url");
+    const result = await database.query<{ user_id: string }>(
+      `UPDATE mobile_oauth_codes SET used_at=now()
+       WHERE code_hash=$1 AND state_hash=$2 AND code_challenge=$3
+        AND used_at IS NULL AND expires_at > now() RETURNING user_id`,
+      [
+        hashAuthIdentifier(input.code),
+        hashAuthIdentifier(input.state),
+        challenge,
+      ],
+    );
+    const userId = result.rows[0]?.user_id;
+    if (!userId) {
+      return jsonError(context, 401, "invalid_oauth_code", "Invalid authorization code");
+    }
+    const [tokens, profile] = await Promise.all([
+      sessions.create(userId, {
+        deviceName: input.deviceName,
+        platform: input.platform,
+      }),
+      database.query("SELECT id,name,email,image FROM users WHERE id=$1", [userId]),
+    ]);
+    context.header("Cache-Control", "no-store");
+    return context.json({ ...tokens, user: profile.rows[0] });
+  });
 
   routes.post("/signin", async (context) => {
     const parsed = credentialsLoginSchema.safeParse(
