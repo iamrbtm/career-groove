@@ -24,7 +24,7 @@ final class OAuthProvider: NSObject, ASWebAuthenticationPresentationContextProvi
         ]
         guard let url = components.url else { throw APIError.invalidURL }
 
-        let callbackURL = try await withCheckedThrowingContinuation { continuation in
+        let callbackURL = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL, Error>) in
             let session = ASWebAuthenticationSession(url: url, callbackURLScheme: "careergroove") { [weak self] url, error in
                 self?.session = nil
                 if let error { continuation.resume(throwing: error); return }
