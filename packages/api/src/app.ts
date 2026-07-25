@@ -16,6 +16,7 @@ import {
 } from "./domains/applications/support-routes.js";
 import { SessionService } from "./domains/auth/session-service.js";
 import { createJobRoutes } from "./domains/jobs/routes.js";
+import { createProviderRoutes } from "./domains/providers/routes.js";
 import {
   createContactRoutes,
   createCredentialRoutes,
@@ -104,6 +105,10 @@ export function createApp({ config, database, sessions }: AppDependencies) {
     app.route(
       "/api/application-preferences",
       createApplicationPreferenceRoutes(coreDependencies),
+    );
+    app.route(
+      "/api/providers",
+      createProviderRoutes({ config, ...coreDependencies }),
     );
   }
 
