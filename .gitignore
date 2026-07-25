@@ -8,3 +8,6 @@ node_modules
 .ollama
 backups/
 .worktrees/
+dist/
+coverage/
+.turbo/
