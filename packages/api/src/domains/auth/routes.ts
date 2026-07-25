@@ -84,7 +84,9 @@ export function createAuthRoutes({
           credentials: true,
           github: Boolean(config.githubClientId && config.githubClientSecret),
           google: Boolean(config.googleClientId && config.googleClientSecret),
-          passkey: process.env.AUTH_EXPERIMENTAL_ENABLE_PASSKEYS === "true",
+          // Expo SDK 57 has no production-ready, cross-platform passkey API.
+          // Never advertise a flow that this service cannot complete.
+          passkey: false,
         },
         tokenPolicy: {
           accessTokenLifetimeSeconds: 900,

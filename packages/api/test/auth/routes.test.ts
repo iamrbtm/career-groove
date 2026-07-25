@@ -33,6 +33,21 @@ function sessionStub() {
 }
 
 describe("authentication routes", () => {
+  it("does not advertise the intentionally deferred passkey flow", async () => {
+    process.env.AUTH_EXPERIMENTAL_ENABLE_PASSKEYS = "true";
+    const response = await createApp({
+      config,
+      database: { query: vi.fn() } as unknown as Database,
+      sessions: sessionStub(),
+    }).request("/api/mobile/auth/capabilities");
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      methods: { passkey: false },
+    });
+    delete process.env.AUTH_EXPERIMENTAL_ENABLE_PASSKEYS;
+  });
+
   it("returns constant-shape invalid credential responses", async () => {
     const database = {
       query: vi.fn().mockResolvedValue({ rows: [{ count: 0 }], rowCount: 1 }),
