@@ -4,6 +4,7 @@ const productionSecret = z.string().min(32);
 
 export const apiConfigSchema = z.object({
   allowedOrigins: z.array(z.string().url()).min(1),
+  appleIosClientId: z.string().min(1).optional(),
   bodyLimitBytes: z.number().int().positive().max(10 * 1024 * 1024),
   databaseUrl: z.string().min(1),
   githubClientId: z.string().min(1).optional(),
@@ -33,6 +34,7 @@ function commaSeparated(value: string | undefined): string[] {
 export function loadConfig(environment: NodeJS.ProcessEnv = process.env): ApiConfig {
   return apiConfigSchema.parse({
     allowedOrigins: commaSeparated(environment.ALLOWED_ORIGINS),
+    appleIosClientId: environment.AUTH_APPLE_IOS_CLIENT_ID,
     bodyLimitBytes: Number(environment.API_BODY_LIMIT_BYTES ?? 2 * 1024 * 1024),
     databaseUrl: environment.DATABASE_URL,
     githubClientId: environment.AUTH_GITHUB_ID,

@@ -9,6 +9,7 @@
     "userInterfaceStyle": "light",
     "ios": {
       "bundleIdentifier": "website.careergroove.app",
+      "usesAppleSignIn": true,
       "associatedDomains": ["applinks:careergroove.website"],
       "config": {
         "usesNonExemptEncryption": false
@@ -58,7 +59,8 @@
         }
       ],
       "expo-secure-store",
-      "expo-audio"
+      "expo-audio",
+      "expo-apple-authentication"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -188,4 +188,22 @@ describe("authentication routes", () => {
     );
     expect(callback.searchParams.get("code_challenge")).toBe(challenge);
   });
+
+  it("fails closed when native Apple sign-in is not configured", async () => {
+    const query = vi.fn();
+    const response = await createApp({
+      config,
+      database: { query } as unknown as Database,
+      sessions: sessionStub(),
+    }).request("/api/mobile/auth/apple", {
+      body: JSON.stringify({
+        identityToken: "x".repeat(120),
+        nonce: "n".repeat(64),
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+    expect(response.status).toBe(503);
+    expect(query).not.toHaveBeenCalled();
+  });
 });

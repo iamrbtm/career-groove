@@ -15,6 +15,7 @@ import {
 } from "expo-crypto";
 import { makeRedirectUri } from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
+import * as AppleAuthentication from "expo-apple-authentication";
 
 import { absoluteApiUrl, apiClient, apiJson } from "@/lib/api";
 import { tokenStore } from "@/lib/token-store";
@@ -30,6 +31,7 @@ interface AuthContextValue {
   isLoading: boolean;
   register(name: string, email: string, password: string): Promise<void>;
   signIn(email: string, password: string): Promise<void>;
+  signInWithApple(): Promise<void>;
   signInWithOAuth(provider: "google" | "github"): Promise<void>;
   signOut(): Promise<void>;
   user: SessionUser | null;
@@ -127,6 +129,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const signInWithApple = useCallback(async () => {
+    const nonce = `${randomUUID()}${randomUUID()}`.replaceAll("-", "");
+    const state = `${randomUUID()}${randomUUID()}`.replaceAll("-", "");
+    const credential = await AppleAuthentication.signInAsync({
+      nonce,
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+      state,
+    });
+    if (!credential.identityToken || credential.state !== state) {
+      throw new Error("Apple authorization could not be verified");
+    }
+    const session = await apiJson<{
+      accessToken: string;
+      refreshToken: string;
+      accessTokenExpiresAt: string;
+      refreshTokenExpiresAt: string;
+      user: SessionUser;
+    }>("/api/mobile/auth/apple", {
+      body: JSON.stringify({
+        familyName: credential.fullName?.familyName ?? undefined,
+        givenName: credential.fullName?.givenName ?? undefined,
+        identityToken: credential.identityToken,
+        nonce,
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+    await apiClient.setTokens(session);
+    setUser(session.user);
+  }, []);
+
   const register = useCallback(
     async (name: string, email: string, password: string) => {
       await apiJson("/api/register", {
@@ -140,8 +176,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ isLoading, register, signIn, signInWithOAuth, signOut, user }),
-    [isLoading, register, signIn, signInWithOAuth, signOut, user],
+    () => ({
+      isLoading,
+      register,
+      signIn,
+      signInWithApple,
+      signInWithOAuth,
+      signOut,
+      user,
+    }),
+    [isLoading, register, signIn, signInWithApple, signInWithOAuth, signOut, user],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

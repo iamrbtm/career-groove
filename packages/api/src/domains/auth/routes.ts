@@ -1,6 +1,7 @@
 import { compare } from "bcryptjs";
 import { createHash, randomBytes } from "node:crypto";
 import { Hono } from "hono";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 import { z } from "zod";
 
 import {
@@ -32,6 +33,10 @@ interface CredentialUser {
   image: string | null;
   password_hash: string | null;
 }
+
+const appleKeys = createRemoteJWKSet(
+  new URL("https://appleid.apple.com/auth/keys"),
+);
 
 function clientAddress(headers: Headers): string {
   return (
@@ -75,7 +80,7 @@ export function createAuthRoutes({
     context.json(
       {
         methods: {
-          apple: Boolean(process.env.AUTH_APPLE_IOS_CLIENT_ID),
+          apple: Boolean(config.appleIosClientId),
           credentials: true,
           github: Boolean(config.githubClientId && config.githubClientSecret),
           google: Boolean(config.googleClientId && config.googleClientSecret),
@@ -323,6 +328,118 @@ export function createAuthRoutes({
     ]);
     context.header("Cache-Control", "no-store");
     return context.json({ ...tokens, user: profile.rows[0] });
+  });
+
+  routes.post("/apple", async (context) => {
+    if (!config.appleIosClientId) {
+      return jsonError(
+        context,
+        503,
+        "provider_unavailable",
+        "Sign in with Apple is not configured",
+      );
+    }
+    const parsed = z
+      .object({
+        identityToken: z.string().min(100).max(10_000),
+        nonce: z.string().min(32).max(256),
+        givenName: z.string().trim().max(100).optional(),
+        familyName: z.string().trim().max(100).optional(),
+        deviceName: z.string().trim().max(120).optional(),
+      })
+      .strict()
+      .safeParse(await context.req.json().catch(() => null));
+    if (!parsed.success) {
+      return jsonError(context, 401, "invalid_apple_auth", "Invalid Apple authorization");
+    }
+    try {
+      const { payload } = await jwtVerify(parsed.data.identityToken, appleKeys, {
+        audience: config.appleIosClientId,
+        issuer: "https://appleid.apple.com",
+      });
+      const nonce = createHash("sha256")
+        .update(parsed.data.nonce, "utf8")
+        .digest("hex");
+      if (!payload.sub || !payload.jti || payload.nonce !== nonce) {
+        return jsonError(context, 401, "invalid_apple_auth", "Invalid Apple authorization");
+      }
+      const expiresAt = new Date((payload.exp ?? 0) * 1_000);
+      if (expiresAt.getTime() <= Date.now()) {
+        return jsonError(context, 401, "apple_auth_expired", "Apple authorization expired");
+      }
+      const claim = await database.query(
+        `INSERT INTO mobile_identity_assertions(assertion_id,expires_at)
+         VALUES($1,$2) ON CONFLICT DO NOTHING RETURNING assertion_id`,
+        [payload.jti, expiresAt],
+      );
+      if (!claim.rows[0]) {
+        return jsonError(context, 401, "apple_auth_replayed", "Apple authorization was already used");
+      }
+      type AppleUser = {
+        email: string;
+        id: string;
+        image: string | null;
+        name: string | null;
+      };
+      const existing = await database.query<AppleUser>(
+        `SELECT u.id,u.name,u.email,u.image FROM accounts a
+         JOIN users u ON u.id=a."userId"
+         WHERE a.provider='apple' AND a."providerAccountId"=$1`,
+        [payload.sub],
+      );
+      let user = existing.rows[0];
+      if (!user) {
+        const emailVerified =
+          payload.email_verified === true || payload.email_verified === "true";
+        const email =
+          typeof payload.email === "string" && emailVerified
+            ? payload.email.toLowerCase()
+            : null;
+        if (!email) {
+          return jsonError(
+            context,
+            401,
+            "verified_email_required",
+            "Apple did not provide a verified email address",
+          );
+        }
+        const name =
+          [parsed.data.givenName, parsed.data.familyName]
+            .filter(Boolean)
+            .join(" ") || null;
+        const created = await database.query<AppleUser>(
+          `WITH saved_user AS (
+             INSERT INTO users(name,email) VALUES($1,$2)
+             ON CONFLICT(email) DO UPDATE SET
+              name=COALESCE(users.name,EXCLUDED.name),updated_at=now()
+             RETURNING id,name,email,image
+           ), linked AS (
+             INSERT INTO accounts("userId",type,provider,"providerAccountId")
+             SELECT id,'oidc','apple',$3 FROM saved_user
+             ON CONFLICT(provider,"providerAccountId") DO NOTHING
+           )
+           SELECT id,name,email,image FROM saved_user`,
+          [name, email, payload.sub],
+        );
+        user = created.rows[0];
+      }
+      if (!user) {
+        return jsonError(context, 500, "apple_auth_failed", "Account could not be created");
+      }
+      const tokens = await sessions.create(user.id, {
+        deviceName: parsed.data.deviceName,
+        platform: "ios",
+      });
+      context.header("Cache-Control", "no-store");
+      return context.json({ ...tokens, user });
+    } catch {
+      return jsonError(
+        context,
+        401,
+        "invalid_apple_auth",
+        "Apple authorization could not be verified",
+      );
+    }
   });
 
   routes.post("/signin", async (context) => {

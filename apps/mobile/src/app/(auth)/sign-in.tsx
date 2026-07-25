@@ -1,7 +1,8 @@
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
+import * as AppleAuthentication from "expo-apple-authentication";
 import { useState } from "react";
-import { Text, View } from "react-native";
+import { Platform, Text, View } from "react-native";
 
 import { Field, GrooveButton, Heading, Screen } from "@/components/ui";
 import { useAuth } from "@/providers/auth-provider";
@@ -9,7 +10,7 @@ import { apiJson } from "@/lib/api";
 
 export default function SignInRoute() {
   const router = useRouter();
-  const { signIn, signInWithOAuth } = useAuth();
+  const { signIn, signInWithApple, signInWithOAuth } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -17,7 +18,7 @@ export default function SignInRoute() {
   const capabilities = useQuery({
     queryFn: () =>
       apiJson<{
-        methods: { github: boolean; google: boolean };
+        methods: { apple: boolean; github: boolean; google: boolean };
       }>("/api/mobile/auth/capabilities"),
     queryKey: ["auth-capabilities"],
   });
@@ -93,6 +94,30 @@ export default function SignInRoute() {
               </GrooveButton>
             ) : null,
           )}
+          {Platform.OS === "ios" && capabilities.data?.methods.apple ? (
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonStyle={
+                AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+              }
+              buttonType={
+                AppleAuthentication.AppleAuthenticationButtonType.CONTINUE
+              }
+              cornerRadius={16}
+              onPress={() => {
+                setSubmitting(true);
+                setError("");
+                void signInWithApple()
+                  .then(() => router.replace("/(tabs)"))
+                  .catch((caught: unknown) =>
+                    setError(
+                      caught instanceof Error ? caught.message : "Sign in failed",
+                    ),
+                  )
+                  .finally(() => setSubmitting(false));
+              }}
+              style={{ height: 48, width: "100%" }}
+            />
+          ) : null}
           <GrooveButton onPress={() => router.back()} variant="quiet">
             Back
           </GrooveButton>
