@@ -62,7 +62,7 @@ export default function LandingRoute() {
             applications, relationships, documents, and interview practice.
           </Text>
           <View className="max-w-xl gap-3 sm:flex-row">
-            <GrooveButton onPress={() => router.push("/(auth)/sign-in")}>
+            <GrooveButton onPress={() => router.push("/(auth)/register")}>
               Start your mix
             </GrooveButton>
             <GrooveButton
@@ -117,7 +117,7 @@ export default function LandingRoute() {
           Stop managing the search. Start moving it.
         </Text>
         <View className="max-w-xs">
-          <GrooveButton onPress={() => router.push("/(auth)/sign-in")}>
+          <GrooveButton onPress={() => router.push("/(auth)/register")}>
             Get into the groove
           </GrooveButton>
         </View>

@@ -8,6 +8,7 @@ import {
 } from "lucide-react-native";
 
 import { LoadingState } from "@/components/ui";
+import { MusicPlayer } from "@/components/music-player";
 import { colors } from "@/design/theme";
 import { useAuth } from "@/providers/auth-provider";
 
@@ -17,6 +18,7 @@ export default function TabsLayout() {
   if (!user) return <Redirect href="/(auth)/sign-in" />;
 
   return (
+    <>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -73,5 +75,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="providers" options={{ href: null }} />
       <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
+    <MusicPlayer />
+    </>
   );
 }
