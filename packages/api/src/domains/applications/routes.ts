@@ -29,6 +29,60 @@ function remixTerms(value: string) {
     .slice(0, 12)
     .map(([token]) => token);
 }
+const parseJobSchema = z
+  .object({
+    text: z.string().trim().min(20).max(60_000),
+    sourceUrl: z.string().trim().url().max(2_000).or(z.literal("")).optional(),
+    fallbackTitle: z.string().trim().max(200).optional(),
+    fallbackCompany: z.string().trim().max(200).optional(),
+  })
+  .strict();
+function jobLine(value: string) {
+  return value.replace(/^[\s*•\-–—]+/, "").replace(/\s+/g, " ").trim();
+}
+function parsePastedJob(input: z.infer<typeof parseJobSchema>) {
+  const text = input.text.trim();
+  const lines = text.split(/\r?\n/).map(jobLine).filter(Boolean);
+  const company = input.fallbackCompany ??
+    jobLine(text.match(/(?:company|employer|organization)[:\s]+([^\n|•]+)/i)?.[1] ?? "");
+  const location =
+    jobLine(text.match(/(?:location|based in)[:\s]+([^\n]+)/i)?.[1] ?? "");
+  const compact = text.replace(/,/g, "");
+  const salary = compact.match(
+    /([$£€])?\s*(\d{2,6})(?:k|000)?\s*(?:-|to|–|—)\s*([$£€])?\s*(\d{2,6})(?:k|000)?/i,
+  );
+  const minimum = salary ? Number(salary[2]) : 0;
+  const maximum = salary ? Number(salary[4]) : 0;
+  const multiplier = minimum > 0 && minimum < 1_000 && maximum < 1_000 ? 1_000 : 1;
+  const lower = text.toLowerCase();
+  const workMode = lower.includes("hybrid")
+    ? "hybrid"
+    : lower.includes("remote")
+      ? "remote"
+      : lower.includes("on-site") || lower.includes("onsite") || lower.includes("in office")
+        ? "onsite"
+        : lower.includes("flexible")
+          ? "flexible"
+          : "unknown";
+  const sourceUrl = input.sourceUrl || "";
+  return {
+    company,
+    confidence: text.length > 600 && (company || input.fallbackTitle) ? "high" : text.length > 220 ? "medium" : "low",
+    location,
+    salaryCurrency: salary?.[1] === "£" || salary?.[3] === "£"
+      ? "GBP"
+      : salary?.[1] === "€" || salary?.[3] === "€"
+        ? "EUR"
+        : "USD",
+    salaryMax: salary ? maximum * multiplier : null,
+    salaryMin: salary ? minimum * multiplier : null,
+    source: sourceUrl ? new URL(sourceUrl).hostname.replace(/^www\./, "") : "",
+    sourceUrl,
+    summary: (lines.find((line) => line.length > 80) ?? lines.slice(0, 3).join(" ")).slice(0, 420),
+    title: input.fallbackTitle ?? lines.find((line) => line.length <= 90 && !line.includes(":")) ?? "",
+    workMode,
+  };
+}
 const linkedContactSchema = z
   .object({
     contactId: z.string().uuid().optional(),
@@ -227,6 +281,22 @@ export function createApplicationRoutes({
       ],
     );
     return context.json({ application: result.rows[0] }, 201);
+  });
+
+  routes.post("/parse", async (context) => {
+    const parsed = parseJobSchema.safeParse(
+      await context.req.json().catch(() => null),
+    );
+    if (!parsed.success) {
+      return jsonError(
+        context,
+        400,
+        "invalid_job_post",
+        "Invalid pasted job post",
+        parsed.error.flatten(),
+      );
+    }
+    return context.json({ parsed: parsePastedJob(parsed.data) });
   });
 
   routes.get("/:id", async (context) => {

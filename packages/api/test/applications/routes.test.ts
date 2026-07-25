@@ -32,6 +32,34 @@ const row = {
 };
 
 describe("application routes", () => {
+  it("parses pasted job text without performing server-side URL fetching", async () => {
+    const response = await createApp({
+      config,
+      database: { query: vi.fn() } as unknown as Database,
+      sessions,
+    }).request("/api/applications/parse", {
+      body: JSON.stringify({
+        text: "Senior Platform Engineer\nCompany: Acme\nLocation: Remote\nResponsibilities\nBuild Docker and PostgreSQL systems\nSalary: $150k-$180k",
+        sourceUrl: "https://jobs.example/roles/42",
+      }),
+      headers,
+      method: "POST",
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      parsed: {
+        company: "Acme",
+        location: "Remote",
+        salaryMin: 150000,
+        salaryMax: 180000,
+        source: "jobs.example",
+        title: "Senior Platform Engineer",
+        workMode: "remote",
+      },
+    });
+  });
+
   it("lists only the authenticated user's active applications", async () => {
     const query = vi.fn().mockResolvedValue({ rowCount: 1, rows: [row] });
     const response = await createApp({
