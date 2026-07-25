@@ -16,6 +16,7 @@ import {
 } from "./domains/account/routes.js";
 import { createAuthRoutes } from "./domains/auth/routes.js";
 import { createApplicationRoutes } from "./domains/applications/routes.js";
+import { createApplicationPortabilityRoutes } from "./domains/applications/portability-routes.js";
 import {
   createApplicationAnalyticsRoutes,
   createApplicationPreferenceRoutes,
@@ -106,6 +107,10 @@ export function createApp({ config, database, sessions }: AppDependencies) {
       createDocumentJobRoutes(coreDependencies),
     );
     app.route("/api/settings", createSettingsRoutes(coreDependencies));
+    app.route(
+      "/api/applications",
+      createApplicationPortabilityRoutes(coreDependencies),
+    );
     app.route(
       "/api/applications",
       createApplicationRoutes(coreDependencies),
