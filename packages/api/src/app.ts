@@ -8,6 +8,12 @@ import { secureHeaders } from "hono/secure-headers";
 
 import type { ApiConfig } from "./config.js";
 import type { Database } from "./db.js";
+import {
+  createBillingStatusRoutes,
+  createProfileRoutes,
+  createPushDeviceRoutes,
+  createRegistrationRoutes,
+} from "./domains/account/routes.js";
 import { createAuthRoutes } from "./domains/auth/routes.js";
 import { createApplicationRoutes } from "./domains/applications/routes.js";
 import {
@@ -76,6 +82,7 @@ export function createApp({ config, database, sessions }: AppDependencies) {
 
   if (database) {
     const sessionService = sessions ?? new SessionService(database);
+    app.route("/api/register", createRegistrationRoutes({ database }));
     app.route(
       "/api/mobile/auth",
       createAuthRoutes({
@@ -109,6 +116,15 @@ export function createApp({ config, database, sessions }: AppDependencies) {
     app.route(
       "/api/providers",
       createProviderRoutes({ config, ...coreDependencies }),
+    );
+    app.route("/api/profile", createProfileRoutes(coreDependencies));
+    app.route(
+      "/api/mobile/billing/status",
+      createBillingStatusRoutes(coreDependencies),
+    );
+    app.route(
+      "/api/mobile/push-devices",
+      createPushDeviceRoutes(coreDependencies),
     );
   }
 
