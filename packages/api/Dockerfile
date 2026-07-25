@@ -10,6 +10,7 @@ FROM dependencies AS builder
 COPY tsconfig.base.json turbo.json ./
 COPY packages/shared packages/shared
 COPY packages/api packages/api
+COPY db db
 RUN npm run build --workspace @career-groove/shared \
  && npm run build --workspace @career-groove/api \
  && npm ci --omit=dev \
@@ -28,6 +29,7 @@ COPY --from=builder --chown=app:app /workspace/packages/api/package.json package
 COPY --from=builder --chown=app:app /workspace/packages/api/dist packages/api/dist
 COPY --from=builder --chown=app:app /workspace/packages/shared/package.json packages/shared/package.json
 COPY --from=builder --chown=app:app /workspace/packages/shared/dist packages/shared/dist
+COPY --from=builder --chown=app:app /workspace/db db
 USER app
 EXPOSE 3001
 CMD ["node", "--enable-source-maps", "packages/api/dist/server.js"]
