@@ -1,26 +1,28 @@
 # CareerGroove
 
-A mobile-first personal career and life CRM built with Next.js, PostgreSQL, Auth.js, the Vercel AI SDK, Octokit, Tailwind CSS, and Framer Motion. It captures career and life history, turns rough stories into polished achievements, prepares users for interviews, and generates tailored application documents.
+A universal career and life CRM built with Expo SDK 57, React Native,
+Expo Router, Hono, and PostgreSQL. One application now targets iOS, Android,
+and the web while the API remains independently deployable.
 
 ## Features
 
-- AI Job Interviewer with streaming provider-switched responses and save-to-history
+- AI Job Interviewer with encrypted, per-user provider selection
 - Context-aware reverse mock interviewer using saved work history
 - Resume and cover-letter studio with saving and text export
 - Professional contact CRM with a relationship-strength graph
 - Work, residence, education, license, and certification tracking
-- Credentials, Google, GitHub, Apple, and optional passkey authentication
+- Credentials, Google, GitHub, and Sign in with Apple authentication
 - Encrypted per-user OpenAI, Claude, Gemini, and local Ollama connections with live model discovery
-- GitHub Issues and Projects v2 feedback automation
 - Persistent AI/music preferences and a global four-station ambient player
-- Installable, offline-capable PWA shell with responsive bottom/side navigation
-- Browser extension for capturing job posts into Tracker Studio
+- Responsive native and web navigation with secure native token storage
+- SSRF-safe pasted job-post capture and deterministic application remixing
 
 ## Run locally
 
-1. Copy `.env.example` to `.env` and set `AUTH_SECRET`.
-2. Start PostgreSQL and set `DATABASE_URL`.
-3. Run `npm install`, `npm run db:migrate`, then `npm run dev`.
+1. Copy `.env.example` to `.env` and replace every required placeholder.
+2. Run `npm ci`.
+3. Start the API with `npm run dev --workspace @career-groove/api`.
+4. Start Expo with `npm run start --workspace @career-groove/mobile`.
 
 ## Run with Docker
 
@@ -29,15 +31,20 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Open http://breath.local:3000 (or use the server's LAN IP). The app container applies the idempotent schema and compatibility migrations before starting. OAuth, passkeys, AI providers, and GitHub feedback activate when their corresponding environment variables are configured. Passkeys additionally require `AUTH_EXPERIMENTAL_ENABLE_PASSKEYS=true` and a secure origin outside localhost.
+Open `http://localhost:3000`. The public, unprivileged nginx container serves
+the static Expo web export and proxies `/api` to the private Hono service.
+The API applies additive PostgreSQL migrations under an advisory lock before it
+accepts traffic. Passkeys are intentionally not advertised because Expo SDK 57
+does not provide a production-ready cross-platform passkey flow.
 
-### Nginx and mixed public/LAN access
+### Public origin and OAuth
 
-Do not set `AUTH_URL` when the same container is accessed through public HTTPS and direct LAN HTTP. CareerGroove trusts the request host and Nginx forwarding headers, allowing Auth.js to derive the correct origin for each request. Use the proxy-header pattern in [`deploy/nginx.conf.example`](deploy/nginx.conf.example); in particular, preserve `$host` and `$scheme` rather than hardcoding either one.
-
-Nginx should redirect public port 80 traffic to HTTPS, but direct access to the published app port (for example, `http://192.168.1.20:3000`) remains HTTP and does not enter that redirect. For better isolation, use a firewall rule to expose port 3000 only to the LAN.
-
-OAuth providers require every callback origin to be registered with the provider. Register the public callback (for example, `https://career.example.com/api/auth/callback/github`) and any LAN callback only if the provider permits plain HTTP callbacks. Credentials sign-in works on LAN HTTP. Passkeys generally require HTTPS except on `localhost`, so use the public HTTPS hostname for passkeys.
+Set `ALLOWED_ORIGINS` to the exact comma-separated HTTPS origins that may call
+the API and build the web image with the same public origin in
+`EXPO_PUBLIC_API_URL`. Register
+`https://<public-origin>/api/mobile/auth/oauth/complete` with Google and GitHub.
+Apple uses the native identity token flow and the bundle identifier configured
+in `apps/mobile/app.json`.
 
 Compose includes an Ollama service with persistent model storage bind-mounted from `OLLAMA_MODELS_DIR` on the server into `/root/.ollama` in the Ollama container. By default this uses `./.ollama` next to the project and is ignored by Git.
 
@@ -90,25 +97,29 @@ If daily or weekly compression fails, the scheduler logs the failure, retries on
 
 The scheduler stores its last-run state in `backups/.scheduler-state.json` to avoid duplicate backups after restarts. `backups/` is ignored by Git and Docker.
 
-## API routes
+## API
 
-- `POST /api/ai` streams interviewer, mock-interview, resume, or cover-letter responses with provider switching.
-- `POST /api/github/issues` creates a labeled feedback issue and optionally adds it to a GitHub Projects v2 board.
-- `/api/auth/*` exposes Auth.js providers.
+- `POST /api/ai` generates interviewer, mock-interview, resume, or cover-letter responses with provider failover.
+- `/api/mobile/auth/*` exposes credentials, PKCE OAuth, Apple, refresh rotation, and sign-out.
 - `/api/jobs`, `/api/contacts`, `/api/residences`, `/api/credentials`, and `/api/documents` persist user-scoped CRM data.
 - `/api/settings` stores provider, model, motion, and music preferences.
 
-All career, life, settings, AI, and GitHub API routes require an authenticated session. User-entered provider keys are encrypted with AES-256-GCM using `PROVIDER_ENCRYPTION_KEY` (or `AUTH_SECRET` as a fallback), never returned to the browser, and only decrypted server-side for provider requests.
-
-## Browser extension
-
-CareerGroove includes an unpacked Manifest V3 extension in [`browser-extension`](browser-extension). It captures the active job post page, previews the parsed opportunity, and saves it through the existing authenticated Tracker Studio APIs.
+All user data and AI routes require a short-lived bearer access token. Refresh
+tokens are rotated and replay revokes the session family. Provider keys are
+encrypted with AES-256-GCM using the mandatory `PROVIDER_ENCRYPTION_KEY`, never
+returned to the client, and only decrypted server-side for provider requests.
 
 ## Verification
 
 ```bash
-npm run typecheck
-npm run build
+npm test --workspace @career-groove/shared
+npm test --workspace @career-groove/api
+npm test --workspace @career-groove/mobile
+npm run typecheck --workspace @career-groove/shared
+npm run typecheck --workspace @career-groove/api
+npm run typecheck --workspace @career-groove/mobile
+(cd apps/mobile && npx expo-doctor)
+npm run build --workspace @career-groove/mobile
 docker compose config --quiet
 docker compose up -d --build
 ```
