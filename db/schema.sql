@@ -15,6 +15,12 @@ CREATE TABLE IF NOT EXISTS app_store_notifications (
   notification_id TEXT PRIMARY KEY, notification_type TEXT, environment TEXT,
   received_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS stripe_webhook_events (
+  id TEXT PRIMARY KEY, event_type TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(), processed_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS stripe_webhook_events_created_idx
+  ON stripe_webhook_events(created_at);
 CREATE TABLE IF NOT EXISTS accounts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), "userId" UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   type TEXT NOT NULL, provider TEXT NOT NULL, "providerAccountId" TEXT NOT NULL, refresh_token TEXT,

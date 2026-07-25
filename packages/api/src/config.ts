@@ -10,6 +10,11 @@ export const apiConfigSchema = z.object({
   nodeEnv: z.enum(["development", "test", "production"]),
   port: z.number().int().min(1).max(65_535),
   providerEncryptionKey: productionSecret,
+  stripePriceLifetime: z.string().min(1).optional(),
+  stripePriceMonthly: z.string().min(1).optional(),
+  stripePriceYearly: z.string().min(1).optional(),
+  stripeSecretKey: z.string().min(1).optional(),
+  stripeWebhookSecret: z.string().min(1).optional(),
 });
 
 export type ApiConfig = z.infer<typeof apiConfigSchema>;
@@ -31,5 +36,10 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): ApiCon
     port: Number(environment.PORT ?? 3_001),
     providerEncryptionKey:
       environment.PROVIDER_ENCRYPTION_KEY ?? environment.AUTH_SECRET,
+    stripePriceLifetime: environment.STRIPE_PRICE_LIFETIME,
+    stripePriceMonthly: environment.STRIPE_PRICE_MONTHLY,
+    stripePriceYearly: environment.STRIPE_PRICE_YEARLY,
+    stripeSecretKey: environment.STRIPE_SECRET_KEY,
+    stripeWebhookSecret: environment.STRIPE_WEBHOOK_SECRET,
   });
 }

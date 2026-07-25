@@ -15,6 +15,12 @@ import {
   createRegistrationRoutes,
 } from "./domains/account/routes.js";
 import { createAuthRoutes } from "./domains/auth/routes.js";
+import {
+  createAccountDeletionRoutes,
+  createStripeRoutes,
+  createStripeWebhookRoutes,
+  type StripeClient,
+} from "./domains/billing/routes.js";
 import { createApplicationRoutes } from "./domains/applications/routes.js";
 import { createApplicationPortabilityRoutes } from "./domains/applications/portability-routes.js";
 import {
@@ -40,9 +46,10 @@ export interface AppDependencies {
   config: ApiConfig;
   database?: Database;
   sessions?: SessionService;
+  stripe?: StripeClient;
 }
 
-export function createApp({ config, database, sessions }: AppDependencies) {
+export function createApp({ config, database, sessions, stripe }: AppDependencies) {
   const app = new Hono<{ Variables: AppVariables }>();
 
   app.use("*", requestId({ generator: () => randomUUID() }));
@@ -97,6 +104,21 @@ export function createApp({ config, database, sessions }: AppDependencies) {
       createJobRoutes({ database, sessions: sessionService }),
     );
     const coreDependencies = { database, sessions: sessionService };
+    const billingDependencies = {
+      config,
+      database,
+      sessions: sessionService,
+      stripe,
+    };
+    app.route("/api/stripe", createStripeRoutes(billingDependencies));
+    app.route(
+      "/api/mobile/account",
+      createAccountDeletionRoutes(billingDependencies),
+    );
+    app.route(
+      "/api/webhooks/stripe",
+      createStripeWebhookRoutes(billingDependencies),
+    );
     app.route("/api/contacts", createContactRoutes(coreDependencies));
     app.route("/api/residences", createResidenceRoutes(coreDependencies));
     app.route("/api/credentials", createCredentialRoutes(coreDependencies));
