@@ -20,5 +20,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     [id.data, user],
   );
   if (!archived.rowCount) return Response.json({ error: "Draft not found." }, { status: 404 });
+
+  await db.query(
+    `UPDATE application_documents SET status='archived',updated_at=now()
+     WHERE document_generation_job_id=$1 AND user_id=$2 AND status<>'archived'`,
+    [id.data, user],
+  );
+
   return Response.json({ ok: true });
 }

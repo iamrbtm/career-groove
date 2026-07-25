@@ -46,10 +46,16 @@ async function getApplication(user: string, id: string) {
       [id, user],
     ),
     db.query(
+<<<<<<< HEAD
       `SELECT id,document_generation_job_id AS "documentGenerationJobId",document_id AS "documentId",
         kind,title,status,submitted_at AS "submittedAt",metadata,created_at AS "createdAt"
        FROM application_documents WHERE application_id=$1 AND user_id=$2
        ORDER BY created_at DESC`,
+=======
+      `SELECT id,kind,title,status,submitted_at AS "submittedAt",metadata,created_at AS "createdAt"
+       FROM application_documents WHERE application_id=$1 AND user_id=$2 AND status<>'archived'
+        ORDER BY created_at DESC`,
+>>>>>>> 0e8d19a (Update API routes)
       [id, user],
     ),
     db.query(
