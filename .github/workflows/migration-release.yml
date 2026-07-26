@@ -73,11 +73,15 @@ jobs:
           docker build -f packages/api/Dockerfile -t career-groove-api:${{ github.sha }} .
           docker build -f apps/mobile/Dockerfile -t career-groove-web:${{ github.sha }} .
 
+      - name: Smoke-test API runtime imports
+        run: |
+          docker run --rm --entrypoint node career-groove-api:${{ github.sha }} \
+            -e "import('./packages/api/dist/app.js')"
+
       - name: Audit API runtime image
         run: |
           docker run --rm career-groove-api:${{ github.sha }} \
-            npm audit --omit=dev --workspace @career-groove/api \
-              --workspace @career-groove/shared --include-workspace-root=false
+            npm audit --omit=dev --prefix packages/api
 
   publish-images:
     if: >-
