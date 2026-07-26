@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createApp } from "../src/app.js";
+import { loadConfig } from "../src/config.js";
 
 const config = {
   allowedOrigins: ["https://careergroove.example"],
@@ -13,6 +14,27 @@ const config = {
 };
 
 describe("API foundation", () => {
+  it("normalizes empty optional production variables to unavailable features", () => {
+    const loaded = loadConfig({
+      ALLOWED_ORIGINS: "https://careergroove.example",
+      AUTH_GITHUB_ID: "",
+      AUTH_GITHUB_SECRET: "  ",
+      AUTH_GOOGLE_ID: "",
+      AUTH_GOOGLE_SECRET: "",
+      DATABASE_URL: "postgresql://unused",
+      INTERNAL_WORKER_SECRET: "test-worker-secret-at-least-32-characters",
+      NODE_ENV: "production",
+      PROVIDER_ENCRYPTION_KEY: "test-provider-key-at-least-32-characters",
+    });
+
+    expect(loaded).toMatchObject({
+      githubClientId: undefined,
+      githubClientSecret: undefined,
+      googleClientId: undefined,
+      googleClientSecret: undefined,
+    });
+  });
+
   it("reports health without exposing infrastructure details", async () => {
     const response = await createApp({ config }).request("/api/health");
 

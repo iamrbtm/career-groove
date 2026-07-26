@@ -31,25 +31,30 @@ function commaSeparated(value: string | undefined): string[] {
     .filter(Boolean);
 }
 
+function optional(value: string | undefined): string | undefined {
+  const normalized = value?.trim();
+  return normalized ? normalized : undefined;
+}
+
 export function loadConfig(environment: NodeJS.ProcessEnv = process.env): ApiConfig {
   return apiConfigSchema.parse({
     allowedOrigins: commaSeparated(environment.ALLOWED_ORIGINS),
-    appleIosClientId: environment.AUTH_APPLE_IOS_CLIENT_ID,
+    appleIosClientId: optional(environment.AUTH_APPLE_IOS_CLIENT_ID),
     bodyLimitBytes: Number(environment.API_BODY_LIMIT_BYTES ?? 2 * 1024 * 1024),
     databaseUrl: environment.DATABASE_URL,
-    githubClientId: environment.AUTH_GITHUB_ID,
-    githubClientSecret: environment.AUTH_GITHUB_SECRET,
-    googleClientId: environment.AUTH_GOOGLE_ID,
-    googleClientSecret: environment.AUTH_GOOGLE_SECRET,
+    githubClientId: optional(environment.AUTH_GITHUB_ID),
+    githubClientSecret: optional(environment.AUTH_GITHUB_SECRET),
+    googleClientId: optional(environment.AUTH_GOOGLE_ID),
+    googleClientSecret: optional(environment.AUTH_GOOGLE_SECRET),
     internalWorkerSecret: environment.INTERNAL_WORKER_SECRET,
     nodeEnv: environment.NODE_ENV ?? "development",
     port: Number(environment.PORT ?? 3_001),
     providerEncryptionKey:
       environment.PROVIDER_ENCRYPTION_KEY ?? environment.AUTH_SECRET,
-    stripePriceLifetime: environment.STRIPE_PRICE_LIFETIME,
-    stripePriceMonthly: environment.STRIPE_PRICE_MONTHLY,
-    stripePriceYearly: environment.STRIPE_PRICE_YEARLY,
-    stripeSecretKey: environment.STRIPE_SECRET_KEY,
-    stripeWebhookSecret: environment.STRIPE_WEBHOOK_SECRET,
+    stripePriceLifetime: optional(environment.STRIPE_PRICE_LIFETIME),
+    stripePriceMonthly: optional(environment.STRIPE_PRICE_MONTHLY),
+    stripePriceYearly: optional(environment.STRIPE_PRICE_YEARLY),
+    stripeSecretKey: optional(environment.STRIPE_SECRET_KEY),
+    stripeWebhookSecret: optional(environment.STRIPE_WEBHOOK_SECRET),
   });
 }
