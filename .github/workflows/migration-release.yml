@@ -1,6 +1,7 @@
 name: Expo migration release gate
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - "apps/mobile/**"
@@ -79,7 +80,9 @@ jobs:
               --workspace @career-groove/shared --include-workspace-root=false
 
   publish-images:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      github.event_name == 'workflow_dispatch'
     needs: verify
     runs-on: ubuntu-24.04
     timeout-minutes: 30
