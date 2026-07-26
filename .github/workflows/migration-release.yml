@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 concurrency:
   group: migration-release-${{ github.ref }}
@@ -76,3 +77,59 @@ jobs:
           docker run --rm career-groove-api:${{ github.sha }} \
             npm audit --omit=dev --workspace @career-groove/api \
               --workspace @career-groove/shared --include-workspace-root=false
+
+  publish-images:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish API
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packages/api/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/career-groove-api:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/career-groove-api:latest
+
+      - name: Publish web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/mobile/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/career-groove-web:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/career-groove-web:latest
+
+      - name: Publish document and notification worker
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: worker
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/career-groove-worker:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/career-groove-worker:latest
+
+      - name: Publish backup scheduler
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: backup-scheduler
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/career-groove-backup:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/career-groove-backup:latest

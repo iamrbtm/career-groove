@@ -20,6 +20,7 @@ services:
     stop_grace_period: 30s
 
   api:
+    image: ${CAREER_GROOVE_API_IMAGE:-ghcr.io/iamrbtm/career-groove-api}:${CAREER_GROOVE_IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: packages/api/Dockerfile
@@ -46,6 +47,7 @@ services:
     stop_grace_period: 30s
 
   web:
+    image: ${CAREER_GROOVE_WEB_IMAGE:-ghcr.io/iamrbtm/career-groove-web}:${CAREER_GROOVE_IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: apps/mobile/Dockerfile
@@ -63,6 +65,7 @@ services:
     stop_grace_period: 10s
 
   document-worker:
+    image: ${CAREER_GROOVE_WORKER_IMAGE:-ghcr.io/iamrbtm/career-groove-worker}:${CAREER_GROOVE_IMAGE_TAG:-latest}
     build:
       context: .
       target: worker
@@ -80,9 +83,10 @@ services:
     stop_grace_period: 60s
 
   mobile-notification-worker:
+    image: ${CAREER_GROOVE_WORKER_IMAGE:-ghcr.io/iamrbtm/career-groove-worker}:${CAREER_GROOVE_IMAGE_TAG:-latest}
     build:
       context: .
-      target: runner
+      target: worker
     restart: unless-stopped
     command: ["node", "scripts/mobile-notification-worker.mjs"]
     env_file:
@@ -96,6 +100,7 @@ services:
     profiles: ["notifications"]
 
   backup-scheduler:
+    image: ${CAREER_GROOVE_BACKUP_IMAGE:-ghcr.io/iamrbtm/career-groove-backup}:${CAREER_GROOVE_IMAGE_TAG:-latest}
     build:
       context: .
       target: backup-scheduler

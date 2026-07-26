@@ -123,3 +123,22 @@ npm run build --workspace @career-groove/mobile
 docker compose config --quiet
 docker compose up -d --build
 ```
+
+## Production image deployment
+
+The release workflow publishes API, web, worker, and backup images to GHCR with
+both an immutable commit-SHA tag and the moving `latest` tag. Production
+deployments must select the immutable tag:
+
+```bash
+./deploy/deploy-images.sh <40-character-main-commit-sha>
+```
+
+The deployment script pulls the selected images and runs Compose with
+`--no-build`, ensuring the production host does not accumulate application build
+layers.
+
+Host Docker storage is configured by the versioned files in `deploy/`.
+`docker-disk-monitor` runs every 15 minutes and writes warning/critical events to
+the system journal at 75%/85% usage. `docker-cache-prune` removes cache unused
+for seven days every Sunday at 03:15.

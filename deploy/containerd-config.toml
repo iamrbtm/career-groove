@@ -1,0 +1,3 @@
+version = 2
+root = "/mnt/storage/containerd-data"
+state = "/run/containerd"
