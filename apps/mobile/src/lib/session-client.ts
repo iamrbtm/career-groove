@@ -25,7 +25,7 @@ export class SessionClient {
   constructor({
     baseUrl,
     store,
-    transport = fetch,
+    transport = fetch.bind(globalThis),
   }: SessionClientOptions) {
     this.#baseUrl = baseUrl.replace(/\/$/, "");
     this.#store = store;

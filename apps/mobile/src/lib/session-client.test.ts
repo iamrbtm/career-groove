@@ -26,6 +26,35 @@ function memoryStore(): TokenStore & {
 }
 
 describe("SessionClient", () => {
+  it("calls the default fetch transport with the browser global receiver", async () => {
+    const browserFetch = vi.fn(function (this: unknown) {
+      if (this !== globalThis) {
+        throw new TypeError(
+          "'fetch' called on an object that does not implement interface Window.",
+        );
+      }
+      return Promise.resolve(new Response(null, { status: 204 }));
+    });
+    vi.stubGlobal("fetch", browserFetch);
+
+    try {
+      const client = new SessionClient({
+        baseUrl: "https://api.example",
+        store: {
+          clear: vi.fn().mockResolvedValue(undefined),
+          load: vi.fn().mockResolvedValue(null),
+          save: vi.fn().mockResolvedValue(undefined),
+        },
+      });
+
+      await expect(client.request("/api/health")).resolves.toMatchObject({
+        status: 204,
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("adds the current access token to authenticated requests", async () => {
     const transport = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ jobs: [] }), {
