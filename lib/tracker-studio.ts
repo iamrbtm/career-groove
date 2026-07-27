@@ -211,7 +211,12 @@ function computeScore(application: ApplicationRow, context: TrackerContext): Sco
     ...tokenize(application.description),
     ...tokenize(application.notes),
   ]);
-  const skillMatches = context.skills.filter((skill) => applicationTokens.includes(normalizeText(skill)));
+  const skillMatches = context.skills.filter((skill) => {
+    const normalized = normalizeText(skill);
+    if (applicationTokens.includes(normalized)) return true;
+    const tokens = tokenize(skill);
+    return tokens.length > 1 && tokens.every((t) => applicationTokens.includes(t));
+  });
   const preferredTitleMatches = context.preferences.desiredTitles.filter((preferred) => {
     const tokens = tokenize(preferred);
     return tokens.length > 0 && tokens.every((token) => title.includes(token));

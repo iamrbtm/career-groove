@@ -27,6 +27,7 @@ export function ResearchStep({
   const autoRaw = readRecord(metadata.autoResearch);
   const autoStatus = stringValue(autoRaw.status);
   const hasAutoData = autoStatus === "done";
+  const autoSources = Array.isArray(autoRaw.sources) ? (autoRaw.sources as string[]) : [];
 
   const [form, setForm] = useState<ResearchData>({
     mission: hasAutoData ? stringValue(autoRaw.mission) : stringValue(stored.mission),
