@@ -48,5 +48,5 @@ export async function POST(request: Request) {
   }
   if (!text.trim()) return Response.json({ error: "No parseable content found." }, { status: 400 });
   const parsed = parseJobPost({ text, sourceUrl: url || undefined });
-  return Response.json({ parsed });
+  return Response.json({ parsed, rawText: text });
 }
