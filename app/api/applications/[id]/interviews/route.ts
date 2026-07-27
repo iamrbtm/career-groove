@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { db } from "@/lib/db";
-import { requireUser, unauthorized } from "@/lib/api-auth";
+import { requireUser, unauthorized, getUserTier, forbidden } from "@/lib/api-auth";
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 const inputSchema = z.object({
@@ -16,6 +16,8 @@ const inputSchema = z.object({
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
   if (!user) return unauthorized();
+  const tier = await getUserTier(user);
+  if (tier === "free") return forbidden();
   const parsedParams = paramsSchema.safeParse(await params);
   const parsedBody = inputSchema.safeParse(await request.json().catch(() => null));
   if (!parsedParams.success || !parsedBody.success) {

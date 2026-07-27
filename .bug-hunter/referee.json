@@ -1,0 +1,56 @@
+[
+  {
+    "bugId": "BUG-1",
+    "verdict": "REAL_BUG",
+    "trueSeverity": "Critical",
+    "confidenceScore": 95,
+    "confidenceLabel": "high",
+    "verificationMode": "code-review",
+    "analysisSummary": "SSRF via unvalidated fetch(url) — confirmed by re-reading parse-url/route.ts line 13. No allowlist, no scheme restriction, no private IP block. Critical security issue."
+  },
+  {
+    "bugId": "BUG-2",
+    "verdict": "REAL_BUG",
+    "trueSeverity": "High",
+    "confidenceScore": 93,
+    "confidenceLabel": "high",
+    "verificationMode": "code-review",
+    "analysisSummary": "CSV split on raw newlines destroys multiline quoted fields per RFC 4180. Confirmed by re-reading import/route.ts line 42."
+  },
+  {
+    "bugId": "BUG-3",
+    "verdict": "REAL_BUG",
+    "trueSeverity": "High",
+    "confidenceScore": 98,
+    "confidenceLabel": "high",
+    "verificationMode": "code-review",
+    "analysisSummary": "NaN salary values crash entire import transaction. Number('competitive') is NaN which PostgreSQL numeric rejects. Confirmed at import/route.ts lines 79-80."
+  },
+  {
+    "bugId": "BUG-4",
+    "verdict": "REAL_BUG",
+    "trueSeverity": "Medium",
+    "confidenceScore": 93,
+    "confidenceLabel": "high",
+    "verificationMode": "code-review",
+    "analysisSummary": "Unvalidated date strings passed to PostgreSQL with only truthy/falsy coercion. Same root cause as BUG-3. Confirmed at import/route.ts lines 87-88."
+  },
+  {
+    "bugId": "BUG-5",
+    "verdict": "REAL_BUG",
+    "trueSeverity": "Medium",
+    "confidenceScore": 85,
+    "confidenceLabel": "high",
+    "verificationMode": "code-review",
+    "analysisSummary": "roleFit/similarStrategy fields silently routed into offer JSONB instead of their own columns. Confirmed at outcomes/route.ts lines 87-91."
+  },
+  {
+    "bugId": "BUG-6",
+    "verdict": "REAL_BUG",
+    "trueSeverity": "Low",
+    "confidenceScore": 80,
+    "confidenceLabel": "medium",
+    "verificationMode": "code-review",
+    "analysisSummary": "No row-count limit on CSV import allows resource exhaustion. Entire CSV loaded in memory with no caps."
+  }
+]

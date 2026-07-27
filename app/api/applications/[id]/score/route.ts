@@ -2,12 +2,13 @@ import { z } from "zod";
 import { generateText } from "ai";
 
 import { db } from "@/lib/db";
-import { requireUser, unauthorized } from "@/lib/api-auth";
+import { requireUser, unauthorized, getUserTier, forbidden } from "@/lib/api-auth";
 import { careerDjLabelSchema, commandSessionActionSchema } from "@/lib/application-schema";
 import { getModel } from "@/lib/ai";
 import { providerSchema } from "@/lib/provider-models";
 import { decryptSecret } from "@/lib/secret-box";
 import { buildTrackerReadiness, loadTrackerContext, refreshApplicationScore } from "@/lib/tracker-studio";
+import { getSetting } from "@/lib/api-auth";
 
 const idSchema = z.string().uuid();
 const aiScoreSchema = z.object({
@@ -36,6 +37,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const id = idSchema.safeParse((await params).id);
   if (!id.success) return Response.json({ error: "Invalid application id" }, { status: 400 });
   const useAi = new URL(request.url).searchParams.get("ai") === "true";
+  const tier = await getUserTier(user);
+
+  if (useAi && tier === "free") return forbidden();
 
   const client = await db.connect();
   try {
@@ -62,6 +66,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           [user],
         ),
       ]);
+      let aiResult: { text: string; provider: string; model: string } | null = null;
       if (connections.rowCount) {
         try {
           const context = await loadTrackerContext(client, user);
@@ -75,34 +80,54 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             system: "Score this job opportunity for CareerGroove. Use only supplied facts. Return only JSON with fit, readiness, desire, leverage, risk, timing, label, reasons, gaps, nextAction, nextActionReason. Labels and actions must match the product contract. Never invent candidate experience.",
             prompt: JSON.stringify({ application: application.rows[0], context, userPreferences: preferences.rows[0]?.preferences ?? {}, deterministicScore: score }),
           });
-          const parsed = aiScoreSchema.parse(jsonFromText(result.text));
-          const inserted = await client.query(
-            `INSERT INTO application_scores(user_id,application_id,fit,readiness,desire,leverage,risk,timing,label,reasons,gaps,next_action,model,context_snapshot)
-             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12,$13,$14::jsonb)
-             RETURNING id,label,fit,readiness,desire,leverage,risk,timing,reasons,gaps,next_action AS "nextAction",created_at AS "createdAt"`,
-            [
-              user, id.data, parsed.fit, parsed.readiness, parsed.desire, parsed.leverage, parsed.risk, parsed.timing, parsed.label,
-              JSON.stringify(parsed.reasons), JSON.stringify(parsed.gaps), parsed.nextAction, connection.selected_model,
-              JSON.stringify({ trackerReadiness: readiness.score, aiProvider: provider, deterministicScore: score.latestScore }),
-            ],
-          );
-          await client.query(
-            `UPDATE applications SET priority_label=$3,next_action_type=$4,next_action_reason=$5,updated_at=now()
-             WHERE id=$1 AND user_id=$2`,
-            [id.data, user, parsed.label, parsed.nextAction, parsed.nextActionReason],
-          );
-          await client.query("COMMIT");
-          return Response.json({
-            latestScore: inserted.rows[0],
-            nextActionType: parsed.nextAction,
-            nextActionReason: parsed.nextActionReason,
-            priorityLabel: parsed.label,
-            trackerReadiness: readiness,
-            ai: true,
-          });
+          aiResult = { text: result.text, provider, model: connection.selected_model };
         } catch (error) {
           console.error("AI Career DJ scoring fell back to deterministic scoring", error);
         }
+      }
+      if (!aiResult) {
+        const config = await getSetting("premium_ai_config");
+        if (config && config.provider) {
+          const provider = providerSchema.safeParse(config.provider);
+          if (provider.success) {
+            const result = await generateText({
+              model: getModel(provider.data, (config.model as string) || undefined, (config.api_key as string) || undefined, (config.base_url as string) || undefined),
+              maxRetries: 0,
+              system: "Score this job opportunity for CareerGroove. Use only supplied facts. Return only JSON with fit, readiness, desire, leverage, risk, timing, label, reasons, gaps, nextAction, nextActionReason. Labels and actions must match the product contract. Never invent candidate experience.",
+              prompt: JSON.stringify({ application: application.rows[0], context: await loadTrackerContext(client, user), userPreferences: preferences.rows[0]?.preferences ?? {}, deterministicScore: score }),
+            });
+            aiResult = { text: result.text, provider: provider.data, model: (config.model as string) || "" };
+          }
+        }
+      }
+      if (aiResult) {
+        const context = await loadTrackerContext(client, user);
+        const readiness = buildTrackerReadiness(context);
+        const parsed = aiScoreSchema.parse(jsonFromText(aiResult.text));
+        const inserted = await client.query(
+          `INSERT INTO application_scores(user_id,application_id,fit,readiness,desire,leverage,risk,timing,label,reasons,gaps,next_action,model,context_snapshot)
+           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12,$13,$14::jsonb)
+           RETURNING id,label,fit,readiness,desire,leverage,risk,timing,reasons,gaps,next_action AS "nextAction",created_at AS "createdAt"`,
+          [
+            user, id.data, parsed.fit, parsed.readiness, parsed.desire, parsed.leverage, parsed.risk, parsed.timing, parsed.label,
+            JSON.stringify(parsed.reasons), JSON.stringify(parsed.gaps), parsed.nextAction, aiResult.model,
+            JSON.stringify({ trackerReadiness: readiness.score, aiProvider: aiResult.provider, deterministicScore: score.latestScore }),
+          ],
+        );
+        await client.query(
+          `UPDATE applications SET priority_label=$3,next_action_type=$4,next_action_reason=$5,updated_at=now()
+           WHERE id=$1 AND user_id=$2`,
+          [id.data, user, parsed.label, parsed.nextAction, parsed.nextActionReason],
+        );
+        await client.query("COMMIT");
+        return Response.json({
+          latestScore: inserted.rows[0],
+          nextActionType: parsed.nextAction,
+          nextActionReason: parsed.nextActionReason,
+          priorityLabel: parsed.label,
+          trackerReadiness: readiness,
+          ai: true,
+        });
       }
     }
     await client.query("COMMIT");

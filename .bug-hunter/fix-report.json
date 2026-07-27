@@ -1,0 +1,85 @@
+{
+  "version": "3.0.0",
+  "fix_branch": "bug-hunter-fix-20260726-221453",
+  "base_commit": "e0f6f683748580b6702790530108a20ff145843c",
+  "dry_run": false,
+  "circuit_breaker_tripped": false,
+  "phase2_timeout_hit": false,
+  "fixes": [
+    {
+      "bugId": "BUG-1",
+      "severity": "CRITICAL",
+      "status": "FIXED",
+      "files": ["app/api/applications/parse-url/route.ts"],
+      "lines": "13",
+      "commit": "5b8983f",
+      "description": "SSRF via unvalidated fetch(url) — added URL validation with scheme restrict + private IP block"
+    },
+    {
+      "bugId": "BUG-2",
+      "severity": "HIGH",
+      "status": "FIXED",
+      "files": ["app/api/applications/import/route.ts"],
+      "lines": "42",
+      "commit": "1d84d49",
+      "description": "CSV multiline quoted field corruption — replaced naive split with quote-aware line parser"
+    },
+    {
+      "bugId": "BUG-3",
+      "severity": "HIGH",
+      "status": "FIXED",
+      "files": ["app/api/applications/import/route.ts"],
+      "lines": "79-80",
+      "commit": "1d84d49",
+      "description": "NaN salary crashes import — added isNaN guard before Number() conversion"
+    },
+    {
+      "bugId": "BUG-4",
+      "severity": "MEDIUM",
+      "status": "FIXED",
+      "files": ["app/api/applications/import/route.ts"],
+      "lines": "87-88",
+      "commit": "1d84d49",
+      "description": "Invalid date strings crash import — added ISO date regex validation"
+    },
+    {
+      "bugId": "BUG-5",
+      "severity": "MEDIUM",
+      "status": "SKIPPED",
+      "files": [],
+      "lines": "",
+      "description": "roleFit/similarStrategy misrouting to JSONB — requires DB migration (add role_fit, similar_strategy columns to application_outcomes)"
+    },
+    {
+      "bugId": "BUG-6",
+      "severity": "LOW",
+      "status": "FIXED",
+      "files": ["app/api/applications/import/route.ts"],
+      "lines": "42-98",
+      "commit": "1d84d49",
+      "description": "CSV import no size limit — added 1000 row cap"
+    }
+  ],
+  "verification": {
+    "baseline_pass": null,
+    "baseline_fail": null,
+    "final_pass": null,
+    "final_fail": null,
+    "new_failures": null,
+    "resolved_failures": null,
+    "typecheck_pass": true,
+    "build_pass": true,
+    "fixer_bugs_found": 0
+  },
+  "summary": {
+    "total_confirmed": 6,
+    "eligible": 6,
+    "manual_review": 0,
+    "fixed": 5,
+    "fix_reverted": 0,
+    "fix_failed": 0,
+    "skipped": 1,
+    "fixer_bug": 0,
+    "partial": 0
+  }
+}

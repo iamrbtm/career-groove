@@ -1,37 +1,56 @@
 "use client";
 import { motion } from "framer-motion";
-import { ArrowUpRight, BarChart3, BookOpen, BriefcaseBusiness, ClipboardList, FileText, Home, MessageCircleMore, Network, Plus, Settings2, Sparkles } from "lucide-react";
+import { ArrowUpRight, BarChart3, BriefcaseBusiness, ClipboardList, FileText, Home, Mail, MessageCircleMore, Network, Palette, Plus, Settings2, Sparkles } from "lucide-react";
 import { MotionButton } from "./motion-button";
 import { MusicPlayer } from "./music-player";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AccountMenu } from "./account-menu";
 
-const tools = [
+const allTools = [
   { icon: ClipboardList, title: "Run today's setlist", copy: "Pick one saved role, see the next move, and keep the search calm.", color: "bg-mint", tag: "Command Session", href: "/applications" },
   { icon: MessageCircleMore, title: "Tell your story", copy: "Rambling welcome. We'll find the strongest bullets.", color: "bg-coral", tag: "AI Interviewer", href: "/interview" },
+  { icon: Mail, title: "Track follow-ups", copy: "Overdue nudges, upcoming check-ins, and AI-drafted outreach.", color: "bg-sun", tag: "Follow-ups", href: "/follow-ups" },
+  { icon: Palette, title: "Polish your brand", copy: "Optimize LinkedIn, GitHub, and your personal story with AI.", color: "bg-lilac/40", tag: "Brand Studio", href: "/brand" },
   { icon: Sparkles, title: "Practice the room", copy: "A mock interview that already knows your history.", color: "bg-sun", tag: "Interview Prep", href: "/mock-interview" },
   { icon: FileText, title: "Make it shine", copy: "Shape a tailored resume or cover letter in a few beats.", color: "bg-mint", tag: "Documents", href: "/documents" },
   { icon: BarChart3, title: "Read the signal", copy: "See source quality, follow-up health, and what to adjust next.", color: "bg-lilac/40", tag: "Analytics", href: "/analytics" },
 ];
-const nav = [
+
+const proToolIndices = new Set([4, 5]); // mock-interview and documents
+
+const allNav = [
   { icon: Home, name: "Home", href: "/dashboard" },
   { icon: BriefcaseBusiness, name: "Journey", href: "/journey" },
   { icon: ClipboardList, name: "Applications", href: "/applications" },
+  { icon: Mail, name: "Follow-ups", href: "/follow-ups" },
   { icon: BarChart3, name: "Analytics", href: "/analytics" },
   { icon: Network, name: "Network", href: "/network" },
   { icon: FileText, name: "Documents", href: "/documents" },
+  { icon: Palette, name: "Brand", href: "/brand" },
   { icon: Settings2, name: "Settings", href: "/settings" },
+];
+
+const proNavItems = [
+  { icon: MessageCircleMore, name: "Interview", href: "/interview" },
+  { icon: Sparkles, name: "Prep", href: "/mock-interview" },
 ];
 
 export function Dashboard() {
   const router = useRouter();
+  const [tier, setTier] = useState<"free" | "pro">("free");
+  useEffect(() => {
+    fetch("/api/user/tier").then(r => r.ok ? r.json() : null).then(d => { if (d?.tier) setTier(d.tier); }).catch(() => {});
+  }, []);
   const today = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric" }).format(new Date());
   const [recentJobs, setRecentJobs] = useState<Array<{id:string;title:string;company:string}>>([]);
   const [applications, setApplications] = useState<Array<{id:string;title:string;company:string;priorityLabel:string|null;followUpDueAt:string|null;status:string}>>([]);
   const [session, setSession] = useState<{title:string;actions:Array<{id:string;title:string;reason:string;routeTarget:string;status:string}>} | null>(null);
+  const [overdueCount, setOverdueCount] = useState(0);
   useEffect(()=>{fetch("/api/jobs").then(async r=>{if(r.ok)setRecentJobs((await r.json()).jobs.slice(0,2))}).catch(()=>undefined)},[]);
-  useEffect(()=>{fetch("/api/applications").then(async r=>{if(r.ok)setApplications((await r.json()).applications.slice(0,4))}).catch(()=>undefined); fetch("/api/command-sessions").then(async r=>{if(r.ok)setSession((await r.json()).session||null)}).catch(()=>undefined)},[]);
+  useEffect(()=>{fetch("/api/applications").then(async r=>{if(r.ok)setApplications((await r.json()).applications.slice(0,4))}).catch(()=>undefined); fetch("/api/command-sessions").then(async r=>{if(r.ok)setSession((await r.json()).session||null)}).catch(()=>undefined); fetch("/api/follow-ups/overdue").then(async r=>{if(r.ok)setOverdueCount((await r.json()).totalOverdue)}).catch(()=>undefined)},[]);
+  const tools = tier === "free" ? allTools.filter((_, i) => !proToolIndices.has(i)) : allTools;
+  const nav = tier === "pro" ? allNav.concat(proNavItems) : allNav;
   return <div className="min-h-dvh pb-28 md:pb-8">
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-24 flex-col items-center border-r-2 border-ink/10 bg-ink py-7 text-cream md:flex">
       <div className="grid size-12 place-items-center rounded-2xl bg-coral text-xl font-black shadow-[0_4px_0_#ffc857]">CG</div>
@@ -48,7 +67,7 @@ export function Dashboard() {
       <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="relative mt-8 overflow-hidden rounded-4xl border-2 border-ink bg-ink px-6 py-8 text-cream shadow-soft md:px-10 md:py-10">
         <div className="absolute -right-10 -top-16 size-56 rounded-full border-[28px] border-mint/20" /><div className="absolute bottom-5 right-16 hidden text-7xl text-sun/80 md:block">♪</div>
         <div className="relative max-w-2xl"><div className="mb-5 inline-flex items-center gap-2 rounded-full bg-cream/10 px-3 py-1 text-xs font-bold"><span className="size-2 animate-pulse rounded-full bg-mint" /> Your groove is building</div>
-          <h2 className="font-[var(--font-display)] text-3xl font-black leading-tight md:text-5xl">Your experience has a rhythm.<br/><span className="text-sun">Let’s make it heard.</span></h2>
+          <h2 className="font-[var(--font-display)] text-3xl font-black leading-tight md:text-5xl">Your experience has a rhythm.<br/><span className="text-sun">Let's make it heard.</span></h2>
           <p className="mt-4 max-w-lg text-sm leading-6 text-cream/70 md:text-base">Capture the work, people, places, and wins that shaped you—then turn them into your next move.</p>
           <button onClick={()=>router.push("/interview")} className="mt-6 flex items-center gap-2 font-black text-mint">Continue your story <ArrowUpRight size={18}/></button>
         </div>
@@ -104,7 +123,21 @@ export function Dashboard() {
       </section>
 
       <section className="mt-10 grid gap-5 lg:grid-cols-[1.4fr_.6fr]"><div className="rounded-3xl border-2 border-ink/15 bg-white/60 p-5"><div className="flex justify-between"><div><p className="text-xs font-black uppercase tracking-[.2em] text-plum">Your timeline</p><h2 className="font-[var(--font-display)] text-xl font-black">Recent chapters</h2></div><button onClick={()=>router.push("/journey")}><ArrowUpRight /></button></div>{recentJobs.length?recentJobs.map(job=><div key={job.id} className="mt-5 flex gap-4"><div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-plum text-white"><BriefcaseBusiness size={20}/></div><div><p className="font-black">{job.title}</p><p className="text-sm text-ink/55">{job.company}</p></div></div>):<div className="mt-5 flex gap-4"><div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-plum text-white"><BriefcaseBusiness size={20}/></div><div><p className="font-black">Add your current role</p><p className="text-sm text-ink/55">A title and company is enough to get started.</p></div></div>}</div>
-        <div className="rounded-3xl border-2 border-ink bg-mint/30 p-5"><BookOpen size={24}/><p className="mt-5 font-[var(--font-display)] text-xl font-black">Life counts, too.</p><p className="mt-2 text-sm text-ink/60">Keep residences, education, and licenses close at hand.</p></div></section>
+        <div className="space-y-4">
+          <button onClick={()=>router.push("/follow-ups")} className="w-full rounded-3xl border-2 border-ink bg-white p-5 text-left shadow-[0_5px_0_#26312c]">
+            <div className="flex items-center justify-between">
+              <Mail size={24} className="text-coral" />
+              {overdueCount > 0 && <span className="rounded-full bg-coral px-3 py-1 text-xs font-black text-white">{overdueCount} overdue</span>}
+            </div>
+            <p className="mt-4 font-[var(--font-display)] text-xl font-black">Follow-ups</p>
+            <p className="mt-1 text-sm text-ink/60">Stay on top of every outreach. Schedule, draft, and track conversations.</p>
+          </button>
+          <button onClick={()=>router.push("/brand")} className="w-full rounded-3xl border-2 border-ink/15 bg-white/60 p-5 text-left">
+            <Palette size={24} className="text-plum" />
+            <p className="mt-4 font-[var(--font-display)] text-xl font-black">Brand Studio</p>
+            <p className="mt-1 text-sm text-ink/60">Polish your LinkedIn, GitHub, and personal brand with AI.</p>
+          </button>
+        </div></section>
     </main>
     <MusicPlayer />
     <nav className="fixed inset-x-3 bottom-3 z-30 flex justify-start gap-1 overflow-x-auto rounded-3xl border-2 border-ink bg-ink px-2 py-2 text-cream shadow-soft md:hidden">{nav.map(({ icon: Icon, name, href }, i) => <button onClick={()=>router.push(href)} key={name} className={`flex min-w-16 flex-col items-center gap-1 rounded-2xl py-2 text-[10px] font-bold ${i === 0 ? "bg-cream text-ink" : "text-cream/60"}`}><Icon size={19}/>{name}</button>)}<AccountMenu mobile/></nav>

@@ -181,7 +181,10 @@ CREATE TABLE IF NOT EXISTS application_outcomes (
   stage TEXT, reason TEXT, user_note TEXT, source TEXT, contact_used BOOLEAN,
   resume_document_id UUID REFERENCES application_documents(id) ON DELETE SET NULL,
   cover_letter_document_id UUID REFERENCES application_documents(id) ON DELETE SET NULL,
-  offer JSONB NOT NULL DEFAULT '{}', occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(), created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  offer JSONB NOT NULL DEFAULT '{}',
+  role_fit TEXT CHECK (role_fit IN ('stretch','fit','mismatch','unclear')),
+  similar_strategy TEXT CHECK (similar_strategy IN ('prioritize','deprioritize','neutral')),
+  occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(), created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS application_answer_library (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -260,3 +263,74 @@ CREATE INDEX IF NOT EXISTS application_answers_library_idx ON application_answer
 CREATE INDEX IF NOT EXISTS command_sessions_user_status_created_idx ON command_sessions(user_id, status, created_at DESC);
 CREATE INDEX IF NOT EXISTS command_session_actions_user_session_position_idx ON command_session_actions(user_id, command_session_id, position);
 ALTER TABLE skills ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'other';
+
+-- Feature 3: Follow-up Campaigns & Email Integration
+CREATE TABLE IF NOT EXISTS email_connections (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  provider TEXT NOT NULL CHECK (provider IN ('gmail','outlook','smtp')),
+  email TEXT NOT NULL,
+  encrypted_access_token TEXT,
+  encrypted_refresh_token TEXT,
+  token_expires_at TIMESTAMPTZ,
+  smtp_host TEXT, smtp_port INTEGER,
+  smtp_username TEXT, encrypted_smtp_password TEXT,
+  sender_name TEXT, active BOOLEAN NOT NULL DEFAULT false,
+  last_sync_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(user_id, provider)
+);
+
+CREATE TABLE IF NOT EXISTS follow_up_templates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL, description TEXT,
+  trigger_event TEXT NOT NULL CHECK (trigger_event IN ('applied','interview','no_response','follow_up')),
+  delay_days INTEGER NOT NULL DEFAULT 7,
+  subject_template TEXT NOT NULL, body_template TEXT NOT NULL,
+  ai_generated BOOLEAN NOT NULL DEFAULT false,
+  active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS application_follow_ups (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  application_id UUID NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+  sequence_number SMALLINT NOT NULL DEFAULT 1,
+  follow_up_type TEXT NOT NULL CHECK (follow_up_type IN ('general_check','recruiter_follow_up','thank_you','post_interview','networking','negotiation','re_engagement')),
+  subject TEXT, message TEXT,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','scheduled','sent','skipped','failed')),
+  scheduled_for TIMESTAMPTZ, sent_at TIMESTAMPTZ,
+  delivery_method TEXT DEFAULT 'in_app' CHECK (delivery_method IN ('in_app','email','both')),
+  email_connection_id UUID REFERENCES email_connections(id) ON DELETE SET NULL,
+  ai_generated BOOLEAN NOT NULL DEFAULT false,
+  opened_at TIMESTAMPTZ, replied_at TIMESTAMPTZ, notes TEXT,
+  metadata JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS application_follow_ups_app_idx ON application_follow_ups(user_id, application_id, scheduled_for);
+CREATE INDEX IF NOT EXISTS application_follow_ups_due_idx ON application_follow_ups(user_id, status, scheduled_for) WHERE status = 'scheduled';
+CREATE INDEX IF NOT EXISTS follow_up_templates_user_tigger_idx ON follow_up_templates(user_id, trigger_event, active);
+CREATE INDEX IF NOT EXISTS email_connections_user_active_idx ON email_connections(user_id, active);
+
+-- Feature 5: Personal Branding Studio
+CREATE TABLE IF NOT EXISTS brand_profiles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  linkedin_headline TEXT,
+  linkedin_about TEXT,
+  linkedin_experience JSONB NOT NULL DEFAULT '[]',
+  github_bio TEXT,
+  github_pinned JSONB NOT NULL DEFAULT '[]',
+  portfolio_bio TEXT,
+  personal_statement TEXT,
+  brand_keywords JSONB NOT NULL DEFAULT '[]',
+  consistency_score SMALLINT DEFAULT 0,
+  last_scored_at TIMESTAMPTZ,
+  metadata JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

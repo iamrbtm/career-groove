@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: career_groove
@@ -53,6 +53,18 @@ services:
     env_file: [.env]
     environment:
       MOBILE_NOTIFICATION_ENDPOINT: http://app:3000/api/internal/mobile-notifications
+    depends_on:
+      - app
+  follow-up-worker:
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    command: ["node", "scripts/follow-up-worker.mjs"]
+    env_file: [.env]
+    environment:
+      FOLLOW_UP_WORKER_ENDPOINT: http://app:3000/api/internal/follow-up-worker
+      FOLLOW_UP_WORKER_INTERVAL_MS: 3600000
     depends_on:
       - app
   backup-scheduler:

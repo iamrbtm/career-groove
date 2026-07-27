@@ -39,8 +39,22 @@ export async function POST(request: Request) {
   const csv = payload?.csv?.trim();
   if (!csv) return Response.json({ error: "Paste CSV content to import." }, { status: 400 });
 
-  const lines = csv.split(/\r?\n/).filter(Boolean);
+  const rawLines = csv.split(/\r?\n/);
+  const lines: string[] = [];
+  let buffer = "";
+  for (const rawLine of rawLines) {
+    const combined = buffer ? `${buffer}\n${rawLine}` : rawLine;
+    const quoteCount = (combined.match(/"/g) || []).length;
+    if (quoteCount % 2 === 1) {
+      buffer = combined;
+    } else {
+      if (buffer) { lines.push(combined); buffer = ""; }
+      else if (combined.trim()) lines.push(combined);
+    }
+  }
+  if (buffer) lines.push(buffer);
   if (lines.length < 2) return Response.json({ error: "CSV needs a header row and at least one data row." }, { status: 400 });
+  if (lines.length > 1001) return Response.json({ error: "CSV file exceeds the maximum of 1000 rows." }, { status: 400 });
   const header = parseCsvLine(lines[0]);
   const required = ["title", "company"];
   for (const column of required) {
@@ -76,16 +90,16 @@ export async function POST(request: Request) {
           row.company,
           row.location || null,
           row.workMode || null,
-          row.salaryMin ? Number(row.salaryMin) : null,
-          row.salaryMax ? Number(row.salaryMax) : null,
+          row.salaryMin ? (isNaN(Number(row.salaryMin)) ? null : Number(row.salaryMin)) : null,
+          row.salaryMax ? (isNaN(Number(row.salaryMax)) ? null : Number(row.salaryMax)) : null,
           row.salaryCurrency || "USD",
           row.source || null,
           row.sourceUrl || null,
           normalizeStatus(row.status || ""),
           row.description || `${row.title} at ${row.company}`,
           row.notes || null,
-          row.followUpDueAt || null,
-          row.appliedAt || null,
+          row.followUpDueAt && /^\d{4}-\d{2}-\d{2}/.test(row.followUpDueAt) ? row.followUpDueAt : null,
+          row.appliedAt && /^\d{4}-\d{2}-\d{2}/.test(row.appliedAt) ? row.appliedAt : null,
           JSON.stringify({ importedAt: new Date().toISOString(), importSource: "csv" }),
         ],
       );

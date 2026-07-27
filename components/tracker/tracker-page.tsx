@@ -239,6 +239,8 @@ export function TrackerPage() {
                       <FollowUpStep
                         applicationId={selected.id}
                         followUpDueAt={selected.followUpDueAt}
+                        applicationTitle={selected.title}
+                        applicationCompany={selected.company}
                         onRefresh={() => loadDetail(selected.id)}
                       />
                     )}
