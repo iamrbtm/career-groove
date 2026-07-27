@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 
-const PROVIDERS = ["openai", "anthropic", "google", "ollama"] as const;
+const PROVIDERS = ["openai", "anthropic", "google", "ollama", "nvidia"] as const;
 type Provider = typeof PROVIDERS[number];
 
 const MODEL_OPTIONS: Record<Provider, string[]> = {
@@ -9,6 +9,7 @@ const MODEL_OPTIONS: Record<Provider, string[]> = {
   anthropic: ["claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-sonnet-4-0", "claude-opus-4-0", "claude-3-5-sonnet-20241022", "claude-3-opus-20240307"],
   google: ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"],
   ollama: ["llama3", "mistral", "mixtral", "gemma2", "qwen2.5-coder"],
+  nvidia: ["nvidia/llama-3.3-70b-instruct", "nvidia/llama-3.1-405b-reasoning", "nvidia/llama-3.1-8b-instruct", "nvidia/mixtral-8x22b-instruct", "nvidia/command-r-08-2024"],
 };
 
 export default function AdminAIConfig() {
