@@ -1,10 +1,18 @@
 "use client";
 import { useEffect, useState } from "react";
 
-const PROVIDERS = ["openai", "anthropic", "google", "ollama"];
+const PROVIDERS = ["openai", "anthropic", "google", "ollama"] as const;
+type Provider = typeof PROVIDERS[number];
+
+const MODEL_OPTIONS: Record<Provider, string[]> = {
+  openai: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo"],
+  anthropic: ["claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-sonnet-4-0", "claude-opus-4-0", "claude-3-5-sonnet-20241022", "claude-3-opus-20240307"],
+  google: ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"],
+  ollama: ["llama3", "mistral", "mixtral", "gemma2", "qwen2.5-coder"],
+};
 
 export default function AdminAIConfig() {
-  const [provider, setProvider] = useState("openai");
+  const [provider, setProvider] = useState<Provider>("openai");
   const [model, setModel] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
@@ -17,7 +25,7 @@ export default function AdminAIConfig() {
       .then(data => {
         const cfg = data?.settings?.premium_ai_config;
         if (cfg) {
-          setProvider(cfg.provider || "openai");
+          setProvider((cfg.provider as Provider) || "openai");
           setModel(cfg.model || "");
           setApiKey(cfg.api_key || "");
           setBaseUrl(cfg.base_url || "");
@@ -49,13 +57,16 @@ export default function AdminAIConfig() {
       <div className="mt-8 max-w-lg space-y-5">
         <div>
           <label className="text-xs font-black uppercase tracking-wider text-plum">Provider</label>
-          <select value={provider} onChange={e => setProvider(e.target.value)} className="mt-1.5 block w-full rounded-2xl border-2 border-ink bg-white px-4 py-3 font-bold">
+          <select value={provider} onChange={e => setProvider(e.target.value as Provider)} className="mt-1.5 block w-full rounded-2xl border-2 border-ink bg-white px-4 py-3 font-bold">
             {PROVIDERS.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
         </div>
         <div>
           <label className="text-xs font-black uppercase tracking-wider text-plum">Model</label>
-          <input value={model} onChange={e => setModel(e.target.value)} placeholder="gpt-4o-mini" className="mt-1.5 block w-full rounded-2xl border-2 border-ink bg-white px-4 py-3 font-bold placeholder:text-ink/30" />
+          <select value={model} onChange={e => setModel(e.target.value)} className="mt-1.5 block w-full rounded-2xl border-2 border-ink bg-white px-4 py-3 font-bold">
+            <option value="">Select a model</option>
+            {MODEL_OPTIONS[provider].map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
         </div>
         <div>
           <label className="text-xs font-black uppercase tracking-wider text-plum">API Key</label>
