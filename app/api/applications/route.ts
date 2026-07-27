@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { requireUser, unauthorized } from "@/lib/api-auth";
+import { requireUser, unauthorized, getUserTier } from "@/lib/api-auth";
 import { applicationCreateSchema } from "@/lib/application-schema";
 import { parseJobPost } from "@/lib/job-post-parser";
 import { buildTrackerReadiness, loadTrackerContext, refreshApplicationScore } from "@/lib/tracker-studio";
@@ -50,6 +50,12 @@ export async function POST(request: Request) {
   const parsed = applicationCreateSchema.safeParse(await request.json());
   if (!parsed.success) return Response.json({ error: parsed.error.flatten() }, { status: 400 });
   const input = parsed.data;
+  const tier = await getUserTier(user);
+  if (tier === "free") {
+    const count = await db.query(`SELECT COUNT(*) FROM applications WHERE user_id=$1 AND archived_at IS NULL AND status <> 'archived'`, [user]);
+    if (parseInt(count.rows[0]?.count || "0", 10) >= 5)
+      return Response.json({ error: "Free plan is limited to 5 active roles. Upgrade to Pro for unlimited tracking." }, { status: 403 });
+  }
   const client = await db.connect();
   try {
     await client.query("BEGIN");

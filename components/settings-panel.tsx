@@ -7,6 +7,7 @@ import { DefaultAISelector } from "./default-ai-selector";
 import { ProviderConnections } from "./provider-connections";
 
 export function SettingsPanel() {
+  const [tier, setTier] = useState<"free" | "pro">("free");
   const [providerRefreshKey, setProviderRefreshKey] = useState(0);
   const [settings, setSettings] = useState({
     musicStation: "Lo-Fi",
@@ -26,6 +27,7 @@ export function SettingsPanel() {
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
+    fetch("/api/user/tier").then(r => r.ok ? r.json() : null).then(d => { if (d?.tier) setTier(d.tier); }).catch(() => {});
     fetch("/api/settings").then(async (response) => {
       if (response.ok) {
         const body = await response.json();
@@ -104,8 +106,10 @@ export function SettingsPanel() {
         copy="Connect AI providers, choose from models available to your keys, and adjust the atmosphere."
       />
       <div className="mt-7 grid items-start gap-6 lg:grid-cols-2">
-        <ProviderConnections onConnectionsChanged={() => setProviderRefreshKey((value) => value + 1)} />
-        <DefaultAISelector refreshKey={providerRefreshKey} />
+        {tier === "pro" && <>
+          <ProviderConnections onConnectionsChanged={() => setProviderRefreshKey((value) => value + 1)} />
+          <DefaultAISelector refreshKey={providerRefreshKey} />
+        </>}
         <form
           onSubmit={save}
           className="h-fit rounded-3xl border-2 border-ink bg-white p-6 shadow-[0_5px_0_#26312c]"

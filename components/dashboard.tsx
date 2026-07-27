@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AccountMenu } from "./account-menu";
 
-const tools = [
+const allTools = [
   { icon: ClipboardList, title: "Run today's setlist", copy: "Pick one saved role, see the next move, and keep the search calm.", color: "bg-mint", tag: "Command Session", href: "/applications" },
   { icon: MessageCircleMore, title: "Tell your story", copy: "Rambling welcome. We'll find the strongest bullets.", color: "bg-coral", tag: "AI Interviewer", href: "/interview" },
   { icon: Mail, title: "Track follow-ups", copy: "Overdue nudges, upcoming check-ins, and AI-drafted outreach.", color: "bg-sun", tag: "Follow-ups", href: "/follow-ups" },
@@ -16,7 +16,10 @@ const tools = [
   { icon: FileText, title: "Make it shine", copy: "Shape a tailored resume or cover letter in a few beats.", color: "bg-mint", tag: "Documents", href: "/documents" },
   { icon: BarChart3, title: "Read the signal", copy: "See source quality, follow-up health, and what to adjust next.", color: "bg-lilac/40", tag: "Analytics", href: "/analytics" },
 ];
-const nav = [
+
+const proToolIndices = new Set([4, 5]); // mock-interview and documents
+
+const allNav = [
   { icon: Home, name: "Home", href: "/dashboard" },
   { icon: BriefcaseBusiness, name: "Journey", href: "/journey" },
   { icon: ClipboardList, name: "Applications", href: "/applications" },
@@ -28,8 +31,17 @@ const nav = [
   { icon: Settings2, name: "Settings", href: "/settings" },
 ];
 
+const proNavItems = [
+  { icon: MessageCircleMore, name: "Interview", href: "/interview" },
+  { icon: Sparkles, name: "Prep", href: "/mock-interview" },
+];
+
 export function Dashboard() {
   const router = useRouter();
+  const [tier, setTier] = useState<"free" | "pro">("free");
+  useEffect(() => {
+    fetch("/api/user/tier").then(r => r.ok ? r.json() : null).then(d => { if (d?.tier) setTier(d.tier); }).catch(() => {});
+  }, []);
   const today = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric" }).format(new Date());
   const [recentJobs, setRecentJobs] = useState<Array<{id:string;title:string;company:string}>>([]);
   const [applications, setApplications] = useState<Array<{id:string;title:string;company:string;priorityLabel:string|null;followUpDueAt:string|null;status:string}>>([]);
@@ -37,6 +49,8 @@ export function Dashboard() {
   const [overdueCount, setOverdueCount] = useState(0);
   useEffect(()=>{fetch("/api/jobs").then(async r=>{if(r.ok)setRecentJobs((await r.json()).jobs.slice(0,2))}).catch(()=>undefined)},[]);
   useEffect(()=>{fetch("/api/applications").then(async r=>{if(r.ok)setApplications((await r.json()).applications.slice(0,4))}).catch(()=>undefined); fetch("/api/command-sessions").then(async r=>{if(r.ok)setSession((await r.json()).session||null)}).catch(()=>undefined); fetch("/api/follow-ups/overdue").then(async r=>{if(r.ok)setOverdueCount((await r.json()).totalOverdue)}).catch(()=>undefined)},[]);
+  const tools = tier === "free" ? allTools.filter((_, i) => !proToolIndices.has(i)) : allTools;
+  const nav = tier === "pro" ? allNav.concat(proNavItems) : allNav;
   return <div className="min-h-dvh pb-28 md:pb-8">
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-24 flex-col items-center border-r-2 border-ink/10 bg-ink py-7 text-cream md:flex">
       <div className="grid size-12 place-items-center rounded-2xl bg-coral text-xl font-black shadow-[0_4px_0_#ffc857]">CG</div>
@@ -53,7 +67,7 @@ export function Dashboard() {
       <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="relative mt-8 overflow-hidden rounded-4xl border-2 border-ink bg-ink px-6 py-8 text-cream shadow-soft md:px-10 md:py-10">
         <div className="absolute -right-10 -top-16 size-56 rounded-full border-[28px] border-mint/20" /><div className="absolute bottom-5 right-16 hidden text-7xl text-sun/80 md:block">♪</div>
         <div className="relative max-w-2xl"><div className="mb-5 inline-flex items-center gap-2 rounded-full bg-cream/10 px-3 py-1 text-xs font-bold"><span className="size-2 animate-pulse rounded-full bg-mint" /> Your groove is building</div>
-          <h2 className="font-[var(--font-display)] text-3xl font-black leading-tight md:text-5xl">Your experience has a rhythm.<br/><span className="text-sun">Let’s make it heard.</span></h2>
+          <h2 className="font-[var(--font-display)] text-3xl font-black leading-tight md:text-5xl">Your experience has a rhythm.<br/><span className="text-sun">Let's make it heard.</span></h2>
           <p className="mt-4 max-w-lg text-sm leading-6 text-cream/70 md:text-base">Capture the work, people, places, and wins that shaped you—then turn them into your next move.</p>
           <button onClick={()=>router.push("/interview")} className="mt-6 flex items-center gap-2 font-black text-mint">Continue your story <ArrowUpRight size={18}/></button>
         </div>
