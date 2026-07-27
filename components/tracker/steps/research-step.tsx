@@ -111,9 +111,9 @@ export function ResearchStep({
               <p className="mt-1 text-sm font-bold text-ink/60">
                 We looked up the company and pre-filled what we found. Tweak anything that feels off.
               </p>
-              {autoRaw.sources && Array.isArray(autoRaw.sources) && autoRaw.sources.length > 0 && (
+              {autoSources.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
-                  {autoRaw.sources.slice(0, 3).map((s: string) => (
+                  {autoSources.slice(0, 3).map((s) => (
                     <span key={s} className="rounded-full bg-white/60 px-2 py-0.5 text-[10px] font-bold text-ink/50">{s}</span>
                   ))}
                 </div>
