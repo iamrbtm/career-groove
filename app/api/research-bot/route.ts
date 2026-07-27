@@ -129,6 +129,13 @@ export async function POST(request: Request) {
     targetTitle = research.jobPosting?.title || "";
     targetCompany = research.jobPosting?.company || "";
     targetDescription = research.rawJobText.slice(0, 10000);
+    if (!targetCompany && research.companyDomain) {
+      targetCompany = research.companyDomain
+        .replace(/^www\./, "")
+        .replace(/\.(com|io|app|org|net|dev|ai).*$/, "")
+        .replace(/-/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+    }
   } else {
     const companyMatch = message.match(/(?:research|tell me about|look up|find|what|who)\s+(?:is|about|the)\s+(.+)/i);
     const companyName = companyMatch?.[1]?.trim() || message;

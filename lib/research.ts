@@ -29,12 +29,46 @@ function isSafeUrl(input: string): boolean {
 
 async function fetchText(url: string): Promise<string | null> {
   try {
+    const isCloudflareOrWaf = (body: string) =>
+      body.includes("cloudflare") || body.includes("openresty") || body.includes("_cf_chl") ||
+      body.includes("cf-browser-verification") || body.includes("just a moment") ||
+      body.includes("Checking your browser") || body.length < 500;
+
     const response = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; CareerGroove/1.0; +https://careergroove.app)" },
-      signal: AbortSignal.timeout(10000),
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+        "DNT": "1",
+        "Upgrade-Insecure-Requests": "1",
+      },
+      signal: AbortSignal.timeout(12000),
+      redirect: "follow",
     });
     if (!response.ok) return null;
-    const html = await response.text();
+    let html = await response.text();
+
+    if (isCloudflareOrWaf(html)) {
+      const viaWww = url.includes("://www.") ? url.replace("://www.", "://") : url.replace("://", "://www.");
+      if (viaWww !== url) {
+        const retry = await fetch(viaWww, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+          },
+          signal: AbortSignal.timeout(8000),
+          redirect: "follow",
+        });
+        if (retry.ok) {
+          const retryHtml = await retry.text();
+          if (!isCloudflareOrWaf(retryHtml)) html = retryHtml;
+        }
+      }
+    }
+
+    if (isCloudflareOrWaf(html)) return null;
     return html
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
@@ -65,8 +99,9 @@ async function duckDuckGoSearch(query: string): Promise<string[]> {
       `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query + " 2026")}`,
       {
         headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; CareerGroove/1.0; +https://careergroove.app)",
-          Accept: "text/html",
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9",
         },
         signal: AbortSignal.timeout(8000),
       },
