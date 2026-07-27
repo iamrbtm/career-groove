@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useState } from "react";
 import { Check, Clock3 } from "lucide-react";
 
 const stepNames: Record<number, string> = {
@@ -19,18 +20,44 @@ const labelDisplay: Record<string, { label: string; bg: string }> = {
   prep_mode: { label: "Prep mode", bg: "bg-sky/30" },
 };
 
+const scoreDescriptions: Record<string, string> = {
+  Fit: "How well your saved skills match this role.",
+  Readiness: "How prepared you are to pursue this role.",
+  Desire: "Alignment with your saved preferences and goals.",
+  Leverage: "Contacts or referral opportunities at this company.",
+  Risk: "Red flags, gaps, or uncertainties in the posting.",
+  Timing: "How time-sensitive this opportunity is.",
+};
+
+function HoverTip({ tip, children }: { tip: string; children: React.ReactNode }) {
+  const [show, setShow] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout>>(null);
+  return (
+    <span className="relative inline-block" onMouseEnter={() => { timer.current = setTimeout(() => setShow(true), 1000); }} onMouseLeave={() => { if (timer.current) clearTimeout(timer.current); setShow(false); }}>
+      {children}
+      {show && (
+        <span className="pointer-events-none absolute -top-1 left-1/2 z-10 mb-1 w-44 -translate-x-1/2 -translate-y-full rounded-xl border-2 border-ink bg-white px-2.5 py-1.5 text-xs font-bold shadow-soft">
+          {tip}
+        </span>
+      )}
+    </span>
+  );
+}
+
 function ScoreChip({ name, value }: { name: string; value: number }) {
   const barColor = value >= 70 ? "bg-mint" : value >= 45 ? "bg-sun" : "bg-coral";
   return (
-    <div className="rounded-xl bg-cream px-2.5 py-1.5">
-      <div className="flex items-center gap-1.5 text-xs font-black">
-        <span>{name}</span>
-        <span className="text-ink/55">{value}</span>
+    <HoverTip tip={scoreDescriptions[name] || ""}>
+      <div className="rounded-xl bg-cream px-2.5 py-1.5">
+        <div className="flex items-center gap-1.5 text-xs font-black">
+          <span>{name}</span>
+          <span className="text-ink/55">{value}</span>
+        </div>
+        <div className="mt-0.5 h-1.5 w-16 overflow-hidden rounded-full bg-ink/10">
+          <div className={`h-full rounded-full ${barColor} transition-all`} style={{ width: `${value}%` }} />
+        </div>
       </div>
-      <div className="mt-0.5 h-1.5 w-16 overflow-hidden rounded-full bg-ink/10">
-        <div className={`h-full rounded-full ${barColor} transition-all`} style={{ width: `${value}%` }} />
-      </div>
-    </div>
+    </HoverTip>
   );
 }
 
