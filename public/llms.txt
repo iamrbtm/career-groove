@@ -1,0 +1,111 @@
+# CareerGroove
+
+**Your career, in rhythm.**
+
+CareerGroove is a career management platform that helps professionals turn their career history into polished, tailored application materials and interview confidence — all powered by AI.
+
+## What CareerGroove Does
+
+**Career CRM** — Track every role, project, and achievement in one place. Answer guided prompts in your own words; CareerGroove shapes messy memories into clear, credible accomplishments.
+
+**AI Resume & Cover Letter Builder** — Generate tailored résumés and cover letters for specific job postings. Paste a job description, and CareerGroove maps your experience to the role's requirements.
+
+**Interview Prep Studio** — Practice with an AI interviewer that asks role-specific questions, evaluates your answers, and gives actionable feedback. Track progress over multiple sessions.
+
+**Application Tracker** — Kanban board to track applications from "Saved" → "Applied" → "Interviewing" → "Offer" → "Accepted/Declined". Set reminders for follow-ups.
+
+**Career Research Agent** — AI agent that researches companies, roles, and compensation data to help you negotiate and prepare.
+
+## Key Features
+
+- **Passkeys / Passkeys + Social Auth** — Passkeys-first auth (WebAuthn) with Google, Apple, GitHub fallback via NextAuth v5
+- **AI Provider Flexibility** — OpenAI, Anthropic, Google Gemini, and local Ollama models supported via Vercel AI SDK
+- **PWA Ready** — Installable, offline-capable, push notifications via Web Push / APNs
+- **GitHub Feedback Loop** — In-app feedback creates GitHub issues automatically via Octokit
+- **Background Jobs** — BullMQ + Redis workers for document generation, follow-up reminders, mobile push
+- **PostgreSQL + Prisma** — JSONB-backed flexible schemas for career entries, applications, interviews
+
+## Core Routes
+
+- `/` — Marketing landing page (public)
+- `/auth/*` — Authentication (sign in, sign up, passkeys, callbacks)
+- `/dashboard` — Dashboard overview (authenticated)
+- `/dashboard/crm` — Career CRM: roles, projects, achievements, skills
+- `/dashboard/resume` — AI résumé builder with live preview
+- `/dashboard/cover-letter` — AI cover letter generator
+- `/dashboard/interview` — Interview prep studio with AI interviewer
+- `/dashboard/applications` — Kanban application tracker
+- `/dashboard/research` — Company/role research agent
+- `/dashboard/settings` — Account, notifications, AI providers, integrations
+- `/api/auth/*` — NextAuth.js endpoints
+- `/api/ai/*` — Vercel AI SDK streaming endpoints
+- `/api/github/*` — GitHub webhook / issue creation
+- `/api/push/*` — Web Push / APNs endpoints
+
+## Tech Stack
+
+- **Framework**: Next.js 15 (App Router, Server Actions, Server Components)
+- **Auth**: NextAuth.js v5 (Auth.js) — Passkeys, OAuth, Email OTP
+- **Database**: PostgreSQL + Prisma ORM (JSONB for flexible schemas)
+- **AI**: Vercel AI SDK — OpenAI, Anthropic, Google, Ollama
+- **Queue**: BullMQ + Redis (background jobs, webhooks, notifications)
+- **Styling**: Tailwind CSS v4 + CSS Variables (P3 color space)
+- **Animations**: Framer Motion (bouncy, springy, musical feel)
+- **Charts**: Recharts (interview progress, application funnel)
+- **Forms**: React Hook Form + Zod
+- **Deployment**: Docker + Docker Compose (standalone Next.js output)
+- **CI/CD**: GitHub Actions (build, test, deploy to Docker host)
+
+## AI Agent Guidance
+
+### For Career Coaches / Resume Writers
+- Use `/dashboard/crm` to understand a client's full history before writing
+- `/dashboard/resume` generates ATS-friendly output — export PDF or Markdown
+- `/dashboard/cover-letter` maps job requirements to candidate stories
+
+### For Job Seekers
+- Start at `/dashboard/crm` — answer prompts, don't worry about polish
+- Paste a job URL or description into `/dashboard/research` for company intel
+- Generate materials at `/dashboard/resume` and `/dashboard/cover-letter`
+- Practice at `/dashboard/interview` — voice or text, scored feedback
+- Track every application at `/dashboard/applications`
+
+### For Recruiters / Hiring Managers
+- Candidates can share a read-only portfolio link (future feature)
+- Structured data: each role has structured achievements, metrics, skills
+- Interview prep sessions are scored and timestamped
+
+## API Endpoints (AI-Relevant)
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/ai/resume/generate` | POST | Stream tailored résumé markdown |
+| `/api/ai/cover-letter/generate` | POST | Stream tailored cover letter |
+| `/api/ai/interview/start` | POST | Start interview session, get first question |
+| `/api/ai/interview/respond` | POST | Submit answer, get feedback + next question |
+| `/api/ai/research/company` | POST | Research company, role, compensation |
+| `/api/ai/chat` | POST | General career coaching chat |
+
+## Data Models (Simplified)
+
+**CareerEntry** — Role, company, dates, description, achievements[], skills[], metrics{}
+
+**Application** — Company, role, status, stage, dates, notes, contacts[], documents[]
+
+**InterviewSession** — Role, company, type, questions[], answers[], scores[], feedback[]
+
+**User** — Email, passkeys[], oauthAccounts{}, preferences{theme, aiProvider, notifications}
+
+## Deployment
+
+```bash
+docker compose up -d --build
+# Runs: Next.js (port 3000), PostgreSQL (5432), Redis (6379), BullMQ workers
+```
+
+## Links
+
+- **Repository**: https://github.com/your-org/career-groove
+- **Issues / Feedback**: https://github.com/your-org/career-groove/issues
+- **Documentation**: /docs (this repo)
+- **Status Page**: https://status.careergroove.website
