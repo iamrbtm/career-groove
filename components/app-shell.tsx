@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { BarChart3, BriefcaseBusiness, ClipboardList, FileText, Home, Mail, MessageCircleMore, Network, Palette, Settings2, Sparkles } from "lucide-react";
 import { MusicPlayer } from "./music-player";
 import { AccountMenu } from "./account-menu";
+import { ResearchChat } from "./research-chat";
 import { useEffect, useState } from "react";
 
 const proItems = [
@@ -46,7 +47,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <AccountMenu />
     </aside>
     <main className="mx-auto max-w-7xl px-5 pt-6 md:pl-32 md:pr-10 md:pt-10">{children}</main>
-    <MusicPlayer />
+      <MusicPlayer />
+      <ResearchChat />
     <nav className="fixed inset-x-3 bottom-3 z-30 flex justify-start gap-1 overflow-x-auto rounded-3xl border-2 border-ink bg-ink px-2 py-2 text-cream shadow-soft md:hidden">
       {items.map(({ href, name, icon: Icon }) =>
         <Link key={href} href={href}

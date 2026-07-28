@@ -3,6 +3,7 @@ import { requireUser, unauthorized, getUserTier } from "@/lib/api-auth";
 import { applicationCreateSchema } from "@/lib/application-schema";
 import { parseJobPost } from "@/lib/job-post-parser";
 import { buildTrackerReadiness, loadTrackerContext, refreshApplicationScore } from "@/lib/tracker-studio";
+import { autoResearchApplication } from "@/lib/auto-research";
 
 const applicationSelect = `
   SELECT a.id,a.status,a.title,a.company,a.location,a.work_mode AS "workMode",
@@ -97,7 +98,7 @@ export async function POST(request: Request) {
     );
     const score = await refreshApplicationScore(client, user, created.rows[0].id);
     await client.query("COMMIT");
-    return Response.json({
+    const response = Response.json({
       application: {
         ...created.rows[0],
         priorityLabel: score?.priorityLabel ?? created.rows[0].priorityLabel,
@@ -107,6 +108,14 @@ export async function POST(request: Request) {
       },
       trackerReadiness: score?.trackerReadiness ?? null,
     }, { status: 201 });
+    autoResearchApplication(
+      created.rows[0].id,
+      user,
+      input.sourceUrl || null,
+      input.company,
+      input.description,
+    );
+    return response;
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Application creation failed", error);

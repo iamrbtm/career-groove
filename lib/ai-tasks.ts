@@ -17,6 +17,7 @@ export const AI_TASKS: AITask[] = [
   { id: "document-cover-letter", label: "Document generation — cover letter", description: "Background cover letter generation in the documents tab" },
   { id: "chapter-reprocess", label: "Chapter reprocessing", description: "Re-rewrite a raw career chapter into polished narrative" },
   { id: "application-score", label: "Career DJ scoring", description: "AI-powered job opportunity scoring" },
+  { id: "research-bot", label: "Company & role research", description: "Research companies and roles via the Groove Assistant chat" },
 ];
 
 export const AI_TASK_IDS = AI_TASKS.map((task) => task.id) as [string, ...string[]];

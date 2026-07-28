@@ -205,6 +205,7 @@ export function TrackerPage() {
                 currentStep={currentStep}
                 totalSteps={totalSteps}
                 readinessReady={trackerReadiness?.ready ?? false}
+                latestScore={selected.latestScore}
               />
               <StepAccordion>
                 {stepConfigs(currentStep, currentStep).map(({ num, title, isComplete, isCurrent }) => (

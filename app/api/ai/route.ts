@@ -9,7 +9,7 @@ import { providerSchema } from "@/lib/provider-models";
 const AI_MAX_RETRIES = 0;
 
 const requestSchema = z.object({
-  provider: z.enum(["openai", "anthropic", "google", "ollama"]).optional(),
+  provider: z.enum(["openai", "anthropic", "google", "ollama", "nvidia"]).optional(),
   model: z.string().optional(),
   purpose: z
     .enum(["job-interviewer", "job-interview-probe", "mock-interview", "resume", "cover-letter", "application-answers", "outreach-draft", "soundcheck-brief"])
