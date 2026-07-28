@@ -1,0 +1,604 @@
+{
+  "generatedAt": "2026-07-27T05:04:58.280Z",
+  "target": "/mnt/storage/docker/career_groove",
+  "totalFiles": 202,
+  "scannableFiles": 195,
+  "strategy": "large-codebase",
+  "modeFile": "modes/large-codebase.md",
+  "needsLoop": true,
+  "fileBudget": 60,
+  "avgLines": 101,
+  "avgTokensPerFile": 404,
+  "estimatedTotalLines": 20402,
+  "sampledFiles": 30,
+  "domains": [
+    {
+      "path": ".",
+      "tier": "HIGH",
+      "fileCount": 7,
+      "riskBreakdown": {
+        "critical": 1,
+        "high": 0,
+        "medium": 6,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "browser-extension",
+      "tier": "HIGH",
+      "fileCount": 3,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 1,
+        "medium": 2,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "components",
+      "tier": "HIGH",
+      "fileCount": 44,
+      "riskBreakdown": {
+        "critical": 2,
+        "high": 4,
+        "medium": 38,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "app/analytics",
+      "tier": "MEDIUM",
+      "fileCount": 1,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 1,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "app/applications",
+      "tier": "MEDIUM",
+      "fileCount": 1,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 1,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "app/dashboard",
+      "tier": "MEDIUM",
+      "fileCount": 1,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 1,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "app/documents",
+      "tier": "MEDIUM",
+      "fileCount": 1,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 1,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "app/interview",
+      "tier": "MEDIUM",
+      "fileCount": 1,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 1,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "app/journey",
+      "tier": "MEDIUM",
+      "fileCount": 1,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 1,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "app",
+      "tier": "MEDIUM",
+      "fileCount": 3,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 3,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "app/mock-interview",
+      "tier": "MEDIUM",
+      "fileCount": 1,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 1,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "app/network",
+      "tier": "MEDIUM",
+      "fileCount": 1,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 1,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "app/privacy",
+      "tier": "MEDIUM",
+      "fileCount": 1,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 1,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "app/profile",
+      "tier": "MEDIUM",
+      "fileCount": 1,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 1,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "app/settings",
+      "tier": "MEDIUM",
+      "fileCount": 1,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 1,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "app/signin",
+      "tier": "MEDIUM",
+      "fileCount": 1,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 1,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "app/terms",
+      "tier": "MEDIUM",
+      "fileCount": 1,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 1,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "public",
+      "tier": "LOW",
+      "fileCount": 1,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 1,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "scripts",
+      "tier": "LOW",
+      "fileCount": 6,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 5,
+        "context-only": 1
+      }
+    },
+    {
+      "path": "app/api",
+      "tier": "CRITICAL",
+      "fileCount": 65,
+      "riskBreakdown": {
+        "critical": 16,
+        "high": 49,
+        "medium": 0,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "app/billing",
+      "tier": "CRITICAL",
+      "fileCount": 1,
+      "riskBreakdown": {
+        "critical": 1,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "app/register",
+      "tier": "CRITICAL",
+      "fileCount": 1,
+      "riskBreakdown": {
+        "critical": 1,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "ios",
+      "tier": "CRITICAL",
+      "fileCount": 39,
+      "riskBreakdown": {
+        "critical": 9,
+        "high": 1,
+        "medium": 29,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "lib",
+      "tier": "CRITICAL",
+      "fileCount": 18,
+      "riskBreakdown": {
+        "critical": 5,
+        "high": 5,
+        "medium": 8,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "types",
+      "tier": "CRITICAL",
+      "fileCount": 1,
+      "riskBreakdown": {
+        "critical": 1,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "context-only": 0
+      }
+    }
+  ],
+  "scanOrder": [
+    "./ (7 files, HIGH)",
+    "browser-extension/ (3 files, HIGH)",
+    "components/ (44 files, HIGH)",
+    "app/analytics/ (1 files, MEDIUM)",
+    "app/applications/ (1 files, MEDIUM)",
+    "app/dashboard/ (1 files, MEDIUM)",
+    "app/documents/ (1 files, MEDIUM)",
+    "app/interview/ (1 files, MEDIUM)",
+    "app/journey/ (1 files, MEDIUM)",
+    "app/ (3 files, MEDIUM)",
+    "app/mock-interview/ (1 files, MEDIUM)",
+    "app/network/ (1 files, MEDIUM)",
+    "app/privacy/ (1 files, MEDIUM)",
+    "app/profile/ (1 files, MEDIUM)",
+    "app/settings/ (1 files, MEDIUM)",
+    "app/signin/ (1 files, MEDIUM)",
+    "app/terms/ (1 files, MEDIUM)",
+    "app/api/ (65 files, CRITICAL)",
+    "app/billing/ (1 files, CRITICAL)",
+    "app/register/ (1 files, CRITICAL)",
+    "ios/ (39 files, CRITICAL)",
+    "lib/ (18 files, CRITICAL)",
+    "types/ (1 files, CRITICAL)"
+  ],
+  "tokenEstimate": {
+    "recon": 2500,
+    "perHunterChunk": 24240,
+    "totalPipeline": 120280
+  },
+  "recommendations": [
+    "Large codebase — use domain-scoped auditing. Process one domain at a time.",
+    "6 CRITICAL domains to audit first."
+  ],
+  "domainFileLists": {
+    ".": [
+      "auth.ts",
+      "import-residence-history.mjs",
+      "import-work-history.mjs",
+      "next-env.d.ts",
+      "next.config.ts",
+      "postcss.config.js",
+      "tailwind.config.ts"
+    ],
+    "browser-extension": [
+      "browser-extension/content-script.js",
+      "browser-extension/popup.js",
+      "browser-extension/service-worker.js"
+    ],
+    "components": [
+      "components/account-menu.tsx",
+      "components/analytics-studio.tsx",
+      "components/app-shell.tsx",
+      "components/billing-panel.tsx",
+      "components/dashboard.tsx",
+      "components/default-ai-selector.tsx",
+      "components/document-studio.tsx",
+      "components/empty-state.tsx",
+      "components/job-interviewer.tsx",
+      "components/journey-manager.tsx",
+      "components/landing/features.tsx",
+      "components/landing/footer.tsx",
+      "components/landing/header.tsx",
+      "components/landing/hero.tsx",
+      "components/landing/landing-page.tsx",
+      "components/landing/pricing.tsx",
+      "components/landing/reveal.tsx",
+      "components/mock-interviewer.tsx",
+      "components/motion-button.tsx",
+      "components/music-player.tsx",
+      "components/network-manager.tsx",
+      "components/profile-panel.tsx",
+      "components/provider-connections.tsx",
+      "components/register-form.tsx",
+      "components/service-worker.tsx",
+      "components/settings-panel.tsx",
+      "components/task-model-assigner.tsx",
+      "components/tracker/canvas-header.tsx",
+      "components/tracker/canvas-workspace.tsx",
+      "components/tracker/capture-modal.tsx",
+      "components/tracker/index.ts",
+      "components/tracker/pipeline-signals.tsx",
+      "components/tracker/role-list-item.tsx",
+      "components/tracker/role-list.tsx",
+      "components/tracker/step-accordion.tsx",
+      "components/tracker/step-card.tsx",
+      "components/tracker/steps/closed-step.tsx",
+      "components/tracker/steps/decision-step.tsx",
+      "components/tracker/steps/documents-step.tsx",
+      "components/tracker/steps/followup-step.tsx",
+      "components/tracker/steps/interview-step.tsx",
+      "components/tracker/steps/research-step.tsx",
+      "components/tracker/tracker-page.tsx",
+      "components/tracker/tracker-shell.tsx"
+    ],
+    "app/analytics": [
+      "app/analytics/page.tsx"
+    ],
+    "app/applications": [
+      "app/applications/page.tsx"
+    ],
+    "app/dashboard": [
+      "app/dashboard/page.tsx"
+    ],
+    "app/documents": [
+      "app/documents/page.tsx"
+    ],
+    "app/interview": [
+      "app/interview/page.tsx"
+    ],
+    "app/journey": [
+      "app/journey/page.tsx"
+    ],
+    "app": [
+      "app/layout.tsx",
+      "app/manifest.ts",
+      "app/page.tsx"
+    ],
+    "app/mock-interview": [
+      "app/mock-interview/page.tsx"
+    ],
+    "app/network": [
+      "app/network/page.tsx"
+    ],
+    "app/privacy": [
+      "app/privacy/page.tsx"
+    ],
+    "app/profile": [
+      "app/profile/page.tsx"
+    ],
+    "app/settings": [
+      "app/settings/page.tsx"
+    ],
+    "app/signin": [
+      "app/signin/page.tsx"
+    ],
+    "app/terms": [
+      "app/terms/page.tsx"
+    ],
+    "public": [
+      "public/sw.js"
+    ],
+    "scripts": [
+      "scripts/backup/maintenance.mjs",
+      "scripts/backup/scheduler.mjs",
+      "scripts/document-worker.mjs",
+      "scripts/migrate.mjs",
+      "scripts/mobile-notification-worker.mjs",
+      "scripts/test-mobile-auth.mjs"
+    ],
+    "app/api": [
+      "app/api/ai/route.ts",
+      "app/api/application-analytics/route.ts",
+      "app/api/application-insights/route.ts",
+      "app/api/application-preferences/route.ts",
+      "app/api/applications/[id]/._route.ts",
+      "app/api/applications/[id]/answers/route.ts",
+      "app/api/applications/[id]/contacts/route.ts",
+      "app/api/applications/[id]/conversion/route.ts",
+      "app/api/applications/[id]/documents/route.ts",
+      "app/api/applications/[id]/events/route.ts",
+      "app/api/applications/[id]/interviews/route.ts",
+      "app/api/applications/[id]/outcomes/route.ts",
+      "app/api/applications/[id]/remix/route.ts",
+      "app/api/applications/[id]/route.ts",
+      "app/api/applications/[id]/score/route.ts",
+      "app/api/applications/[id]/submission/route.ts",
+      "app/api/applications/export/route.ts",
+      "app/api/applications/import/route.ts",
+      "app/api/applications/parse/route.ts",
+      "app/api/applications/parse-url/route.ts",
+      "app/api/applications/route.ts",
+      "app/api/auth/[...nextauth]/route.ts",
+      "app/api/command-sessions/[id]/actions/[actionId]/route.ts",
+      "app/api/command-sessions/route.ts",
+      "app/api/contacts/[id]/route.ts",
+      "app/api/contacts/route.ts",
+      "app/api/credentials/[id]/route.ts",
+      "app/api/credentials/route.ts",
+      "app/api/document-jobs/[id]/reprocess/route.ts",
+      "app/api/document-jobs/[id]/resume/route.ts",
+      "app/api/document-jobs/[id]/route.ts",
+      "app/api/document-jobs/route.ts",
+      "app/api/documents/route.ts",
+      "app/api/github/issues/route.ts",
+      "app/api/internal/mobile-notifications/route.ts",
+      "app/api/jobs/[id]/reprocess/route.ts",
+      "app/api/jobs/[id]/route.ts",
+      "app/api/jobs/route.ts",
+      "app/api/mobile/account/route.ts",
+      "app/api/mobile/auth/apple/route.ts",
+      "app/api/mobile/auth/capabilities/route.ts",
+      "app/api/mobile/auth/oauth/complete/route.ts",
+      "app/api/mobile/auth/oauth/exchange/route.ts",
+      "app/api/mobile/auth/oauth/start/route.ts",
+      "app/api/mobile/auth/passkey/options/route.ts",
+      "app/api/mobile/auth/passkey/verify/route.ts",
+      "app/api/mobile/auth/refresh/route.ts",
+      "app/api/mobile/auth/signin/route.ts",
+      "app/api/mobile/auth/signout/route.ts",
+      "app/api/mobile/billing/status/route.ts",
+      "app/api/mobile/push-devices/route.ts",
+      "app/api/mobile/storekit/transactions/route.ts",
+      "app/api/profile/route.ts",
+      "app/api/providers/route.ts",
+      "app/api/register/route.ts",
+      "app/api/residences/[id]/route.ts",
+      "app/api/residences/route.ts",
+      "app/api/settings/route.ts",
+      "app/api/skills/[id]/route.ts",
+      "app/api/skills/route.ts",
+      "app/api/stripe/checkout/route.ts",
+      "app/api/stripe/portal/route.ts",
+      "app/api/task-models/route.ts",
+      "app/api/webhooks/app-store/route.ts",
+      "app/api/webhooks/stripe/route.ts"
+    ],
+    "app/billing": [
+      "app/billing/page.tsx"
+    ],
+    "app/register": [
+      "app/register/page.tsx"
+    ],
+    "ios": [
+      "ios/CareerGroove/App/AppDelegate.swift",
+      "ios/CareerGroove/App/CareerGrooveApp.swift",
+      "ios/CareerGroove/App/ContentView.swift",
+      "ios/CareerGroove/Components/AppleSignInButton.swift",
+      "ios/CareerGroove/Components/DesignSystem.swift",
+      "ios/CareerGroove/Core/Auth/._OAuthProvider.swift",
+      "ios/CareerGroove/Core/Auth/AppleSignInProvider.swift",
+      "ios/CareerGroove/Core/Auth/AuthManager.swift",
+      "ios/CareerGroove/Core/Auth/KeychainStore.swift",
+      "ios/CareerGroove/Core/Auth/OAuthProvider.swift",
+      "ios/CareerGroove/Core/Auth/PasskeyManager.swift",
+      "ios/CareerGroove/Core/Billing/StoreKitManager.swift",
+      "ios/CareerGroove/Core/Extensions/Date+Formatting.swift",
+      "ios/CareerGroove/Core/Models/Application.swift",
+      "ios/CareerGroove/Core/Models/JSONValue.swift",
+      "ios/CareerGroove/Core/Models/Job.swift",
+      "ios/CareerGroove/Core/Models/SupportingModels.swift",
+      "ios/CareerGroove/Core/Models/User.swift",
+      "ios/CareerGroove/Core/Networking/APIClient.swift",
+      "ios/CareerGroove/Core/Networking/APIError.swift",
+      "ios/CareerGroove/Core/Networking/APIServices.swift",
+      "ios/CareerGroove/Core/Notifications/NotificationManager.swift",
+      "ios/CareerGroove/Features/Applications/ApplicationDetailView.swift",
+      "ios/CareerGroove/Features/Applications/ApplicationForms.swift",
+      "ios/CareerGroove/Features/Applications/ApplicationViews.swift",
+      "ios/CareerGroove/Features/Auth/RegisterView.swift",
+      "ios/CareerGroove/Features/Auth/SignInView.swift",
+      "ios/CareerGroove/Features/Dashboard/CommandSessionView.swift",
+      "ios/CareerGroove/Features/Dashboard/DashboardView.swift",
+      "ios/CareerGroove/Features/Documents/DocumentViews.swift",
+      "ios/CareerGroove/Features/Journey/AIInterviewerView.swift",
+      "ios/CareerGroove/Features/Journey/JourneyViews.swift",
+      "ios/CareerGroove/Features/MockInterview/MockInterviewView.swift",
+      "ios/CareerGroove/Features/Network/NetworkViews.swift",
+      "ios/CareerGroove/Features/Settings/AIProvidersView.swift",
+      "ios/CareerGroove/Features/Settings/ApplicationPreferencesView.swift",
+      "ios/CareerGroove/Features/Settings/CareerDataViews.swift",
+      "ios/CareerGroove/Features/Settings/SettingsViews.swift",
+      "ios/CareerGrooveTests/ModelDecodingTests.swift"
+    ],
+    "lib": [
+      "lib/ai-tasks.ts",
+      "lib/ai.ts",
+      "lib/api-auth.ts",
+      "lib/apns.ts",
+      "lib/app-store.ts",
+      "lib/application-schema.ts",
+      "lib/chapter-ai.ts",
+      "lib/credentials-auth.ts",
+      "lib/db.ts",
+      "lib/github.ts",
+      "lib/job-post-parser.ts",
+      "lib/job-schema.ts",
+      "lib/mobile-auth.ts",
+      "lib/provider-models.ts",
+      "lib/resume-pdf.ts",
+      "lib/secret-box.ts",
+      "lib/stripe.ts",
+      "lib/tracker-studio.ts"
+    ],
+    "types": [
+      "types/next-auth.d.ts"
+    ]
+  }
+}

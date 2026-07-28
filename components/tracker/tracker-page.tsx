@@ -205,6 +205,7 @@ export function TrackerPage() {
                 currentStep={currentStep}
                 totalSteps={totalSteps}
                 readinessReady={trackerReadiness?.ready ?? false}
+                latestScore={selected.latestScore}
               />
               <StepAccordion>
                 {stepConfigs(currentStep, currentStep).map(({ num, title, isComplete, isCurrent }) => (
@@ -239,6 +240,8 @@ export function TrackerPage() {
                       <FollowUpStep
                         applicationId={selected.id}
                         followUpDueAt={selected.followUpDueAt}
+                        applicationTitle={selected.title}
+                        applicationCompany={selected.company}
                         onRefresh={() => loadDetail(selected.id)}
                       />
                     )}

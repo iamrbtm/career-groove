@@ -1,12 +1,12 @@
 import { requireUser } from "@/lib/api-auth";
 import { db } from "@/lib/db";
-import { getStripe, isBillingPlan, priceIds } from "@/lib/stripe";
+import { getStripe, isBillingPlan, getPriceIds } from "@/lib/stripe";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
 function appUrl(request: NextRequest) {
-  return process.env.AUTH_URL || request.nextUrl.origin;
+  return process.env.NEXT_PUBLIC_APP_URL || process.env.AUTH_URL || request.nextUrl.origin;
 }
 
 async function startCheckout(request: NextRequest, rawPlan: unknown) {
@@ -24,7 +24,8 @@ async function startCheckout(request: NextRequest, rawPlan: unknown) {
     );
   }
 
-  const priceId = priceIds[rawPlan];
+  const ids = await getPriceIds();
+  const priceId = ids[rawPlan];
   if (!priceId) {
     return NextResponse.json({ error: `Stripe pricing for ${rawPlan} is not configured.` }, { status: 503 });
   }

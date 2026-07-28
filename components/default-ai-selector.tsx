@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Bot, LoaderCircle } from "lucide-react";
 
-type Provider = "openai" | "anthropic" | "google" | "ollama";
+type Provider = "openai" | "anthropic" | "google" | "ollama" | "nvidia";
 type Connection = { provider: Provider; selectedModel: string; active: boolean };
 
 const names: Record<Provider, string> = {
@@ -11,6 +11,7 @@ const names: Record<Provider, string> = {
   anthropic: "Claude",
   google: "Gemini",
   ollama: "Ollama",
+  nvidia: "NVIDIA",
 };
 
 export function DefaultAISelector({ refreshKey = 0 }: { refreshKey?: number }) {

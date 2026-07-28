@@ -1,7 +1,7 @@
 import { generateText } from "ai";
 import { z } from "zod";
 import { getModel } from "@/lib/ai";
-import { requireUser, unauthorized } from "@/lib/api-auth";
+import { requireUser, unauthorized, getUserTier, getSetting, forbidden } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { decryptSecret } from "@/lib/secret-box";
 import { providerSchema } from "@/lib/provider-models";
@@ -9,7 +9,7 @@ import { providerSchema } from "@/lib/provider-models";
 const AI_MAX_RETRIES = 0;
 
 const requestSchema = z.object({
-  provider: z.enum(["openai", "anthropic", "google", "ollama"]).optional(),
+  provider: z.enum(["openai", "anthropic", "google", "ollama", "nvidia"]).optional(),
   model: z.string().optional(),
   purpose: z
     .enum(["job-interviewer", "job-interview-probe", "mock-interview", "resume", "cover-letter", "application-answers", "outreach-draft", "soundcheck-brief"])
@@ -44,6 +44,39 @@ const prompts = {
     "Create a role-specific interview prep brief using only supplied application, research, documents, and career context. Include likely questions, stories to prepare, weak spots to rehearse, and questions to ask. Do not invent experience.",
 };
 
+const PAID_PURPOSES = new Set(["cover-letter", "mock-interview", "soundcheck-brief", "application-answers"]);
+
+async function tryOllama(params: { purpose: string; messages: Array<{ role: string; content: string }>; context?: Record<string, unknown> }) {
+  const ollamaBaseUrl = `${(process.env.OLLAMA_BASE_URL || "http://localhost:11434").replace(/\/api\/?$/, "").replace(/\/$/, "")}/v1`;
+  const result = await generateText({
+    model: getModel("ollama", process.env.OLLAMA_MODEL || "llama3.2", undefined, ollamaBaseUrl),
+    maxRetries: AI_MAX_RETRIES,
+    system: `${prompts[params.purpose as keyof typeof prompts]}\nContext: ${JSON.stringify(params.context ?? {})}`,
+    messages: params.messages as any,
+  });
+  if (!result.text.trim()) throw new Error("The model returned an empty response.");
+  return new Response(result.text, {
+    headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", "X-AI-Provider": "ollama" },
+  });
+}
+
+async function tryPremiumFallback(params: { purpose: string; messages: Array<{ role: string; content: string }>; context?: Record<string, unknown> }) {
+  const config = await getSetting("premium_ai_config");
+  if (!config) throw new Error("No premium AI provider configured.");
+  const provider = providerSchema.safeParse(config.provider);
+  if (!provider.success) throw new Error("Invalid premium AI provider configuration.");
+  const result = await generateText({
+    model: getModel(provider.data, (config.model as string) || undefined, (config.api_key as string) || undefined, (config.base_url as string) || undefined),
+    maxRetries: AI_MAX_RETRIES,
+    system: `${prompts[params.purpose as keyof typeof prompts]}\nContext: ${JSON.stringify(params.context ?? {})}`,
+    messages: params.messages as any,
+  });
+  if (!result.text.trim()) throw new Error("The premium model returned an empty response.");
+  return new Response(result.text, {
+    headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", "X-AI-Provider": provider.data },
+  });
+}
+
 export async function POST(request: Request) {
   const userId = await requireUser();
   if (!userId) return unauthorized();
@@ -51,6 +84,13 @@ export async function POST(request: Request) {
   if (!parsed.success)
     return Response.json({ error: parsed.error.flatten() }, { status: 400 });
   const { purpose, messages, context } = parsed.data;
+  const tier = await getUserTier(userId);
+
+  if (tier === "free") {
+    if (PAID_PURPOSES.has(purpose)) return forbidden();
+    return tryOllama({ purpose, messages, context });
+  }
+
   const preferences = await db.query(
     "SELECT preferences FROM users WHERE id=$1",
     [userId],
@@ -66,11 +106,6 @@ export async function POST(request: Request) {
      ORDER BY CASE WHEN provider=$2 THEN 0 ELSE 1 END,last_checked_at DESC NULLS LAST,provider`,
     [userId, preferredProvider ?? ""],
   );
-  if (!connections.rowCount)
-    return Response.json(
-      { error: "Connect and select an AI provider in Settings first." },
-      { status: 409 },
-    );
   const failures: string[] = [];
   for (const connection of connections.rows) {
     const provider = providerSchema.parse(connection.provider);
@@ -98,5 +133,11 @@ export async function POST(request: Request) {
       console.error("AI provider attempt failed",{provider,model,error:error instanceof Error?error.message:String(error)});
     }
   }
-  return Response.json({error:`None of your active AI providers could complete this request. Tried: ${failures.join(", ")}. Your entered information is still available.`},{status:502});
+  try {
+    return await tryPremiumFallback({ purpose, messages, context });
+  } catch (fallbackError) {
+    failures.push(`premium-fallback`);
+    console.error("Premium AI fallback also failed", fallbackError);
+  }
+  return Response.json({error:`None of your active AI providers could complete this request. Tried: ${failures.join(", ")}.`},{status:502});
 }

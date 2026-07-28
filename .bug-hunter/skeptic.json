@@ -1,0 +1,50 @@
+[
+  {
+    "bugId": "BUG-1",
+    "challenge": "Finding requires authentication — only authenticated users can trigger the SSRF. However, authenticated SSRF is still a valid security risk as it enables internal network probing from a compromised or malicious account. The URL is fetched with no scheme validation (no block of file://, ftp://, etc.) and no allowlist of allowed hosts.",
+    "verdict": "ACCEPT",
+    "confidenceScore": 95,
+    "severity": "Critical",
+    "reason": "Authenticated SSRF is a real threat — internal services are not exposed to the internet and even authenticated users should not be able to probe them. No URL validation exists whatsoever."
+  },
+  {
+    "bugId": "BUG-2",
+    "challenge": "In practice, most CSV exports from job boards and LinkedIn don't contain multiline quoted fields. However, RFC 4180 explicitly allows them and any valid CSV with embedded newlines will be silently corrupted. The parser also doesn't handle escaped quotes ('\"') per RFC.",
+    "verdict": "ACCEPT",
+    "confidenceScore": 95,
+    "severity": "High",
+    "reason": "Valid CSV data with quoted multiline fields will be corrupted silently. This is a clear data integrity violation matching CWE-172."
+  },
+  {
+    "bugId": "BUG-3",
+    "challenge": "`Number('')` returns 0, which might pass through as a valid salary. But the field is guarded by a truthy check (`row.salaryMin ?`) so empty strings become null. Any non-numeric string like 'competitive' or 'DOE' produces NaN which crashes the entire import transaction.",
+    "verdict": "ACCEPT",
+    "confidenceScore": 98,
+    "severity": "High",
+    "reason": "NaN propagates to PostgreSQL numeric column which rejects it. Since all imports are wrapped in a single transaction, this destroys ALL valid rows along with the bad one. Trivially reproducible."
+  },
+  {
+    "bugId": "BUG-4",
+    "challenge": "The coercion pattern `row.followUpDueAt || null` means empty strings become null (falsy). However, any non-empty invalid string like 'ASAP' or 'soon' passes through. PostgreSQL will either reject the date or silently store an invalid value depending on the column type (timestamptz will error).",
+    "verdict": "ACCEPT",
+    "confidenceScore": 95,
+    "severity": "Medium",
+    "reason": "Invalid date strings cause the entire import transaction to rollback, destroying all valid rows. Same root cause as BUG-3."
+  },
+  {
+    "bugId": "BUG-5",
+    "challenge": "The schema defines roleFit and similarStrategy as top-level fields (siblings of offer), and the insert query has no matching columns. The data IS persisted — inside the offer JSONB column — but cannot be queried via the column names the schema implies. This could be intentional if the downstream reads from JSONB, but violates the principle of least surprise and breaks any code expecting standard columns.",
+    "verdict": "ACCEPT",
+    "confidenceScore": 85,
+    "severity": "Medium",
+    "reason": "RoleFit and similarStrategy are expected to be queryable columns per the API schema but are silently buried in JSONB. Any future migration to extract them would face backfill issues."
+  },
+  {
+    "bugId": "BUG-6",
+    "challenge": "No row-count limit on CSV import is a pragmatic concern but difficult to exploit without already having valid credentials. The server-side resource exhaustion angle is mitigated by typical reverse proxy/proxy timeout and memory limits. Still, a malicious user could craft a CSV large enough to consume significant resources.",
+    "verdict": "ACCEPT",
+    "confidenceScore": 75,
+    "severity": "Low",
+    "reason": "Legitimate concern about resource exhaustion but requires authenticated access and would be limited by infrastructure (proxy timeout, memory limits). Worth noting but low priority."
+  }
+]

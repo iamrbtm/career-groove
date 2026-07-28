@@ -1,5 +1,5 @@
 import { z } from "zod";
-export const providerSchema = z.enum(["openai", "anthropic", "google", "ollama"]);
+export const providerSchema = z.enum(["openai", "anthropic", "google", "ollama", "nvidia"]);
 export type ProviderName = z.infer<typeof providerSchema>;
 export type AvailableModel = { id: string; name: string };
 export type ModelDiscovery = { models: AvailableModel[]; baseUrl?: string };
@@ -26,6 +26,9 @@ export async function discoverModels(provider: ProviderName, apiKey?: string): P
   } else if (provider === "google") {
     const body = await providerFetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000", { headers: { "x-goog-api-key": apiKey ?? "" } });
     models = (body.models ?? []).filter((model: {supportedGenerationMethods?:string[]}) => model.supportedGenerationMethods?.includes("generateContent")).map((model: {name:string;displayName?:string;baseModelId?:string}) => ({ id: model.baseModelId || model.name.replace(/^models\//, ""), name: model.displayName || model.name }));
+  } else if (provider === "nvidia") {
+    const body = await providerFetch("https://api.nvidia.com/v1/models", { headers: { Authorization: `Bearer ${apiKey}` } });
+    models = (body.data ?? []).map((model: {id:string;name?:string}) => ({ id: model.id, name: model.name || model.id }));
   } else {
     const candidates=[process.env.OLLAMA_BASE_URL,"http://ollama:11434","http://host.docker.internal:11434","http://localhost:11434"].filter(Boolean).map(url=>(url as string).replace(/\/api\/?$/, "").replace(/\/$/, ""));
     let lastError: unknown;

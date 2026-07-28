@@ -68,9 +68,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       [parsedParams.data.id, user],
     );
     const created = await client.query(
-      `INSERT INTO application_outcomes(user_id,application_id,score_snapshot_id,outcome,stage,reason,user_note,source,contact_used,resume_document_id,cover_letter_document_id,offer,occurred_at)
-       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,COALESCE($13::timestamptz,now()))
-       RETURNING id,outcome,stage,reason,user_note AS "userNote",source,contact_used AS "contactUsed",offer,
+      `INSERT INTO application_outcomes(user_id,application_id,score_snapshot_id,outcome,stage,reason,user_note,source,contact_used,resume_document_id,cover_letter_document_id,role_fit,similar_strategy,offer,occurred_at)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,COALESCE($15::timestamptz,now()))
+       RETURNING id,outcome,stage,reason,user_note AS "userNote",source,contact_used AS "contactUsed",
+        role_fit AS "roleFit",similar_strategy AS "similarStrategy",offer,
         occurred_at AS "occurredAt",created_at AS "createdAt"`,
       [
         user,
@@ -84,11 +85,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         input.contactUsed ?? false,
         input.resumeDocumentId || null,
         input.coverLetterDocumentId || null,
-        JSON.stringify({
-          ...(input.offer ?? {}),
-          roleFit: input.roleFit ?? null,
-          similarStrategy: input.similarStrategy ?? null,
-        }),
+        input.roleFit ?? null,
+        input.similarStrategy ?? null,
+        JSON.stringify(input.offer ?? {}),
         input.occurredAt || null,
       ],
     );

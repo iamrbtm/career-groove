@@ -63,7 +63,7 @@ export function CaptureModal({ open, onClose, onSaved }: {
         salaryMin: p.salaryMin ? String(p.salaryMin) : "",
         salaryMax: p.salaryMax ? String(p.salaryMax) : "",
         sourceUrl: p.sourceUrl || url.trim(),
-        description: description.trim(),
+        description: data.rawText || description.trim(),
         notes: [
           p.summary ? `Summary: ${p.summary}` : "",
           p.mustHaveSkills?.length ? `Must-have skills: ${p.mustHaveSkills.join(", ")}` : "",
@@ -72,6 +72,7 @@ export function CaptureModal({ open, onClose, onSaved }: {
           p.deadline ? `Deadline: ${p.deadline}` : "",
         ].filter(Boolean).join("\n"),
       });
+      if (data.rawText) setDescription(data.rawText);
       setParsed(true);
       setNotice("Parsed. Review before saving.");
     } catch (err) {
