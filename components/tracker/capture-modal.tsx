@@ -1,12 +1,37 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { LoaderCircle, Send, Tags, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, LoaderCircle, Send, Tags, X } from "lucide-react";
 
 type CaptureForm = {
   title: string; company: string; location: string;
   workMode: string; salaryMin: string; salaryMax: string;
   sourceUrl: string; description: string; notes: string;
+};
+
+type FitScore = {
+  fit?: number; readiness?: number; desire?: number;
+  leverage?: number; risk?: number; timing?: number;
+  label?: string; reasons?: string[]; gaps?: string[];
+};
+
+type PendingApplication = {
+  id: string; title: string; company: string;
+  latestScore?: FitScore | null;
+};
+
+const FIT_THRESHOLD = 65;
+
+const fitLabels: Record<string, { label: string; bg: string; copy: string }> = {
+  apply_first: { label: "Apply first", bg: "bg-mint", copy: "Strong match and you're ready to move on it." },
+  research_before_applying: { label: "Research first", bg: "bg-sun/60", copy: "Promising, but needs more signal before you commit." },
+  remix_resume_first: { label: "Remix resume first", bg: "bg-sun/60", copy: "Good fit, but your materials need tailoring first." },
+  network_first: { label: "Network first", bg: "bg-sky/30", copy: "A referral or contact could open the door here." },
+  stretch_role: { label: "Stretch role", bg: "bg-sky/30", copy: "A real stretch — higher risk, possibly still worth it." },
+  low_signal_lead: { label: "Low-signal lead", bg: "bg-coral/20", copy: "Thin posting or unclear match. Proceed with care." },
+  probably_skip: { label: "Probably skip", bg: "bg-ink/10", copy: "The signals point to passing on this one." },
+  follow_up_now: { label: "Follow up now", bg: "bg-mint", copy: "Already applied — time to follow up." },
+  prep_mode: { label: "Prep mode", bg: "bg-sky/30", copy: "Already active — focus on prep, not research." },
 };
 
 export function CaptureModal({ open, onClose, onSaved }: {
@@ -25,6 +50,7 @@ export function CaptureModal({ open, onClose, onSaved }: {
   const [showEdit, setShowEdit] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [pendingApplication, setPendingApplication] = useState<PendingApplication | null>(null);
 
   if (!open) return null;
 
@@ -105,12 +131,14 @@ export function CaptureModal({ open, onClose, onSaved }: {
       });
       const data = await res.json();
       if (!res.ok) throw new Error("Save failed.");
-      setUrl("");
-      setDescription("");
-      setForm({ title: "", company: "", location: "", workMode: "unknown", salaryMin: "", salaryMax: "", sourceUrl: "", description: "", notes: "" });
-      setParsed(false);
-      onSaved(data.application);
-      onClose();
+      const application = data.application;
+      const fit = application?.latestScore?.fit;
+      if (typeof fit === "number" && fit < FIT_THRESHOLD) {
+        setPendingApplication(application);
+        setSaving(false);
+        return;
+      }
+      completeSave(application);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed.");
     } finally {
@@ -118,7 +146,35 @@ export function CaptureModal({ open, onClose, onSaved }: {
     }
   }
 
+  function completeSave(application: unknown) {
+    setUrl("");
+    setDescription("");
+    setForm({ title: "", company: "", location: "", workMode: "unknown", salaryMin: "", salaryMax: "", sourceUrl: "", description: "", notes: "" });
+    setParsed(false);
+    setPendingApplication(null);
+    onSaved(application);
+    onClose();
+  }
+
+  async function discardPending() {
+    if (!pendingApplication) return;
+    setSaving(true);
+    setError("");
+    setNotice("");
+    try {
+      const res = await fetch(`/api/applications/${pendingApplication.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Could not remove the draft.");
+      setPendingApplication(null);
+      setNotice(`Not added. ${pendingApplication.title} was removed, including any research already started.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not remove the draft.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
+    <>
     <div className="fixed inset-0 z-50 grid place-items-center bg-ink/60 p-4">
       <div className="w-full max-w-2xl rounded-3xl border-2 border-ink bg-white p-6 shadow-soft">
         <div className="flex items-center justify-between gap-3">
@@ -190,5 +246,116 @@ export function CaptureModal({ open, onClose, onSaved }: {
         )}
       </div>
     </div>
+
+    {pendingApplication && (
+      <div className="fixed inset-0 z-[60] grid place-items-center bg-ink/60 p-4">
+        <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border-2 border-ink bg-white p-6 shadow-soft">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[.18em] text-plum">Fit check</p>
+              <h2 className="mt-1 font-[var(--font-display)] text-2xl font-black">{pendingApplication.title}</h2>
+              <p className="text-sm font-bold text-ink/55">{pendingApplication.company}</p>
+            </div>
+            <button onClick={discardPending} className="grid size-10 shrink-0 place-items-center rounded-2xl bg-cream hover:bg-coral/20">
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="mt-4 rounded-2xl border-2 border-ink/10 bg-cream p-4">
+            <div className="flex items-center gap-4">
+              <div className="shrink-0">
+                <p className={`grid size-16 place-items-center rounded-2xl border-2 border-ink text-lg font-black ${pendingApplication.latestScore?.fit !== undefined && pendingApplication.latestScore.fit >= 45 ? "bg-sun" : "bg-coral"}`}>
+                  {pendingApplication.latestScore?.fit ?? "—"}
+                </p>
+                <p className="mt-1 text-center text-[10px] font-black uppercase tracking-[.14em] text-ink/55">/100 fit</p>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold leading-6 text-ink/70">
+                  This role scored below the {FIT_THRESHOLD}% fit threshold against your saved skills, preferences, and history.
+                </p>
+                {pendingApplication.latestScore?.label && (
+                  <>
+                    <span className={`mt-2 inline-block rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider ${fitLabels[pendingApplication.latestScore.label]?.bg || "bg-ink/10"}`}>
+                      {fitLabels[pendingApplication.latestScore.label]?.label || pendingApplication.latestScore.label}
+                    </span>
+                    <p className="mt-2 text-xs leading-5 text-ink/55">{fitLabels[pendingApplication.latestScore.label]?.copy}</p>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {(["readiness", "desire", "leverage", "risk", "timing"] as const).map((key) => {
+                const value = pendingApplication.latestScore?.[key];
+                if (typeof value !== "number") return null;
+                const color = value >= 70 ? "bg-mint" : value >= 45 ? "bg-sun" : "bg-coral";
+                return (
+                  <div key={key} className="rounded-xl bg-white px-3 py-2">
+                    <p className="text-[10px] font-black uppercase tracking-[.14em] text-plum">{key}</p>
+                    <p className="mt-0.5 text-sm font-black">{value}</p>
+                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-ink/10">
+                      <div className={`h-full rounded-full ${color}`} style={{ width: `${value}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {(pendingApplication.latestScore?.reasons?.length ?? 0) > 0 && (
+            <div className="mt-4 rounded-2xl bg-mint/15 p-4">
+              <p className="flex items-center gap-2 text-xs font-black uppercase tracking-[.18em] text-plum">
+                <CheckCircle2 size={14} /> Why it matches
+              </p>
+              <ul className="mt-2 space-y-1.5">
+                {pendingApplication.latestScore?.reasons?.map((reason) => (
+                  <li key={reason} className="flex items-start gap-2 text-sm font-bold text-ink/70">
+                    <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-ink/50" /> {reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {(pendingApplication.latestScore?.gaps?.length ?? 0) > 0 && (
+            <div className="mt-4 rounded-2xl bg-coral/15 p-4">
+              <p className="flex items-center gap-2 text-xs font-black uppercase tracking-[.18em] text-coral">
+                <AlertTriangle size={14} /> What's missing
+              </p>
+              <ul className="mt-2 space-y-1.5">
+                {pendingApplication.latestScore?.gaps?.map((gap) => (
+                  <li key={gap} className="flex items-start gap-2 text-sm font-bold text-ink/70">
+                    <AlertTriangle size={15} className="mt-0.5 shrink-0 text-coral/70" /> {gap}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <p className="mt-4 text-xs leading-5 text-ink/55">
+            You can still add it — the fit score is a nudge, not a rule. If you skip it, the role and anything already created for
+            it will be removed.
+          </p>
+
+          <div className="mt-4 flex gap-3">
+            <button
+              onClick={discardPending}
+              disabled={saving}
+              className="flex flex-1 items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-coral px-4 py-2.5 text-sm font-black disabled:opacity-60"
+            >
+              {saving ? <LoaderCircle size={16} className="animate-spin" /> : <X size={16} />}
+              {saving ? "Removing..." : "Don't add"}
+            </button>
+            <button
+              onClick={() => pendingApplication && completeSave(pendingApplication)}
+              className="flex flex-1 items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-mint px-4 py-2.5 text-sm font-black"
+            >
+              <CheckCircle2 size={16} /> Add anyway
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
