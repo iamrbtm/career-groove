@@ -217,9 +217,9 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
            AND NOT EXISTS (
              SELECT 1 FROM application_documents ad
              WHERE ad.document_id = documents.id
-                OR ad.document_generation_job_id = ANY($3::text[])
+                OR ad.document_generation_job_id = ANY($4::uuid[])
            )`,
-        [user, documentIds, jobIds.map(String)],
+        [user, documentIds, jobIds.map(String), jobIds],
       );
       if (jobIds.length) {
         await client.query(
@@ -237,8 +237,11 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
     return new Response(null, { status: 204 });
   } catch (error) {
     await client.query("ROLLBACK");
-    console.error("Application deletion failed", error);
-    return Response.json({ error: "The application could not be deleted." }, { status: 500 });
+    console.error("Application deletion failed", { applicationId: id.data, userId: user, error });
+    return Response.json(
+      { error: "The application could not be deleted. Its documents or drafts may be in use — try again, or archive the role instead." },
+      { status: 500 },
+    );
   } finally {
     client.release();
   }

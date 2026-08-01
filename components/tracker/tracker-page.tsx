@@ -179,11 +179,15 @@ export function TrackerPage() {
     setError("");
     try {
       const res = await fetch(`/api/applications/${deleteTarget.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Could not delete.");
+      if (!res.ok) {
+        let message = "The application could not be deleted. Please try again.";
+        try { const body = await res.json(); if (body?.error) message = body.error; } catch { /* ignore */ }
+        throw new Error(message);
+      }
       setDeleteTarget(null);
       await refreshAll();
-    } catch {
-      setError("Could not delete the application.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "The application could not be deleted. Please try again.");
     } finally {
       setDeleting(false);
     }

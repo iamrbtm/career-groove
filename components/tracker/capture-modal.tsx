@@ -163,11 +163,15 @@ export function CaptureModal({ open, onClose, onSaved }: {
     setNotice("");
     try {
       const res = await fetch(`/api/applications/${pendingApplication.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Could not remove the draft.");
+      if (!res.ok) {
+        let message = "The draft could not be removed. Please try again.";
+        try { const body = await res.json(); if (body?.error) message = body.error; } catch { /* ignore */ }
+        throw new Error(message);
+      }
       setPendingApplication(null);
       setNotice(`Not added. ${pendingApplication.title} was removed, including any research already started.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not remove the draft.");
+      setError(err instanceof Error ? err.message : "The draft could not be removed. Please try again.");
     } finally {
       setSaving(false);
     }
