@@ -24,10 +24,22 @@ function toLocalDateTime(value: string | null) {
   try { return new Date(value).toISOString().slice(0, 16); } catch { return ""; }
 }
 
+function toLocalInputValue(value: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function formatApplied(value: string) {
+  return new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
+}
+
 export function FollowUpStep({
-  applicationId, followUpDueAt, applicationTitle, applicationCompany, onRefresh,
+  applicationId, appliedAt, followUpDueAt, applicationTitle, applicationCompany, onRefresh,
 }: {
-  applicationId: string; followUpDueAt: string | null; applicationTitle?: string; applicationCompany?: string; onRefresh: () => Promise<void>;
+  applicationId: string; appliedAt?: string | null; followUpDueAt: string | null; applicationTitle?: string; applicationCompany?: string; onRefresh: () => Promise<void>;
 }) {
   const [followUps, setFollowUps] = useState<FollowUpItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +47,11 @@ export function FollowUpStep({
   const [newDate, setNewDate] = useState(toLocalDateTime(followUpDueAt));
   const [generating, setGenerating] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [appliedDate, setAppliedDate] = useState(toLocalInputValue(appliedAt ?? null));
+  const [confirmationNumber, setConfirmationNumber] = useState("");
+  const [appliedNote, setAppliedNote] = useState("");
+  const [recording, setRecording] = useState(false);
+  const [editingApplied, setEditingApplied] = useState(false);
   const [notice, setNotice] = useState("");
 
   const title = applicationTitle || "this role";
@@ -53,6 +70,53 @@ export function FollowUpStep({
   }, [applicationId]);
 
   useEffect(() => { loadFollowUps(); }, [loadFollowUps]);
+
+  async function recordApplication() {
+    setRecording(true);
+    setNotice("");
+    try {
+      const res = await fetch(`/api/applications/${applicationId}/submission`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appliedAt: appliedDate ? new Date(appliedDate).toISOString() : "",
+          confirmationNumber,
+          notes: appliedNote,
+        }),
+      });
+      if (!res.ok) throw new Error("Could not record your application.");
+      setNotice("Application recorded.");
+      setConfirmationNumber("");
+      setAppliedNote("");
+      setEditingApplied(false);
+      await loadFollowUps();
+      await onRefresh();
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Could not record your application.");
+    } finally {
+      setRecording(false);
+    }
+  }
+
+  async function saveAppliedDate() {
+    setRecording(true);
+    setNotice("");
+    try {
+      const res = await fetch(`/api/applications/${applicationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appliedAt: appliedDate ? new Date(appliedDate).toISOString() : null }),
+      });
+      if (!res.ok) throw new Error("Could not update the applied date.");
+      setNotice("Applied date updated.");
+      setEditingApplied(false);
+      await onRefresh();
+    } catch {
+      setNotice("Could not update the applied date.");
+    } finally {
+      setRecording(false);
+    }
+  }
 
   async function addFollowUp() {
     setSaving(true);
@@ -151,6 +215,82 @@ export function FollowUpStep({
 
   return (
     <div className="space-y-5">
+      {!appliedAt ? (
+        <div className="rounded-2xl border-2 border-mint/60 bg-mint/15 p-4">
+          <p className="flex items-center gap-2 text-xs font-black uppercase tracking-[.18em] text-plum">
+            <CheckCircle2 size={14} /> Record your application
+          </p>
+          <p className="mt-1 text-sm leading-6 text-ink/60">
+            Log when you submitted so follow-ups are timed from the right moment. If you haven&apos;t applied yet, use the
+            steps before this one to get ready.
+          </p>
+          <label className="mt-3 block text-[10px] font-black uppercase tracking-[.16em] text-ink/55">Applied on</label>
+          <input
+            type="datetime-local"
+            value={appliedDate}
+            onChange={(e) => setAppliedDate(e.target.value)}
+            className="mt-1 w-full rounded-2xl bg-white px-4 py-3 text-sm font-bold outline-none"
+          />
+          <input
+            value={confirmationNumber}
+            onChange={(e) => setConfirmationNumber(e.target.value)}
+            placeholder="Confirmation number (optional)"
+            className="mt-2 w-full rounded-2xl bg-white px-4 py-3 text-sm font-bold outline-none"
+          />
+          <textarea
+            value={appliedNote}
+            onChange={(e) => setAppliedNote(e.target.value)}
+            placeholder="Where did you apply? Any notes (optional)"
+            className="mt-2 min-h-20 w-full rounded-2xl bg-white px-4 py-3 text-sm font-bold outline-none"
+          />
+          <button
+            onClick={recordApplication}
+            disabled={recording}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-mint px-4 py-2.5 text-sm font-black disabled:opacity-60"
+          >
+            {recording ? <LoaderCircle size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+            {recording ? "Saving..." : "I applied"}
+          </button>
+        </div>
+      ) : (
+        <div className="rounded-2xl border-2 border-mint/60 bg-mint/15 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 size={16} className="text-ink/60" />
+              <div>
+                <p className="text-xs font-black uppercase tracking-[.18em] text-plum">Application recorded</p>
+                <p className="mt-0.5 text-sm font-black">
+                  Applied {appliedAt ? formatApplied(appliedAt) : "—"}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setEditingApplied(!editingApplied)}
+              className="shrink-0 rounded-xl border-2 border-ink bg-white px-3 py-1.5 text-[10px] font-black"
+            >
+              {editingApplied ? "Close" : "Edit date"}
+            </button>
+          </div>
+          {editingApplied && (
+            <div className="mt-3 flex items-end gap-2">
+              <input
+                type="datetime-local"
+                value={appliedDate}
+                onChange={(e) => setAppliedDate(e.target.value)}
+                className="w-full flex-1 rounded-2xl bg-white px-4 py-3 text-sm font-bold outline-none"
+              />
+              <button
+                onClick={saveAppliedDate}
+                disabled={recording}
+                className="shrink-0 rounded-2xl border-2 border-ink bg-mint px-4 py-3 text-sm font-black disabled:opacity-60"
+              >
+                {recording ? <LoaderCircle size={16} className="animate-spin" /> : "Save"}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       <p className="text-sm leading-6 text-ink/60">
         Schedule a sequence of follow-up messages. Create drafts with AI, set timing, and track what has been sent.
       </p>

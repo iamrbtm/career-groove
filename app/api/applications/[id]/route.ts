@@ -188,16 +188,58 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   if (!user) return unauthorized();
   const id = idSchema.safeParse((await params).id);
   if (!id.success) return Response.json({ error: "Invalid application id" }, { status: 400 });
-  const result = await db.query(
-    `UPDATE applications SET status='archived',archived_at=COALESCE(archived_at,now()),updated_at=now()
-     WHERE id=$1 AND user_id=$2 RETURNING id`,
-    [id.data, user],
-  );
-  if (!result.rowCount) return Response.json({ error: "Application not found" }, { status: 404 });
-  await db.query(
-    `INSERT INTO application_events(user_id,application_id,event_type,title,metadata)
-     VALUES($1,$2,'archived','Opportunity archived',$3::jsonb)`,
-    [user, id.data, JSON.stringify({ status: "archived" })],
-  );
-  return new Response(null, { status: 204 });
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    const linked = await client.query(
+      `SELECT document_id AS "documentId",document_generation_job_id AS "jobId"
+       FROM application_documents WHERE application_id=$1 AND user_id=$2`,
+      [id.data, user],
+    );
+    const deleted = await client.query(
+      `DELETE FROM applications WHERE id=$1 AND user_id=$2 RETURNING id`,
+      [id.data, user],
+    );
+    if (!deleted.rowCount) {
+      await client.query("ROLLBACK");
+      return Response.json({ error: "Application not found" }, { status: 404 });
+    }
+    const documentIds = linked.rows.map((row) => row.documentId).filter(Boolean);
+    const jobIds = linked.rows.map((row) => row.jobId).filter(Boolean);
+    if (documentIds.length || jobIds.length) {
+      await client.query(
+        `DELETE FROM documents
+         WHERE user_id=$1
+           AND (
+             id = ANY($2::uuid[])
+             OR content->>'generationJobId' = ANY($3::text[])
+           )
+           AND NOT EXISTS (
+             SELECT 1 FROM application_documents ad
+             WHERE ad.document_id = documents.id
+                OR ad.document_generation_job_id = ANY($3::text[])
+           )`,
+        [user, documentIds, jobIds.map(String)],
+      );
+      if (jobIds.length) {
+        await client.query(
+          `DELETE FROM document_generation_jobs
+           WHERE user_id=$1 AND id = ANY($2::uuid[])
+             AND NOT EXISTS (
+               SELECT 1 FROM application_documents ad
+               WHERE ad.document_generation_job_id = document_generation_jobs.id
+             )`,
+          [user, jobIds],
+        );
+      }
+    }
+    await client.query("COMMIT");
+    return new Response(null, { status: 204 });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Application deletion failed", error);
+    return Response.json({ error: "The application could not be deleted." }, { status: 500 });
+  } finally {
+    client.release();
+  }
 }

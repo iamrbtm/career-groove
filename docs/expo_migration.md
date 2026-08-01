@@ -568,7 +568,7 @@ Applications is the most complex domain. Each sub-resource gets its own route fi
 // POST /api/applications — create with auto-scoring trigger
 // GET /api/applications/:id — full detail with events, scores, contacts
 // PATCH /api/applications/:id — update status, fields
-// DELETE /api/applications/:id — soft delete (set archived_at)
+// DELETE /api/applications/:id — hard delete (application + all associated documents, cover letters, jobs, follow-ups; cascade)
 ```
 
 Application analytics (`application-analytics.ts`) requires aggregate queries:

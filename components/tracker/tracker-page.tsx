@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import { LoaderCircle, Plus, Trash2, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell, PageHeading } from "@/components/app-shell";
 import { MotionButton } from "@/components/motion-button";
@@ -64,6 +64,8 @@ export function TrackerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [captureOpen, setCaptureOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Application | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [activeStep, setActiveStepState] = useState<number | null>(null);
 
   const selected = useMemo(() => applications.find((a) => a.id === selectedId), [applications, selectedId]);
@@ -163,8 +165,28 @@ export function TrackerPage() {
 
   async function handleArchive() {
     if (!selected) return;
-    await fetch(`/api/applications/${selected.id}`, { method: "DELETE" });
+    await fetch(`/api/applications/${selected.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "archived" }),
+    });
     await refreshAll();
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/applications/${deleteTarget.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Could not delete.");
+      setDeleteTarget(null);
+      await refreshAll();
+    } catch {
+      setError("Could not delete the application.");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -206,6 +228,8 @@ export function TrackerPage() {
                 totalSteps={totalSteps}
                 readinessReady={trackerReadiness?.ready ?? false}
                 latestScore={selected.latestScore}
+                appliedAt={selected.appliedAt}
+                onDelete={() => setDeleteTarget(selected)}
               />
               <StepAccordion>
                 {stepConfigs(currentStep, currentStep).map(({ num, title, isComplete, isCurrent }) => (
@@ -239,6 +263,7 @@ export function TrackerPage() {
                     {num === 3 && (
                       <FollowUpStep
                         applicationId={selected.id}
+                        appliedAt={selected.appliedAt}
                         followUpDueAt={selected.followUpDueAt}
                         applicationTitle={selected.title}
                         applicationCompany={selected.company}
@@ -268,6 +293,7 @@ export function TrackerPage() {
                         insights={insights}
                         onRefresh={() => loadDetail(selected.id)}
                         onArchive={handleArchive}
+                        onDelete={() => setDeleteTarget(selected)}
                       />
                     )}
                   </StepCard>
@@ -286,6 +312,40 @@ export function TrackerPage() {
         onClose={() => setCaptureOpen(false)}
         onSaved={handleSaved}
       />
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-ink/60 p-4">
+          <div className="w-full max-w-md rounded-3xl border-2 border-ink bg-white p-6 shadow-soft">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-[var(--font-display)] text-2xl font-black">Delete this role?</h2>
+              <button onClick={() => setDeleteTarget(null)} className="grid size-10 place-items-center rounded-2xl bg-cream hover:bg-coral/20">
+                <X size={18} />
+              </button>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-ink/60">
+              This permanently removes <span className="font-black text-ink">{deleteTarget.title}</span> at{" "}
+              <span className="font-black text-ink">{deleteTarget.company}</span> and everything attached to it — research,
+              cover letters, resumes, follow-ups, interviews, and outcomes. This cannot be undone.
+            </p>
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="flex-1 rounded-2xl border-2 border-ink bg-white px-4 py-2.5 text-sm font-black"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex flex-1 items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-coral px-4 py-2.5 text-sm font-black disabled:opacity-60"
+              >
+                {deleting ? <LoaderCircle size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                {deleting ? "Deleting..." : "Delete permanently"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }

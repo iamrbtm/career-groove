@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { Archive, LoaderCircle } from "lucide-react";
+import { Archive, LoaderCircle, Trash2 } from "lucide-react";
 
 type Outcome = {
   id: string; outcome: string; stage: string | null;
@@ -13,11 +13,11 @@ type Outcome = {
 type Insight = { id: string; kind: string; title: string; copy: string; suggestion: string; confidence: string };
 
 export function ClosedStep({
-  applicationId, status, outcomes, insights, onRefresh, onArchive,
+  applicationId, status, outcomes, insights, onRefresh, onArchive, onDelete,
 }: {
   applicationId: string; status: string; outcomes: Outcome[];
   insights: { lowData: boolean; insights: Insight[] } | null;
-  onRefresh: () => Promise<void>; onArchive: () => void;
+  onRefresh: () => Promise<void>; onArchive: () => void; onDelete?: () => void;
 }) {
   const [outcomeForm, setOutcomeForm] = useState({
     outcome: "rejected", stage: "", reason: "", userNote: "",
@@ -139,12 +139,22 @@ export function ClosedStep({
         </div>
       )}
 
-      <button
-        onClick={onArchive}
-        className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-white px-4 py-2.5 text-sm font-black"
-      >
-        <Archive size={16} /> Archive role
-      </button>
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          onClick={onArchive}
+          className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-white px-4 py-2.5 text-sm font-black"
+        >
+          <Archive size={16} /> Archive role
+        </button>
+        {onDelete && (
+          <button
+            onClick={onDelete}
+            className="flex items-center gap-2 rounded-2xl border-2 border-coral/40 bg-coral/10 px-4 py-2.5 text-sm font-black text-coral"
+          >
+            <Trash2 size={16} /> Delete role
+          </button>
+        )}
+      </div>
 
       {notice && <p className="text-sm font-bold text-ink/65">{notice}</p>}
     </div>

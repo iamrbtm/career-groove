@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Check, Clock3 } from "lucide-react";
+import { Check, Clock3, Trash2 } from "lucide-react";
 
 const stepNames: Record<number, string> = {
   1: "Research", 2: "Documents", 3: "Follow-up",
@@ -62,11 +62,12 @@ function ScoreChip({ name, value }: { name: string; value: number }) {
 }
 
 export function CanvasHeader({
-  title, company, currentStep, totalSteps, readinessReady, latestScore,
+  title, company, currentStep, totalSteps, readinessReady, latestScore, appliedAt, onDelete,
 }: {
   title: string; company: string; currentStep: number; totalSteps: number;
   readinessReady: boolean;
   latestScore?: { label: string; fit?: number; readiness?: number; desire?: number; leverage?: number; risk?: number; timing?: number; reasons?: string[]; gaps?: string[] } | null;
+  appliedAt?: string | null; onDelete?: () => void;
 }) {
   return (
     <div className="rounded-3xl border-2 border-ink bg-white p-5 shadow-[0_5px_0_#26312c]">
@@ -79,6 +80,11 @@ export function CanvasHeader({
           <p className="mt-1 text-sm font-bold text-ink/55">{company}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {appliedAt && (
+            <span className="flex items-center gap-1 rounded-full bg-mint px-3 py-1 text-xs font-black">
+              <Check size={14} /> Applied {new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(appliedAt))}
+            </span>
+          )}
           {readinessReady ? (
             <span className="flex items-center gap-1 rounded-full bg-mint px-3 py-1 text-xs font-black">
               <Check size={14} /> Ready
@@ -87,6 +93,15 @@ export function CanvasHeader({
             <span className="flex items-center gap-1 rounded-full bg-coral/20 px-3 py-1 text-xs font-black">
               <Clock3 size={14} /> Needs setup
             </span>
+          )}
+          {onDelete && (
+            <button
+              onClick={onDelete}
+              title="Delete role and all attached resources"
+              className="grid size-9 place-items-center rounded-full text-coral hover:bg-coral/10"
+            >
+              <Trash2 size={16} />
+            </button>
           )}
         </div>
       </div>

@@ -30,7 +30,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const app = await client.query(
       `UPDATE applications
        SET status='applied',applied_at=COALESCE($3::timestamptz,now()),
-        follow_up_due_at=COALESCE($4::timestamptz,follow_up_due_at),
+        follow_up_due_at=COALESCE($4::timestamptz,follow_up_due_at,now() + (COALESCE((SELECT default_follow_up_days FROM user_job_preferences WHERE user_id=$2),7)::int || ' days')::interval),
         metadata=jsonb_set(metadata, '{submission}', $5::jsonb, true),updated_at=now()
        WHERE id=$1 AND user_id=$2
        RETURNING id,status,applied_at AS "appliedAt",follow_up_due_at AS "followUpDueAt",metadata`,
