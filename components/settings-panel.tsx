@@ -24,6 +24,13 @@ export function SettingsPanel() {
     weeklyPace: "",
     defaultFollowUpDays: "7",
   });
+  const [tagDrafts, setTagDrafts] = useState({
+    desiredTitles: "",
+    industries: "",
+    values: "",
+    redFlags: "",
+  });
+  const [tagEditing, setTagEditing] = useState(false);
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
@@ -37,16 +44,26 @@ export function SettingsPanel() {
     fetch("/api/application-preferences").then(async (response) => {
       if (response.ok) {
         const body = await response.json();
+        const desiredTitles = body.preferences.desiredTitles || [];
+        const industries = body.preferences.industries || [];
+        const values = body.preferences.values || [];
+        const redFlags = body.preferences.redFlags || [];
         setPreferences({
-          desiredTitles: body.preferences.desiredTitles?.length ? body.preferences.desiredTitles : [""],
+          desiredTitles: desiredTitles.length ? desiredTitles : [""],
           workModes: body.preferences.workModes || [],
           salaryTarget: body.preferences.salaryTarget ? String(body.preferences.salaryTarget) : "",
           locationPreference: body.preferences.locationPreference || "",
-          industries: body.preferences.industries?.length ? body.preferences.industries : [""],
-          values: body.preferences.values?.length ? body.preferences.values : [""],
-          redFlags: body.preferences.redFlags?.length ? body.preferences.redFlags : [""],
+          industries: industries.length ? industries : [""],
+          values: values.length ? values : [""],
+          redFlags: redFlags.length ? redFlags : [""],
           weeklyPace: body.preferences.weeklyPace ? String(body.preferences.weeklyPace) : "",
           defaultFollowUpDays: String(body.preferences.defaultFollowUpDays || 7),
+        });
+        setTagDrafts({
+          desiredTitles: commaJoin(desiredTitles),
+          industries: commaJoin(industries),
+          values: commaJoin(values),
+          redFlags: commaJoin(redFlags),
         });
       }
     });
@@ -80,22 +97,46 @@ export function SettingsPanel() {
 
   async function savePreferences(event: FormEvent) {
     event.preventDefault();
+    const desiredTitles = parseCommaList(tagDrafts.desiredTitles);
+    const industries = parseCommaList(tagDrafts.industries);
+    const values = parseCommaList(tagDrafts.values);
+    const redFlags = parseCommaList(tagDrafts.redFlags);
     const response = await fetch("/api/application-preferences", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        desiredTitles: compact(preferences.desiredTitles),
+        desiredTitles,
         workModes: preferences.workModes,
         salaryTarget: preferences.salaryTarget ? Number(preferences.salaryTarget) : null,
         locationPreference: preferences.locationPreference || null,
-        industries: compact(preferences.industries),
-        values: compact(preferences.values),
-        redFlags: compact(preferences.redFlags),
+        industries,
+        values,
+        redFlags,
         weeklyPace: preferences.weeklyPace ? Number(preferences.weeklyPace) : null,
         defaultFollowUpDays: Number(preferences.defaultFollowUpDays || 7),
       }),
     });
-    setNotice(response.ok ? "Tracker preferences saved." : "Tracker preferences could not be saved.");
+    if (response.ok) {
+      setPreferences((current) => ({ ...current, desiredTitles, industries, values, redFlags }));
+      setTagEditing(false);
+      setNotice("Tracker preferences saved.");
+    } else {
+      setNotice("Tracker preferences could not be saved.");
+    }
+  }
+
+  function beginEditingTags() {
+    setTagDrafts({
+      desiredTitles: commaJoin(preferences.desiredTitles),
+      industries: commaJoin(preferences.industries),
+      values: commaJoin(preferences.values),
+      redFlags: commaJoin(preferences.redFlags),
+    });
+    setTagEditing(true);
+  }
+
+  function cancelEditingTags() {
+    setTagEditing(false);
   }
 
   return (
@@ -149,10 +190,48 @@ export function SettingsPanel() {
         <form onSubmit={savePreferences} className="rounded-3xl border-2 border-ink bg-white p-6 shadow-[0_5px_0_#26312c]">
           <h2 className="font-[var(--font-display)] text-xl font-black">Tracker preferences</h2>
           <p className="mt-2 text-sm text-ink/55">These guide Career DJ, follow-up timing, and offer comparisons.</p>
-          <FieldList label="Desired titles" values={preferences.desiredTitles} setValues={(desiredTitles) => setPreferences({ ...preferences, desiredTitles })} />
-          <FieldList label="Industries" values={preferences.industries} setValues={(industries) => setPreferences({ ...preferences, industries })} />
-          <FieldList label="Values" values={preferences.values} setValues={(values) => setPreferences({ ...preferences, values })} />
-          <FieldList label="Red flags" values={preferences.redFlags} setValues={(redFlags) => setPreferences({ ...preferences, redFlags })} />
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <p className="text-xs font-black uppercase tracking-wider text-ink/55">
+              {tagEditing ? "Separate each value with a comma" : "Tag lists"}
+            </p>
+            {!tagEditing ? (
+              <button type="button" onClick={beginEditingTags} className="text-xs font-black underline decoration-coral decoration-2 underline-offset-4">
+                Edit tags
+              </button>
+            ) : (
+              <button type="button" onClick={cancelEditingTags} className="text-xs font-black underline decoration-coral decoration-2 underline-offset-4">
+                Cancel
+              </button>
+            )}
+          </div>
+          <TagField
+            label="Desired titles"
+            editing={tagEditing}
+            draft={tagDrafts.desiredTitles}
+            values={preferences.desiredTitles}
+            onChange={(desiredTitles) => setTagDrafts({ ...tagDrafts, desiredTitles })}
+          />
+          <TagField
+            label="Industries"
+            editing={tagEditing}
+            draft={tagDrafts.industries}
+            values={preferences.industries}
+            onChange={(industries) => setTagDrafts({ ...tagDrafts, industries })}
+          />
+          <TagField
+            label="Values"
+            editing={tagEditing}
+            draft={tagDrafts.values}
+            values={preferences.values}
+            onChange={(values) => setTagDrafts({ ...tagDrafts, values })}
+          />
+          <TagField
+            label="Red flags"
+            editing={tagEditing}
+            draft={tagDrafts.redFlags}
+            values={preferences.redFlags}
+            onChange={(redFlags) => setTagDrafts({ ...tagDrafts, redFlags })}
+          />
           <label className="mt-4 block text-xs font-black uppercase tracking-wider text-plum">
             Work modes
             <div className="mt-2 flex flex-wrap gap-2">
@@ -205,8 +284,12 @@ export function SettingsPanel() {
   );
 }
 
-function compact(values: string[]) {
-  return values.map((value) => value.trim()).filter(Boolean);
+function commaJoin(values: string[]) {
+  return values.filter((value) => value.trim()).join(", ");
+}
+
+function parseCommaList(text: string) {
+  return Array.from(new Set(text.split(",").map((value) => value.trim()).filter(Boolean)));
 }
 
 function Input({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
@@ -216,12 +299,36 @@ function Input({ label, value, onChange }: { label: string; value: string; onCha
   </label>;
 }
 
-function FieldList({ label, values, setValues }: { label: string; values: string[]; setValues: (values: string[]) => void }) {
-  return <div className="mt-4">
-    <p className="text-xs font-black uppercase tracking-wider text-plum">{label}</p>
-    <div className="mt-2 space-y-2">
-      {values.map((value, index) => <input key={`${label}-${index}`} value={value} onChange={(event) => setValues(values.map((current, currentIndex) => currentIndex === index ? event.target.value : current))} className="w-full rounded-2xl border-2 border-ink/15 px-3 py-3 text-sm font-bold normal-case" />)}
+function TagField({ label, editing, draft, values, onChange }: {
+  label: string; editing: boolean; draft: string; values: string[]; onChange: (text: string) => void;
+}) {
+  if (editing) {
+    return (
+      <label className="mt-4 block text-xs font-black uppercase tracking-wider text-plum">
+        {label}
+        <textarea
+          value={draft}
+          onChange={(event) => onChange(event.target.value)}
+          rows={Math.max(2, Math.min(5, draft.split(",").length + 1))}
+          placeholder="Separate with commas, e.g. React, TypeScript, Node"
+          className="mt-1 min-h-16 w-full resize-y rounded-2xl border-2 border-ink/15 px-3 py-3 text-sm font-bold normal-case"
+        />
+      </label>
+    );
+  }
+  const tags = values.filter((value) => value.trim());
+  return (
+    <div className="mt-4">
+      <p className="text-xs font-black uppercase tracking-wider text-plum">{label}</p>
+      {tags.length ? (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {tags.map((tag) => (
+            <span key={tag} className="rounded-full bg-cream px-3 py-1.5 text-xs font-black">{tag}</span>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-2 rounded-2xl border-2 border-dashed border-ink/15 bg-white/60 px-3 py-3 text-sm font-bold text-ink/45">Nothing set yet.</p>
+      )}
     </div>
-    <button type="button" onClick={() => setValues([...values, ""])} className="mt-2 text-xs font-black underline decoration-coral decoration-2 underline-offset-4">Add another</button>
-  </div>;
+  );
 }
