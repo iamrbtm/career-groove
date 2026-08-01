@@ -141,10 +141,24 @@ async function run(job) {
     for (const kind of kinds) {
       const text = result[kind];
       const label = kind === "resume" ? "Resume" : "Cover Letter";
-      await client.query(
-        `INSERT INTO documents(user_id,kind,title,content,target_job) VALUES($1,$2,$3,$4::jsonb,$5::jsonb)`,
+      const inserted = await client.query(
+        `INSERT INTO documents(user_id,kind,title,content,target_job) VALUES($1,$2,$3,$4::jsonb,$5::jsonb) RETURNING id`,
         [job.user_id, kind, `${job.target_job.title || job.target_job.company || "Untitled"} ${label}`, JSON.stringify({ text, generationJobId: job.id, ...(kind === "resume" ? { resumeData: result.resumeData } : {}) }), JSON.stringify(job.target_job)],
       );
+      const applicationId = job.target_job && job.target_job.applicationId;
+      if (applicationId) {
+        await client.query(
+          `INSERT INTO application_documents(user_id,application_id,document_generation_job_id,document_id,kind,title,status,metadata)
+           SELECT $1,$2,$3,$4,$5,$6,'generated',$7::jsonb
+           WHERE NOT EXISTS (
+             SELECT 1 FROM application_documents ad
+             WHERE ad.application_id=$2
+               AND (ad.document_id=$4 OR ad.document_generation_job_id=$3)
+               AND ad.status<>'archived'
+           )`,
+          [job.user_id, applicationId, job.id, inserted.rows[0].id, kind, `${job.target_job.title || job.target_job.company || "Untitled"} ${label}`, JSON.stringify({ fromDocumentJob: job.id })],
+        );
+      }
     }
     await client.query(`UPDATE document_generation_jobs SET status='completed',result=$2::jsonb,error=NULL,completed_at=now(),updated_at=now() WHERE id=$1`, [job.id, JSON.stringify(result)]);
     await client.query("COMMIT");
