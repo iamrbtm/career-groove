@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, CheckCircle2, LoaderCircle, Mail, MessageCircleMore, RefreshCw, Send, Sparkles, Trash2 } from "lucide-react";
 import { AppShell, PageHeading } from "./app-shell";
@@ -19,6 +19,7 @@ type OverdueFollowUp = {
   applicationCompany: string;
   applicationStatus: string;
   priorityLabel: string | null;
+  recipientEmail?: string | null;
 };
 
 export function FollowUpDashboard() {
@@ -29,7 +30,17 @@ export function FollowUpDashboard() {
   const [totalOverdue, setTotalOverdue] = useState(0);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState<string | null>(null);
+  const [sending, setSending] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
+  // Maps follow-up id → list of email guesses needing user selection
+  const [emailGuesses, setEmailGuesses] = useState<Record<string, string[]>>({});
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function flashNotice(msg: string) {
+    setNotice(msg);
+    if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    noticeTimer.current = setTimeout(() => setNotice(""), 5000);
+  }
 
   const loadOverdue = useCallback(async () => {
     setLoading(true);
@@ -68,12 +79,64 @@ export function FollowUpDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, status: "draft" }),
       });
-      setNotice("Draft generated!");
+      flashNotice("Draft generated!");
       await loadOverdue();
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : "Could not generate.");
+      flashNotice(err instanceof Error ? err.message : "Could not generate.");
     } finally {
       setGenerating(null);
+    }
+  }
+
+  async function handleSendEmail(fu: OverdueFollowUp) {
+    setSending(fu.id);
+    setEmailGuesses((g) => { const next = { ...g }; delete next[fu.id]; return next; });
+    try {
+      // Step 1: discover or confirm recipient email
+      const discoverRes = await fetch(`/api/follow-ups/${fu.id}/discover-email`, { method: "POST" });
+      const discoverData = await discoverRes.json();
+
+      if (!discoverRes.ok) {
+        flashNotice(discoverData.error || "Could not discover recipient email.");
+        setSending(null);
+        return;
+      }
+
+      if (discoverData.guesses) {
+        // Show inline picker — user must choose
+        setEmailGuesses((g) => ({ ...g, [fu.id]: discoverData.guesses as string[] }));
+        setSending(null);
+        return;
+      }
+
+      // We have a resolved email — send
+      await doSend(fu, discoverData.email as string);
+    } catch (err) {
+      flashNotice(err instanceof Error ? err.message : "Send failed.");
+      setSending(null);
+    }
+  }
+
+  async function doSend(fu: OverdueFollowUp, recipientEmail: string) {
+    setSending(fu.id);
+    setEmailGuesses((g) => { const next = { ...g }; delete next[fu.id]; return next; });
+    try {
+      const res = await fetch(`/api/follow-ups/${fu.id}/send-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipientEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        flashNotice(data.error || "Failed to send email.");
+      } else {
+        flashNotice(`Email sent to ${recipientEmail}!`);
+        await loadOverdue();
+      }
+    } catch (err) {
+      flashNotice(err instanceof Error ? err.message : "Send failed.");
+    } finally {
+      setSending(null);
     }
   }
 
@@ -135,7 +198,11 @@ export function FollowUpDashboard() {
                   key={fu.id}
                   followUp={fu}
                   generating={generating === fu.id}
+                  sending={sending === fu.id}
+                  emailGuesses={emailGuesses[fu.id]}
                   onGenerateDraft={() => generateDraft(fu)}
+                  onSendEmail={() => handleSendEmail(fu)}
+                  onSelectEmailGuess={(email) => doSend(fu, email)}
                   onMarkSent={() => markSent(fu.id)}
                   onSkip={() => skipFollowUp(fu.id)}
                   onOpenApplication={() => router.push(`/applications?applicationId=${fu.applicationId}`)}
@@ -154,7 +221,10 @@ export function FollowUpDashboard() {
                   key={fu.id}
                   followUp={fu}
                   generating={false}
+                  sending={false}
                   onGenerateDraft={() => {}}
+                  onSendEmail={() => handleSendEmail(fu)}
+                  onSelectEmailGuess={(email) => doSend(fu, email)}
                   onMarkSent={() => markSent(fu.id)}
                   onSkip={() => skipFollowUp(fu.id)}
                   onOpenApplication={() => router.push(`/applications?applicationId=${fu.applicationId}`)}
@@ -197,10 +267,14 @@ export function FollowUpDashboard() {
 }
 
 function FollowUpCard({
-  followUp, generating, onGenerateDraft, onMarkSent, onSkip, onOpenApplication,
+  followUp, generating, sending, emailGuesses, onGenerateDraft, onSendEmail, onSelectEmailGuess, onMarkSent, onSkip, onOpenApplication,
 }: {
-  followUp: OverdueFollowUp; generating: boolean;
-  onGenerateDraft: () => void; onMarkSent: () => void; onSkip: () => void; onOpenApplication: () => void;
+  followUp: OverdueFollowUp; generating: boolean; sending: boolean;
+  emailGuesses?: string[];
+  onGenerateDraft: () => void;
+  onSendEmail: () => void;
+  onSelectEmailGuess: (email: string) => void;
+  onMarkSent: () => void; onSkip: () => void; onOpenApplication: () => void;
 }) {
   const isOverdue = followUp.scheduledFor && new Date(followUp.scheduledFor) <= new Date();
   return (
@@ -223,8 +297,23 @@ function FollowUpCard({
               {new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric" }).format(new Date(followUp.scheduledFor))}
             </p>
           )}
+          {followUp.recipientEmail && (
+            <p className="mt-1 flex items-center gap-1 text-xs text-plum/70">
+              <Mail size={12} /> {followUp.recipientEmail}
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          {followUp.message && (
+            <button
+              onClick={onSendEmail}
+              disabled={sending}
+              className="rounded-xl bg-plum p-2 text-white disabled:opacity-60"
+              title="Send email"
+            >
+              {sending ? <LoaderCircle size={16} className="animate-spin" /> : <Send size={16} />}
+            </button>
+          )}
           <button onClick={onMarkSent} className="rounded-xl bg-mint p-2 text-white" title="Mark sent">
             <CheckCircle2 size={16} />
           </button>
@@ -244,6 +333,24 @@ function FollowUpCard({
           {generating ? <LoaderCircle size={14} className="animate-spin" /> : <Sparkles size={14} />}
           {generating ? "Generating..." : "Generate AI draft"}
         </button>
+      )}
+
+      {emailGuesses && emailGuesses.length > 0 && (
+        <div className="mt-3 rounded-xl border-2 border-plum/20 bg-plum/5 p-3">
+          <p className="text-xs font-black text-plum">No email on file — pick a guess to send to:</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {emailGuesses.map((guess) => (
+              <button
+                key={guess}
+                onClick={() => onSelectEmailGuess(guess)}
+                disabled={sending}
+                className="rounded-full border-2 border-plum/30 bg-white px-3 py-1 text-xs font-black text-plum hover:bg-plum hover:text-white disabled:opacity-60"
+              >
+                {guess}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
