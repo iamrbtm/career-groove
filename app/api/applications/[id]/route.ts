@@ -46,10 +46,22 @@ async function getApplication(user: string, id: string) {
       [id, user],
     ),
     db.query(
-      `SELECT id,document_generation_job_id AS "documentGenerationJobId",document_id AS "documentId",
-        kind,title,status,submitted_at AS "submittedAt",metadata,created_at AS "createdAt"
-       FROM application_documents WHERE application_id=$1 AND user_id=$2 AND status<>'archived'
-       ORDER BY created_at DESC`,
+      `SELECT ad.id,ad.document_generation_job_id AS "documentGenerationJobId",ad.document_id AS "documentId",
+        ad.kind,ad.title,ad.status,ad.submitted_at AS "submittedAt",ad.metadata,ad.created_at AS "createdAt",
+        COALESCE(d.content->>'text',
+          CASE
+            WHEN ad.kind='resume' THEN j.result->>'resume'
+            WHEN ad.kind='cover_letter' THEN j.result->>'cover_letter'
+            ELSE NULL
+          END
+        ) AS text,
+        COALESCE(d.content->'resumeData', j.result->'resumeData') AS "resumeData",
+        COALESCE(d.target_job, j.target_job, '{}'::jsonb) AS "targetJob"
+       FROM application_documents ad
+       LEFT JOIN documents d ON d.id=ad.document_id AND d.user_id=ad.user_id
+       LEFT JOIN document_generation_jobs j ON j.id=ad.document_generation_job_id AND j.user_id=ad.user_id
+       WHERE ad.application_id=$1 AND ad.user_id=$2 AND ad.status<>'archived'
+       ORDER BY ad.created_at DESC`,
       [id, user],
     ),
     db.query(

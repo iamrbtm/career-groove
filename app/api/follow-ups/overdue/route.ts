@@ -14,6 +14,7 @@ export async function GET() {
        af.scheduled_for AS "scheduledFor",
        af.delivery_method AS "deliveryMethod",
        af.created_at AS "createdAt",
+       af.metadata,
        a.title AS "applicationTitle",
        a.company AS "applicationCompany",
        a.status AS "applicationStatus",
@@ -37,6 +38,7 @@ export async function GET() {
        af.follow_up_type AS "followUpType",
        af.subject, af.status,
        af.scheduled_for AS "scheduledFor",
+       af.metadata,
        a.title AS "applicationTitle",
        a.company AS "applicationCompany",
        a.status AS "applicationStatus"

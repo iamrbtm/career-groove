@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, CheckCircle2, LoaderCircle, Mail, MessageCircleMore, RefreshCw, Send, Sparkles, Trash2 } from "lucide-react";
+import { Calendar, CheckCircle2, FileText, LoaderCircle, Mail, MessageCircleMore, RefreshCw, Send, Sparkles, Trash2 } from "lucide-react";
 import { AppShell, PageHeading } from "./app-shell";
 import { MotionButton } from "./motion-button";
 import { followUpTypeLabels, type FollowUpType } from "@/lib/follow-up";
@@ -19,6 +19,7 @@ type OverdueFollowUp = {
   applicationCompany: string;
   applicationStatus: string;
   priorityLabel: string | null;
+  metadata?: { documentGenerationJobId?: string };
 };
 
 export function FollowUpDashboard() {
@@ -63,10 +64,39 @@ export function FollowUpDashboard() {
       });
       const text = await res.text();
       if (!res.ok) throw new Error(text || "Generation failed.");
+
+      const docRes = await fetch("/api/document-jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "cover_letter",
+          applicationId: fu.applicationId,
+        }),
+      });
+      const docData = await docRes.json();
+      const documentJobId = docData.job?.id;
+
+      if (documentJobId) {
+        await fetch(`/api/applications/${fu.applicationId}/documents`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            documentGenerationJobId: documentJobId,
+            kind: "cover_letter",
+            title: followUpTypeLabels[fu.followUpType as FollowUpType] || "Follow-up",
+            status: "generated",
+          }),
+        });
+      }
+
       await fetch(`/api/follow-ups/${fu.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, status: "draft" }),
+        body: JSON.stringify({
+          message: text,
+          status: "draft",
+          metadata: { documentGenerationJobId: documentJobId },
+        }),
       });
       setNotice("Draft generated!");
       await loadOverdue();
@@ -203,6 +233,7 @@ function FollowUpCard({
   onGenerateDraft: () => void; onMarkSent: () => void; onSkip: () => void; onOpenApplication: () => void;
 }) {
   const isOverdue = followUp.scheduledFor && new Date(followUp.scheduledFor) <= new Date();
+  const documentJobId = followUp.metadata?.documentGenerationJobId;
   return (
     <div className={`rounded-3xl border-2 p-5 ${isOverdue ? "border-coral/40 bg-coral/5" : "border-ink/10 bg-white"}`}>
       <div className="flex items-start justify-between gap-3">
@@ -225,6 +256,15 @@ function FollowUpCard({
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          {documentJobId && (
+            <a
+              href={`/documents?jobId=${documentJobId}`}
+              className="rounded-xl bg-plum/10 p-2 text-plum hover:bg-plum/20"
+              title="View generated document"
+            >
+              <FileText size={16} />
+            </a>
+          )}
           <button onClick={onMarkSent} className="rounded-xl bg-mint p-2 text-white" title="Mark sent">
             <CheckCircle2 size={16} />
           </button>

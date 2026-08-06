@@ -2,7 +2,7 @@ import type { PoolClient } from "pg";
 
 import { commandSessionActions, type CommandSessionAction } from "@/lib/application-schema";
 
-type ApplicationRow = {
+export type ApplicationRow = {
   id: string;
   status: string;
   title: string;
@@ -23,7 +23,7 @@ type ApplicationRow = {
   metadata: Record<string, unknown> | null;
 };
 
-type TrackerContext = {
+export type TrackerContext = {
   profile: { name: string | null; phone: string | null };
   preferences: {
     desiredTitles: string[];
@@ -199,7 +199,7 @@ export function buildTrackerReadiness(context: TrackerContext): TrackerReadiness
   };
 }
 
-function computeScore(application: ApplicationRow, context: TrackerContext): ScoreResult {
+export function computeScore(application: ApplicationRow, context: TrackerContext): ScoreResult {
   const now = new Date();
   const description = normalizeText(application.description);
   const title = normalizeText(application.title);
@@ -416,6 +416,12 @@ export async function loadTrackerContext(client: PoolClient, userId: string): Pr
   };
 }
 
+export const stepFromStatus: Record<string, number> = {
+  saved: 1, researching: 1, ready_to_apply: 2,
+  applied: 3, follow_up: 3, interviewing: 4,
+  offer: 5, rejected: 6, withdrawn: 6, archived: 6,
+};
+
 export async function refreshApplicationScore(client: PoolClient, userId: string, applicationId: string) {
   const applicationResult = await client.query(
     `SELECT id,status,title,company,location,work_mode AS "workMode",
@@ -430,11 +436,6 @@ export async function refreshApplicationScore(client: PoolClient, userId: string
   const context = await loadTrackerContext(client, userId);
   const readiness = buildTrackerReadiness(context);
   const score = computeScore(applicationResult.rows[0], context);
-  const stepFromStatus: Record<string, number> = {
-    saved: 1, researching: 1, ready_to_apply: 2,
-    applied: 3, follow_up: 3, interviewing: 4,
-    offer: 5, rejected: 6, withdrawn: 6, archived: 6,
-  };
   const currentStep = stepFromStatus[applicationResult.rows[0].status] ?? 1;
   const inserted = await client.query(
     `INSERT INTO application_scores(user_id,application_id,fit,readiness,desire,leverage,risk,timing,label,reasons,gaps,next_action,context_snapshot)
@@ -461,7 +462,8 @@ export async function refreshApplicationScore(client: PoolClient, userId: string
   );
   await client.query(
     `UPDATE applications
-     SET priority_label=$3,next_action_type=$4,next_action_reason=$5,current_step=$6,updated_at=now()
+     SET priority_label=$3,next_action_type=$4,next_action_reason=$5,
+       current_step=GREATEST(COALESCE(current_step,0),$6),updated_at=now()
      WHERE id=$1 AND user_id=$2`,
     [applicationId, userId, score.label, score.nextAction, score.nextActionReason, currentStep],
   );

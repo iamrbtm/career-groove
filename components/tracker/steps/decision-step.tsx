@@ -57,8 +57,6 @@ export function DecisionStep({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           metadata: { ...metadata, offer: offerPayload },
-          ...(decision === "accepted" ? { status: "accepted" } : {}),
-          ...(decision === "declined" ? { status: "declined" } : {}),
         }),
       });
       setNotice(decision ? `Offer ${decision}.` : "Offer details saved.");

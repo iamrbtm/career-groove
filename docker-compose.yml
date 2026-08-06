@@ -16,6 +16,18 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - career_groove_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
   app:
     build:
       context: .
@@ -26,10 +38,12 @@ services:
     environment:
       DATABASE_URL: postgresql://career_groove:career_groove@db:5432/career_groove
       OLLAMA_BASE_URL: ${CAREER_GROOVE_OLLAMA_BASE_URL:-http://ollama:11434}
+      REDIS_URL: redis://redis:6379
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
       db: { condition: service_healthy }
+      redis: { condition: service_healthy }
   document-worker:
     build:
       context: .
@@ -40,10 +54,12 @@ services:
     environment:
       DATABASE_URL: postgresql://career_groove:career_groove@db:5432/career_groove
       OLLAMA_BASE_URL: ${CAREER_GROOVE_OLLAMA_BASE_URL:-http://ollama:11434}
+      REDIS_URL: redis://redis:6379
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
       db: { condition: service_healthy }
+      redis: { condition: service_healthy }
   mobile-notification-worker:
     build:
       context: .
@@ -65,8 +81,10 @@ services:
     environment:
       FOLLOW_UP_WORKER_ENDPOINT: http://app:3000/api/internal/follow-up-worker
       FOLLOW_UP_WORKER_INTERVAL_MS: 3600000
+      REDIS_URL: redis://redis:6379
     depends_on:
       - app
+      - redis
   backup-scheduler:
     build:
       context: .
@@ -93,3 +111,4 @@ services:
       - ${OLLAMA_MODELS_DIR:-./.ollama}:/root/.ollama
 volumes:
   career_groove_data:
+  career_groove_redis:

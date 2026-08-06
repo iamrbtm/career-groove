@@ -1,4 +1,4 @@
-const DEFAULT_APP_URL = "http://localhost:3000";
+const DEFAULT_APP_URL = "https://careergroove.website";
 const extensionApi = globalThis.browser || globalThis.chrome;
 const usesPromiseApi = typeof globalThis.browser !== "undefined";
 const elements = {
@@ -61,7 +61,13 @@ function normalizeAppUrl(value) {
 async function getAppUrl() {
   const area = storageArea("sync");
   const stored = await toPromise(area.get.bind(area), { appUrl: DEFAULT_APP_URL });
-  return normalizeAppUrl(stored.appUrl);
+  const previousDefault = "http://localhost:3000";
+  const appUrl = normalizeAppUrl(stored.appUrl);
+  if (appUrl === previousDefault) {
+    await toPromise(area.set.bind(area), { appUrl: DEFAULT_APP_URL });
+    return normalizeAppUrl(DEFAULT_APP_URL);
+  }
+  return appUrl;
 }
 
 async function saveAppUrl() {
@@ -79,19 +85,69 @@ function numberOrNull(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function safeUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    if (url.protocol === "http:" || url.protocol === "https:") return url.href;
+  } catch {
+    /* ignore */
+  }
+  return "";
+}
+
+function describeApiError(data) {
+  if (!data || typeof data !== "object") return typeof data === "string" ? data : null;
+  if (typeof data.error === "string") return data.error;
+  if (data.error && typeof data.error === "object") {
+    const fieldErrors = data.error.fieldErrors || {};
+    const parts = [];
+    for (const [field, messages] of Object.entries(fieldErrors)) {
+      if (Array.isArray(messages) && messages.length) parts.push(`${field}: ${messages.join(", ")}`);
+    }
+    if (Array.isArray(data.error.formErrors) && data.error.formErrors.length) {
+      parts.push(data.error.formErrors.join(", "));
+    }
+    if (parts.length) return parts.join("; ");
+  }
+  return null;
+}
+
 async function getActiveTab() {
   const tabs = await toPromise(extensionApi.tabs.query.bind(extensionApi.tabs), { active: true, currentWindow: true });
   const [tab] = tabs || [];
   return tab;
 }
 
-async function sendCaptureMessage(tabId) {
-  try {
-    return await toPromise(extensionApi.tabs.sendMessage.bind(extensionApi.tabs), tabId, { type: "CAREER_GROOVE_CAPTURE_JOB" });
-  } catch {
-    await toPromise(extensionApi.scripting.executeScript.bind(extensionApi.scripting), { target: { tabId }, files: ["content-script.js"] });
-    return toPromise(extensionApi.tabs.sendMessage.bind(extensionApi.tabs), tabId, { type: "CAREER_GROOVE_CAPTURE_JOB" });
+async function injectContentScript(tabId) {
+  if (extensionApi.scripting?.executeScript) {
+    await toPromise(extensionApi.scripting.executeScript.bind(extensionApi.scripting), {
+      target: { tabId },
+      files: ["content-script.js"],
+    });
+    return;
   }
+  if (extensionApi.tabs.executeScript) {
+    await toPromise(extensionApi.tabs.executeScript.bind(extensionApi.tabs), { tabId, file: "content-script.js" });
+  }
+}
+
+function withTimeout(promise, ms, message) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+async function sendCaptureMessage(tabId) {
+  await injectContentScript(tabId).catch(() => undefined);
+  return withTimeout(
+    toPromise(extensionApi.tabs.sendMessage.bind(extensionApi.tabs), tabId, { type: "CAREER_GROOVE_CAPTURE_JOB" }),
+    6000,
+    "The page did not respond. Reload the job tab, then capture again.",
+  );
 }
 
 async function captureCurrentPage() {
@@ -210,10 +266,10 @@ async function saveApplication() {
     salaryMin: numberOrNull(elements.salaryMin.value),
     salaryMax: numberOrNull(elements.salaryMax.value),
     salaryCurrency: "USD",
-    sourceUrl: elements.sourceUrl.value.trim(),
+    sourceUrl: safeUrl(elements.sourceUrl.value),
     source: captured?.source || "",
-    description,
-    notes: elements.notes.value.trim() || null,
+    description: description.slice(0, 50000),
+    notes: (elements.notes.value.trim() || null) && elements.notes.value.trim().slice(0, 20000),
     metadata: {
       browserExtension: {
         capturedAt: captured?.capturedAt || new Date().toISOString(),
@@ -236,11 +292,11 @@ async function saveApplication() {
   }
   if (!response.ok) {
     elements.saveApplication.disabled = false;
-    throw new Error(data.error || "CareerGroove could not save this role.");
+    throw new Error(describeApiError(data) || `CareerGroove could not save this role (${response.status}).`);
   }
-  const sessionArea = storageArea("session");
-  await toPromise(sessionArea.set.bind(sessionArea), { careerGrooveLastSavedApplicationId: data.application?.id || "" });
   setStatus("Saved. It is queued in Applications with Career DJ ready.", "success");
+  const sessionArea = storageArea("session");
+  await toPromise(sessionArea.set.bind(sessionArea), { careerGrooveLastSavedApplicationId: data.application?.id || "" }).catch(() => undefined);
 }
 
 async function refresh() {

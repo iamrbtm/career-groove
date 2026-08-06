@@ -1,0 +1,1 @@
+CareerGroove is a playful, music-driven personal career and life CRM that uses AI to turn your work and life history into polished résumés, achievement bullets, and interview prep.

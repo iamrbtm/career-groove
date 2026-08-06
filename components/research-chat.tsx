@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Bot, LoaderCircle, MessageCircleMore, Send, Sparkles, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { MarkdownMessage } from "@/components/markdown-message";
 
 type Msg = {
   role: "user" | "assistant";
@@ -221,7 +222,13 @@ export function ResearchChat() {
                         : "bg-cream text-ink"
                     }`}
                   >
-                    {msg.content || <span className="italic text-ink/40">Thinking...</span>}
+                    {msg.role === "assistant" && msg.content ? (
+                      <MarkdownMessage content={msg.content} />
+                    ) : msg.content ? (
+                      msg.content
+                    ) : (
+                      <span className="italic text-ink/40">Thinking...</span>
+                    )}
                   </div>
                 </div>
               ))}

@@ -70,6 +70,32 @@ function extractDeadline(text: string) {
   return explicit?.[1] ?? null;
 }
 
+function extractCompanyFromText(text: string, lines: string[]): string {
+  const explicit = text.match(/(?:^|\n)\s*(?:about the\s+)?(?:company|employer|organization)\s*[:—–-]\s*([^\n|•]+)/i);
+  if (explicit?.[1]) {
+    const name = cleanLine(explicit[1]);
+    if (name && name.length <= 100 && !/job|position|opportunity|role/i.test(name)) return name;
+  }
+  for (let index = 0; index < lines.length - 1; index++) {
+    const heading = lines[index];
+    if (/^(?:about the\s+)?(?:company|employer|organization|who we are|the company)\s*:?$/i.test(heading) || /about (the )?company|our company|the organization/i.test(heading)) {
+      const name = cleanLine(lines[index + 1]);
+      if (name.length >= 2 && name.length <= 80 && !/job|position|opportunity|role/i.test(name)) return name;
+    }
+  }
+  const atCompany = text.match(/(?:^|\n)\s*(?:at|with)\s+([A-Z][A-Za-z0-9 .&'-]+)[,\s]+(?:we|you|our|the team)/i);
+  if (atCompany?.[1]) {
+    const name = cleanLine(atCompany[1]);
+    if (name.length <= 80) return name;
+  }
+  const weAre = text.match(/(?:^|\n)\s*we(?:'re| are)\s+([A-Z][A-Za-z0-9 .&'-]+?)(?:[,\s]|$)/i);
+  if (weAre?.[1]) {
+    const name = cleanLine(weAre[1]);
+    if (name.length <= 80) return name;
+  }
+  return "";
+}
+
 function inferWorkMode(text: string): ParsedJob["workMode"] {
   const lower = text.toLowerCase();
   if (lower.includes("hybrid")) return "hybrid";
@@ -84,8 +110,7 @@ export function parseJobPost(input: { text: string; sourceUrl?: string; fallback
   const lines = text.split(/\r?\n/).map(cleanLine).filter(Boolean);
   const lower = text.toLowerCase();
   const title = input.fallbackTitle || lines.find((line) => line.length <= 90 && !line.includes(":")) || "";
-  const companyMatch = text.match(/(?:company|employer|organization)[:\s]+([^\n|•]+)/i);
-  const company = input.fallbackCompany || cleanLine(companyMatch?.[1] || "");
+  const company = input.fallbackCompany || extractCompanyFromText(text, lines);
   const locationMatch = text.match(/(?:location|based in)[:\s]+([^\n]+)/i);
   const salary = extractSalary(text);
   const mustHaveSkills = unique(skillTerms.filter((term) => lower.includes(term)).map((term) => term.replace(/\b\w/g, (char) => char.toUpperCase()))).slice(0, 12);

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { db } from "@/lib/db";
 import { requireUser, unauthorized } from "@/lib/api-auth";
+import { stepFromStatus } from "@/lib/tracker-studio";
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 const bodySchema = z.object({
@@ -31,7 +32,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       `UPDATE applications
        SET status='applied',applied_at=COALESCE($3::timestamptz,now()),
         follow_up_due_at=COALESCE($4::timestamptz,follow_up_due_at,now() + (COALESCE((SELECT default_follow_up_days FROM user_job_preferences WHERE user_id=$2),7)::int || ' days')::interval),
-        metadata=jsonb_set(metadata, '{submission}', $5::jsonb, true),updated_at=now()
+        current_step=GREATEST(COALESCE(current_step,0),$5),
+        metadata=jsonb_set(metadata, '{submission}', $6::jsonb, true),updated_at=now()
        WHERE id=$1 AND user_id=$2
        RETURNING id,status,applied_at AS "appliedAt",follow_up_due_at AS "followUpDueAt",metadata`,
       [
@@ -39,6 +41,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         user,
         appliedAt,
         input.followUpDueAt || null,
+        stepFromStatus.applied,
         JSON.stringify({
           confirmationNumber: input.confirmationNumber || null,
           applicationUrl: input.applicationUrl || null,

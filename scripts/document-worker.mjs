@@ -5,6 +5,8 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
+import { Worker } from "bullmq";
+import IORedis from "ioredis";
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -73,24 +75,9 @@ function normalizeProviderError(error, provider) {
   return new Error(message);
 }
 
-async function claim() {
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-    await client.query(
-      `UPDATE document_generation_jobs
-       SET status=CASE WHEN attempts < 3 THEN 'queued' ELSE 'failed' END,
-           error=CASE WHEN attempts < 3 THEN error ELSE 'Generation stopped unexpectedly after three attempts.' END,
-           completed_at=CASE WHEN attempts < 3 THEN completed_at ELSE now() END,updated_at=now()
-       WHERE status='processing' AND started_at < now() - interval '15 minutes'`,
-    );
-    const found = await client.query(`SELECT * FROM document_generation_jobs WHERE status='queued' AND archived_at IS NULL ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1`);
-    if (!found.rowCount) { await client.query("COMMIT"); return null; }
-    const job = found.rows[0];
-    await client.query(`UPDATE document_generation_jobs SET status='processing',started_at=now(),updated_at=now(),attempts=attempts+1 WHERE id=$1`, [job.id]);
-    await client.query("COMMIT");
-    return job;
-  } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
+async function fetchJob(jobId) {
+  const found = await pool.query(`SELECT * FROM document_generation_jobs WHERE id=$1 AND archived_at IS NULL`, [jobId]);
+  return found.rowCount ? found.rows[0] : null;
 }
 
 async function run(job) {
@@ -148,12 +135,12 @@ async function run(job) {
       const applicationId = job.target_job && job.target_job.applicationId;
       if (applicationId) {
         await client.query(
-          `INSERT INTO application_documents(user_id,application_id,document_generation_job_id,document_id,kind,title,status,metadata)
+          `          INSERT INTO application_documents(user_id,application_id,document_generation_job_id,document_id,kind,title,status,metadata)
            SELECT $1,$2,$3,$4,$5,$6,'generated',$7::jsonb
            WHERE NOT EXISTS (
              SELECT 1 FROM application_documents ad
              WHERE ad.application_id=$2
-               AND (ad.document_id=$4 OR ad.document_generation_job_id=$3)
+               AND ad.document_id=$4
                AND ad.status<>'archived'
            )`,
           [job.user_id, applicationId, job.id, inserted.rows[0].id, kind, `${job.target_job.title || job.target_job.company || "Untitled"} ${label}`, JSON.stringify({ fromDocumentJob: job.id })],
@@ -184,15 +171,42 @@ function resumeToText(resume) {
   return lines.join("\n").trim();
 }
 
-console.log("Document worker ready.");
-while (true) {
-  try {
-    const job = await claim();
-    if (!job) { await pause(2000); continue; }
-    try { await run(job); }
-    catch (error) {
-      console.error("Document job failed", job.id, error);
+const connection = new IORedis(process.env.REDIS_URL || "redis://redis:6379", {
+  maxRetriesPerRequest: null,
+  enableReadyCheck: false,
+});
+
+const worker = new Worker(
+  "document-generation",
+  async (bullJob) => {
+    const { jobId } = bullJob.data;
+    const job = await fetchJob(jobId);
+    if (!job) throw new Error(`Job ${jobId} not found`);
+
+    // Mark as processing
+    await pool.query(`UPDATE document_generation_jobs SET status='processing',started_at=now(),updated_at=now(),attempts=attempts+1 WHERE id=$1`, [job.id]);
+
+    try {
+      await run(job);
+    } catch (error) {
+      // Mark as failed - BullMQ will retry based on job options
       await pool.query(`UPDATE document_generation_jobs SET status='failed',error=$2,completed_at=now(),updated_at=now() WHERE id=$1`, [job.id, error instanceof Error ? error.message.slice(0, 1000) : "Generation failed."]);
+      throw error;
     }
-  } catch (error) { console.error("Document worker loop failed", error); await pause(5000); }
-}
+  },
+  {
+    connection,
+    concurrency: 2,
+    limiter: { max: 5, duration: 1000 },
+  },
+);
+
+worker.on("completed", (job) => {
+  console.log("Document job completed:", job.id);
+});
+
+worker.on("failed", (job, err) => {
+  console.error("Document job failed:", job?.id, err?.message);
+});
+
+console.log("Document worker ready (Redis-backed).");

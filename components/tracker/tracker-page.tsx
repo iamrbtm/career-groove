@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { LoaderCircle, Plus, Trash2, X } from "lucide-react";
+import { LoaderCircle, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell, PageHeading } from "@/components/app-shell";
 import { MotionButton } from "@/components/motion-button";
@@ -19,6 +19,7 @@ import { DecisionStep } from "./steps/decision-step";
 import { ClosedStep } from "./steps/closed-step";
 import { PipelineSignals } from "./pipeline-signals";
 import { CaptureModal } from "./capture-modal";
+import { OpportunitySearchModal } from "./opportunity-search-modal";
 
 type Application = {
   id: string; status: string; title: string; company: string;
@@ -36,7 +37,17 @@ type Application = {
 };
 
 type ApplicationEvent = { id: string; eventType: string; title: string; body: string | null; occurredAt: string; createdAt: string };
-type ApplicationDocument = { id: string; kind: string; title: string | null; status: string; submittedAt: string | null; createdAt: string };
+type ApplicationDocument = {
+  id: string;
+  kind: string;
+  title: string | null;
+  status: string;
+  submittedAt: string | null;
+  createdAt: string;
+  text?: string | null;
+  resumeData?: unknown;
+  targetJob?: { title?: string; company?: string };
+};
 type ApplicationContact = { id: string; name: string; company: string | null; role: string | null; email: string | null };
 type ApplicationInterview = { id: string; roundType: string; scheduledAt: string | null; interviewer: string | null; meetingLink: string | null; prepStatus: string };
 type ApplicationOutcome = { id: string; outcome: string; stage: string | null; reason: string | null; userNote: string | null; source: string | null; roleFit?: string; similarStrategy?: string; occurredAt: string };
@@ -64,6 +75,7 @@ export function TrackerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [captureOpen, setCaptureOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Application | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [activeStep, setActiveStepState] = useState<number | null>(null);
@@ -201,12 +213,20 @@ export function TrackerPage() {
           title="Applications"
           copy="Capture roles, keep the next move visible. Each application shows its current step — pick up where you left off."
         />
-        <MotionButton
-          onClick={() => setCaptureOpen(true)}
-          className="flex shrink-0 items-center gap-2 rounded-2xl border-2 border-ink bg-coral px-4 py-3 text-sm font-black shadow-pop"
-        >
-          <Plus size={18} /> Capture Role
-        </MotionButton>
+        <div className="flex shrink-0 items-center gap-3">
+          <MotionButton
+            onClick={() => setSearchOpen(true)}
+            className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-sun px-4 py-3 text-sm font-black shadow-pop"
+          >
+            <Sparkles size={18} /> Find Opportunities
+          </MotionButton>
+          <MotionButton
+            onClick={() => setCaptureOpen(true)}
+            className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-coral px-4 py-3 text-sm font-black shadow-pop"
+          >
+            <Plus size={18} /> Capture Role
+          </MotionButton>
+        </div>
       </div>
 
       {error && <p className="mt-5 rounded-2xl border-2 border-coral bg-coral/15 p-3 text-sm font-black">{error}</p>}
@@ -314,6 +334,12 @@ export function TrackerPage() {
       <CaptureModal
         open={captureOpen}
         onClose={() => setCaptureOpen(false)}
+        onSaved={handleSaved}
+      />
+
+      <OpportunitySearchModal
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
         onSaved={handleSaved}
       />
 

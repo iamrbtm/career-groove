@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser, unauthorized } from "@/lib/api-auth";
+import { enqueueDocumentJob } from "@/lib/job-queue";
 
 const input = z.object({
   kind: z.enum(["resume", "cover_letter", "both"]),
@@ -100,5 +101,6 @@ export async function POST(request: Request) {
       ],
     );
   }
+  await enqueueDocumentJob(created.rows[0].id);
   return Response.json({ job: created.rows[0] }, { status: 202 });
 }

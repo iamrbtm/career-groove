@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Archive, FileDown, FileText, LoaderCircle, RefreshCw, Sparkles } from "lucide-react";
 import { AppShell, PageHeading } from "./app-shell";
 
@@ -39,14 +40,22 @@ export function DocumentStudio() {
   const [pendingActionId, setPendingActionId] = useState<string>();
   const [notice, setNotice] = useState("");
 
+  const searchParams = useSearchParams();
+  const initialJobId = searchParams.get("jobId");
+
   const refresh = useCallback(async () => {
     const response = await fetch("/api/document-jobs", { cache: "no-store" });
     if (!response.ok) return;
     const data = await response.json();
     const nextJobs = data.jobs || [];
     setJobs(nextJobs);
-    setSelectedId((current) => current && nextJobs.some((job: GenerationJob) => job.id === current) ? current : nextJobs[0]?.id);
-  }, []);
+    setSelectedId((current) => {
+      if (initialJobId && nextJobs.some((job: GenerationJob) => job.id === initialJobId)) {
+        return initialJobId;
+      }
+      return current && nextJobs.some((job: GenerationJob) => job.id === current) ? current : nextJobs[0]?.id;
+    });
+  }, [initialJobId]);
 
   useEffect(() => { void refresh(); }, [refresh]);
   useEffect(() => {

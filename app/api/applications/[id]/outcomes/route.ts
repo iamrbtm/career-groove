@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { db } from "@/lib/db";
 import { requireUser, unauthorized } from "@/lib/api-auth";
+import { stepFromStatus } from "@/lib/tracker-studio";
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 const offerSchema = z.object({
@@ -105,10 +106,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     await client.query(
       `UPDATE applications
        SET status=$3,
+         current_step=GREATEST(COALESCE(current_step,0),$4),
          archived_at=CASE WHEN $3='archived' THEN COALESCE(archived_at,now()) ELSE archived_at END,
          updated_at=now()
        WHERE id=$1 AND user_id=$2`,
-      [parsedParams.data.id, user, nextStatus],
+      [parsedParams.data.id, user, nextStatus, stepFromStatus[nextStatus] ?? 1],
     );
     await client.query("COMMIT");
     return Response.json({ outcome: created.rows[0] }, { status: 201 });
