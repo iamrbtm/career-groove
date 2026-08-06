@@ -13,6 +13,7 @@ export async function GET() {
        af.subject, af.message, af.status,
        af.scheduled_for AS "scheduledFor",
        af.delivery_method AS "deliveryMethod",
+       af.recipient_email AS "recipientEmail",
        af.created_at AS "createdAt",
        af.metadata,
        a.title AS "applicationTitle",

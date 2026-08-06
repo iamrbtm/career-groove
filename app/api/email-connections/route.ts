@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { requireUser, unauthorized } from "@/lib/api-auth";
 
 const createSchema = z.object({
-  provider: z.enum(["gmail", "outlook", "smtp"]),
+  provider: z.enum(["gmail", "icloud", "yahoo", "outlook", "smtp"]),
   email: z.string().email(),
   accessToken: z.string().optional(),
   refreshToken: z.string().optional(),

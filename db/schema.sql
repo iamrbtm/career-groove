@@ -280,7 +280,7 @@ ALTER TABLE skills ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'othe
 CREATE TABLE IF NOT EXISTS email_connections (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  provider TEXT NOT NULL CHECK (provider IN ('gmail','outlook','smtp')),
+  provider TEXT NOT NULL CHECK (provider IN ('gmail','icloud','yahoo','outlook','smtp')),
   email TEXT NOT NULL,
   encrypted_access_token TEXT,
   encrypted_refresh_token TEXT,
@@ -313,6 +313,7 @@ CREATE TABLE IF NOT EXISTS application_follow_ups (
   sequence_number SMALLINT NOT NULL DEFAULT 1,
   follow_up_type TEXT NOT NULL CHECK (follow_up_type IN ('general_check','recruiter_follow_up','thank_you','post_interview','networking','negotiation','re_engagement')),
   subject TEXT, message TEXT,
+  recipient_email TEXT,
   status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','scheduled','sent','skipped','failed')),
   scheduled_for TIMESTAMPTZ, sent_at TIMESTAMPTZ,
   delivery_method TEXT DEFAULT 'in_app' CHECK (delivery_method IN ('in_app','email','both')),
