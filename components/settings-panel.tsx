@@ -1,10 +1,62 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { CheckCircle2, Github, Headphones, Send, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Github, Headphones, Mail, Send, ShieldCheck } from "lucide-react";
 import { AppShell, PageHeading } from "./app-shell";
 import { DefaultAISelector } from "./default-ai-selector";
 import { ProviderConnections } from "./provider-connections";
+
+type EmailProvider = "gmail" | "icloud" | "yahoo" | "outlook" | "smtp" | "";
+
+const EMAIL_PROVIDER_PRESETS: Record<
+  Exclude<EmailProvider, "smtp" | "">,
+  { smtpHost: string; smtpPort: number; label: string; note: string }
+> = {
+  gmail: {
+    smtpHost: "smtp.gmail.com",
+    smtpPort: 587,
+    label: "Gmail",
+    note: "Go to your Google Account -> Security -> 2-Step Verification -> App passwords. Generate one for 'Mail' and paste it in the Password field below.",
+  },
+  icloud: {
+    smtpHost: "smtp.mail.me.com",
+    smtpPort: 587,
+    label: "iCloud",
+    note: "Sign in at appleid.apple.com → Sign-In and Security → App-Specific Passwords. Generate one and paste it in the Password field below.",
+  },
+  yahoo: {
+    smtpHost: "smtp.mail.yahoo.com",
+    smtpPort: 587,
+    label: "Yahoo",
+    note: "In Yahoo Mail go to Account Security -> Generate app password. Select 'Other App', then paste the password below.",
+  },
+  outlook: {
+    smtpHost: "smtp-mail.outlook.com",
+    smtpPort: 587,
+    label: "Outlook",
+    note: "Use your regular Outlook password. If two-factor authentication is on, generate an app password at account.microsoft.com → Security.",
+  },
+};
+
+type EmailFormState = {
+  provider: EmailProvider;
+  senderName: string;
+  email: string;
+  smtpHost: string;
+  smtpPort: string;
+  smtpUsername: string;
+  smtpPassword: string;
+};
+
+const DEFAULT_EMAIL_FORM: EmailFormState = {
+  provider: "",
+  senderName: "",
+  email: "",
+  smtpHost: "",
+  smtpPort: "587",
+  smtpUsername: "",
+  smtpPassword: "",
+};
 
 export function SettingsPanel() {
   const [tier, setTier] = useState<"free" | "pro">("free");
@@ -32,6 +84,10 @@ export function SettingsPanel() {
   });
   const [tagEditing, setTagEditing] = useState(false);
   const [notice, setNotice] = useState("");
+  const [emailForm, setEmailForm] = useState<EmailFormState>(DEFAULT_EMAIL_FORM);
+  const [emailNotice, setEmailNotice] = useState("");
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [activeEmailProvider, setActiveEmailProvider] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/user/tier").then(r => r.ok ? r.json() : null).then(d => { if (d?.tier) setTier(d.tier); }).catch(() => {});
@@ -67,7 +123,60 @@ export function SettingsPanel() {
         });
       }
     });
+    fetch("/api/email-connections").then(async (response) => {
+      if (response.ok) {
+        const body = await response.json();
+        const active = (body.connections as Array<{ provider: string; email: string; senderName: string | null; active: boolean }>)
+          .find((c) => c.active);
+        if (active) {
+          setActiveEmailProvider(active.provider);
+          setEmailForm((f) => ({
+            ...f,
+            provider: active.provider as EmailProvider,
+            email: active.email,
+            senderName: active.senderName ?? "",
+          }));
+        }
+      }
+    });
   }, []);
+
+  async function saveEmail(event: FormEvent) {
+    event.preventDefault();
+    if (!emailForm.provider) {
+      setEmailNotice("Please select an email provider.");
+      return;
+    }
+    setEmailSaving(true);
+    setEmailNotice("");
+    const preset =
+      emailForm.provider !== "smtp"
+        ? EMAIL_PROVIDER_PRESETS[emailForm.provider as Exclude<EmailProvider, "smtp" | "">]
+        : null;
+    const body: Record<string, unknown> = {
+      provider: emailForm.provider,
+      email: emailForm.email,
+      senderName: emailForm.senderName || undefined,
+      smtpHost: emailForm.smtpHost || preset?.smtpHost || undefined,
+      smtpPort: emailForm.smtpPort ? Number(emailForm.smtpPort) : preset?.smtpPort || undefined,
+      smtpUsername: emailForm.smtpUsername || emailForm.email || undefined,
+      smtpPassword: emailForm.smtpPassword || undefined,
+    };
+    const response = await fetch("/api/email-connections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (response.ok) {
+      setActiveEmailProvider(emailForm.provider);
+      setEmailNotice("Email settings saved.");
+      setEmailForm((f) => ({ ...f, smtpPassword: "" }));
+    } else {
+      const data = await response.json().catch(() => ({}));
+      setEmailNotice(data.error ? String(data.error) : "Could not save email settings.");
+    }
+    setEmailSaving(false);
+  }
 
   async function save(event: FormEvent) {
     event.preventDefault();
@@ -280,6 +389,14 @@ export function SettingsPanel() {
           {notice && <p role="status" className="rounded-2xl bg-mint/30 p-4 text-sm font-bold">{notice}</p>}
         </div>
       </div>
+      <EmailSettingsCard
+        form={emailForm}
+        activeProvider={activeEmailProvider}
+        saving={emailSaving}
+        notice={emailNotice}
+        onChange={setEmailForm}
+        onSubmit={saveEmail}
+      />
     </AppShell>
   );
 }
@@ -329,6 +446,154 @@ function TagField({ label, editing, draft, values, onChange }: {
       ) : (
         <p className="mt-2 rounded-2xl border-2 border-dashed border-ink/15 bg-white/60 px-3 py-3 text-sm font-bold text-ink/45">Nothing set yet.</p>
       )}
+    </div>
+  );
+}
+
+function EmailSettingsCard({
+  form,
+  activeProvider,
+  saving,
+  notice,
+  onChange,
+  onSubmit,
+}: {
+  form: EmailFormState;
+  activeProvider: string | null;
+  saving: boolean;
+  notice: string;
+  onChange: (f: EmailFormState) => void;
+  onSubmit: (e: FormEvent) => void;
+}) {
+  const preset =
+    form.provider && form.provider !== "smtp"
+      ? EMAIL_PROVIDER_PRESETS[form.provider as Exclude<EmailProvider, "smtp" | "">]
+      : null;
+
+  function handleProviderChange(provider: EmailProvider) {
+    const p = provider !== "smtp" && provider !== "" ? EMAIL_PROVIDER_PRESETS[provider as Exclude<EmailProvider, "smtp" | "">] : null;
+    onChange({
+      ...form,
+      provider,
+      smtpHost: p?.smtpHost ?? "",
+      smtpPort: p ? String(p.smtpPort) : "587",
+    });
+  }
+
+  return (
+    <div className="mt-6">
+      <form
+        onSubmit={onSubmit}
+        className="rounded-3xl border-2 border-ink bg-white p-6 shadow-[0_5px_0_#26312c] lg:max-w-xl"
+      >
+        <h2 className="flex items-center gap-2 font-[var(--font-display)] text-xl font-black">
+          <Mail /> Email settings
+        </h2>
+        <p className="mt-1 text-sm text-ink/55">
+          Used to send follow-up emails directly from CareerGroove.
+          {activeProvider && (
+            <span className="ml-2 rounded-full bg-mint/30 px-2 py-0.5 text-xs font-black capitalize text-ink">
+              {activeProvider} connected
+            </span>
+          )}
+        </p>
+
+        <label className="mt-5 block text-xs font-black uppercase tracking-wider text-plum">
+          Email provider
+          <select
+            value={form.provider}
+            onChange={(e) => handleProviderChange(e.target.value as EmailProvider)}
+            className="mt-1 w-full rounded-2xl border-2 border-ink/15 px-3 py-3 text-sm normal-case"
+            required
+          >
+            <option value="">— Select a provider —</option>
+            <option value="gmail">Gmail</option>
+            <option value="icloud">iCloud</option>
+            <option value="yahoo">Yahoo</option>
+            <option value="outlook">Outlook</option>
+            <option value="smtp">Other (custom SMTP)</option>
+          </select>
+        </label>
+
+        {preset && (
+          <div className="mt-3 rounded-2xl bg-cream p-4 text-xs leading-5 text-ink/70">
+            <p className="font-black text-ink">How to get your app password</p>
+            <p className="mt-1">{preset.note}</p>
+          </div>
+        )}
+
+        <label className="mt-4 block text-xs font-black uppercase tracking-wider text-plum">
+          Your name (shown in From:)
+          <input
+            value={form.senderName}
+            onChange={(e) => onChange({ ...form, senderName: e.target.value })}
+            placeholder="Jane Smith"
+            className="mt-1 w-full rounded-2xl border-2 border-ink/15 px-3 py-3 text-sm font-bold normal-case"
+          />
+        </label>
+
+        <label className="mt-4 block text-xs font-black uppercase tracking-wider text-plum">
+          Email address
+          <input
+            type="email"
+            required
+            value={form.email}
+            onChange={(e) => onChange({ ...form, email: e.target.value })}
+            placeholder="you@example.com"
+            className="mt-1 w-full rounded-2xl border-2 border-ink/15 px-3 py-3 text-sm font-bold normal-case"
+          />
+        </label>
+
+        {form.provider === "smtp" && (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <label className="block text-xs font-black uppercase tracking-wider text-plum">
+              SMTP host
+              <input
+                value={form.smtpHost}
+                onChange={(e) => onChange({ ...form, smtpHost: e.target.value })}
+                placeholder="smtp.example.com"
+                className="mt-1 w-full rounded-2xl border-2 border-ink/15 px-3 py-3 text-sm font-bold normal-case"
+              />
+            </label>
+            <label className="block text-xs font-black uppercase tracking-wider text-plum">
+              SMTP port
+              <input
+                type="number"
+                value={form.smtpPort}
+                onChange={(e) => onChange({ ...form, smtpPort: e.target.value })}
+                placeholder="587"
+                className="mt-1 w-full rounded-2xl border-2 border-ink/15 px-3 py-3 text-sm font-bold normal-case"
+              />
+            </label>
+          </div>
+        )}
+
+        <label className="mt-4 block text-xs font-black uppercase tracking-wider text-plum">
+          {preset ? "App password" : "Password"}
+          <input
+            type="password"
+            value={form.smtpPassword}
+            onChange={(e) => onChange({ ...form, smtpPassword: e.target.value })}
+            placeholder={activeProvider ? "Leave blank to keep existing password" : ""}
+            className="mt-1 w-full rounded-2xl border-2 border-ink/15 px-3 py-3 text-sm font-bold normal-case"
+          />
+        </label>
+
+        <button
+          type="submit"
+          disabled={saving}
+          className="mt-5 flex w-full justify-center gap-2 rounded-2xl border-2 border-ink bg-plum py-3 font-black text-white shadow-[0_4px_0_#26312c] disabled:opacity-60"
+        >
+          <CheckCircle2 size={18} />
+          {saving ? "Saving…" : "Save email settings"}
+        </button>
+
+        {notice && (
+          <p role="status" className="mt-3 rounded-2xl bg-mint/30 p-3 text-sm font-bold">
+            {notice}
+          </p>
+        )}
+      </form>
     </div>
   );
 }
