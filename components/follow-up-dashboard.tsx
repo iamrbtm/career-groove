@@ -335,34 +335,32 @@ function FollowUpCard({
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1">
-<<<<<<< HEAD
-          {documentJobId && (
-            <a
-              href={`/documents?jobId=${documentJobId}`}
-              className="rounded-xl bg-plum/10 p-2 text-plum hover:bg-plum/20"
-              title="View generated document"
-            >
-              <FileText size={16} />
-            </a>
-=======
-          {followUp.message && (
-            <button
-              onClick={onSendEmail}
-              disabled={sending}
-              className="rounded-xl bg-plum p-2 text-white disabled:opacity-60"
-              title="Send email"
-            >
-              {sending ? <LoaderCircle size={16} className="animate-spin" /> : <Send size={16} />}
-            </button>
->>>>>>> ed646e9b279129b4e67b9f65f940aa1cea791118
-          )}
-          <button onClick={onMarkSent} className="rounded-xl bg-mint p-2 text-white" title="Mark sent">
-            <CheckCircle2 size={16} />
-          </button>
-          <button onClick={onSkip} className="rounded-xl bg-coral/20 p-2 text-coral" title="Skip">
-            <Trash2 size={16} />
-          </button>
-        </div>
+           {documentJobId && (
+             <a
+               href={`/documents?jobId=${documentJobId}`}
+               className="rounded-xl bg-plum/10 p-2 text-plum hover:bg-plum/20"
+               title="View generated document"
+             >
+               <FileText size={16} />
+             </a>
+           )}
+           {followUp.message && (
+             <button
+               onClick={onSendEmail}
+               disabled={sending}
+               className="rounded-xl bg-plum p-2 text-white disabled:opacity-60"
+               title="Send email"
+             >
+               {sending ? <LoaderCircle size={16} className="animate-spin" /> : <Send size={16} />}
+             </button>
+           )}
+           <button onClick={onMarkSent} className="rounded-xl bg-mint p-2 text-white" title="Mark sent">
+             <CheckCircle2 size={16} />
+           </button>
+           <button onClick={onSkip} className="rounded-xl bg-coral/20 p-2 text-coral" title="Skip">
+             <Trash2 size={16} />
+           </button>
+         </div>
       </div>
 
       {followUp.message ? (
