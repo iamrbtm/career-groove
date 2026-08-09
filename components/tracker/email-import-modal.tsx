@@ -47,11 +47,19 @@ type CreatedApplication = {
   jobId: string;
   title: string;
   company: string;
+  latestScore: {
+    fit: number;
+    label: string;
+  } | null;
 };
 
 type ImportJobResult = {
   jobId: string;
   status: "created" | "duplicate" | "failed";
+  latestScore?: {
+    fit: number;
+    label: string;
+  } | null;
   reason?: string;
 };
 
@@ -171,10 +179,6 @@ export function EmailImportModal({ open, onClose, onSaved }: {
     }
   }
 
-  function updateJob(index: number, field: keyof ParsedJobEntry, value: string) {
-    setJobs((prev) => prev.map((job, i) => i === index ? { ...job, [field]: value } : job));
-  }
-
   function removeJob(index: number) {
     setJobs((prev) => prev.filter((_, i) => i !== index));
   }
@@ -184,33 +188,10 @@ export function EmailImportModal({ open, onClose, onSaved }: {
     setCreating(true);
     setError("");
     try {
-      const entries = jobs.map((job) => ({
-        jobId: job.jobId,
-        dedupeKey: job.dedupeKey,
-        title: job.title,
-        company: job.company,
-        location: job.location,
-        workMode: job.workArrangement,
-        salaryMin: job.salary.min,
-        salaryMax: job.salary.max,
-        salaryCurrency: job.salary.currency,
-        salaryPeriod: job.salary.period,
-        salaryRaw: job.salary.raw,
-        sourceUrl: job.applyUrl,
-        canonicalUrl: job.canonicalUrl,
-        sourceJobId: job.sourceJobId,
-        postingDate: job.postingDate,
-        postingDateText: job.postingDateText,
-        discoveredDate: job.discoveredDate,
-        whyMatch: job.whyMatch,
-        notableGaps: job.notableGaps,
-        description: job.whyMatch,
-        notes: job.notableGaps,
-      }));
       const res = await fetch("/api/applications/bulk-create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ searchRunDate: parsedResult?.footer ?? null, entries }),
+        body: JSON.stringify({ emailText, selectedJobIds: jobs.map((job) => job.jobId) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not create applications.");
@@ -220,7 +201,12 @@ export function EmailImportModal({ open, onClose, onSaved }: {
         .filter((result) => result.status === "created")
         .map((result) => {
           const job = jobsById.get(result.jobId);
-          return { jobId: result.jobId, title: job?.title || result.jobId, company: job?.company || "" };
+          return {
+            jobId: result.jobId,
+            title: job?.title || result.jobId,
+            company: job?.company || "",
+            latestScore: result.latestScore || null,
+          };
         }));
       setDuplicatesSkipped(data.duplicatesSkipped || 0);
       setFailed(results
@@ -319,16 +305,8 @@ export function EmailImportModal({ open, onClose, onSaved }: {
                 <div key={index} className="rounded-2xl border-2 border-ink/10 bg-cream p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <input
-                        value={job.title}
-                        onChange={(e) => updateJob(index, "title", e.target.value)}
-                        className="w-full rounded-xl bg-white px-3 py-2 text-sm font-black outline-none"
-                      />
-                      <input
-                        value={job.company}
-                        onChange={(e) => updateJob(index, "company", e.target.value)}
-                        className="mt-1 w-full rounded-xl bg-white px-3 py-1.5 text-sm font-bold text-ink/70 outline-none"
-                      />
+                      <p className="rounded-xl bg-white px-3 py-2 text-sm font-black">{job.title}</p>
+                      <p className="mt-1 rounded-xl bg-white px-3 py-1.5 text-sm font-bold text-ink/70">{job.company}</p>
                     </div>
                     <button
                       type="button"
@@ -340,21 +318,8 @@ export function EmailImportModal({ open, onClose, onSaved }: {
                   </div>
 
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    <input
-                      value={job.location}
-                      onChange={(e) => updateJob(index, "location", e.target.value)}
-                      placeholder="Location"
-                      className="rounded-xl bg-white px-3 py-1.5 text-xs font-bold outline-none"
-                    />
-                    <select
-                      value={job.workArrangement}
-                      onChange={(e) => updateJob(index, "workArrangement", e.target.value)}
-                      className="rounded-xl bg-white px-3 py-1.5 text-xs font-bold outline-none"
-                    >
-                      <option value="remote">Remote</option>
-                      <option value="hybrid">Hybrid</option>
-                      <option value="onsite">On-site</option>
-                    </select>
+                    <p className="rounded-xl bg-white px-3 py-1.5 text-xs font-bold">{job.location}</p>
+                    <p className="rounded-xl bg-white px-3 py-1.5 text-xs font-bold capitalize">{job.workArrangement}</p>
                   </div>
 
                   {score && (
@@ -453,11 +418,16 @@ export function EmailImportModal({ open, onClose, onSaved }: {
             {created.length > 0 && (
               <div className="space-y-2">
                 {created.map((app) => (
-                  <div key={app.jobId} className="rounded-xl bg-cream p-3">
+                  <div key={app.jobId} className="flex items-center justify-between rounded-xl bg-cream p-3">
                     <div>
                       <p className="text-sm font-black">{app.title}</p>
                       <p className="text-xs font-bold text-ink/55">{app.company}</p>
                     </div>
+                    {app.latestScore && (
+                      <div className={`grid size-10 place-items-center rounded-xl border-2 border-ink text-xs font-black ${app.latestScore.fit >= 70 ? "bg-mint" : app.latestScore.fit >= 45 ? "bg-sun" : "bg-coral"}`}>
+                        {app.latestScore.fit}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

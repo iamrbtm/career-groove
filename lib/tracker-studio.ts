@@ -373,26 +373,36 @@ export function computeScore(application: ApplicationRow, context: TrackerContex
 }
 
 export async function loadTrackerContext(client: PoolClient, userId: string): Promise<TrackerContext> {
-  const [profileResult, preferencesResult, jobsResult, skillsResult, contactsResult, docsResult] = await Promise.all([
-    client.query(`SELECT name,COALESCE(preferences->>'phone','') AS phone FROM users WHERE id=$1`, [userId]),
-    client.query(
-      `SELECT desired_titles AS "desiredTitles",work_modes AS "workModes",salary_target AS "salaryTarget",
-        location_preference AS "locationPreference",industries,"values",red_flags AS "redFlags",
-        default_follow_up_days AS "defaultFollowUpDays"
-       FROM user_job_preferences WHERE user_id=$1`,
-      [userId],
-    ),
-    client.query(
-      `SELECT title,company,raw_notes AS "rawNotes",achievements
-       FROM jobs WHERE user_id=$1
-       ORDER BY current DESC,ended_on DESC NULLS LAST,started_on DESC NULLS LAST,created_at DESC
-       LIMIT 8`,
-      [userId],
-    ),
-    client.query(`SELECT name FROM skills WHERE user_id=$1 ORDER BY proficiency DESC,name LIMIT 60`, [userId]),
-    client.query(`SELECT name,company,role FROM contacts WHERE user_id=$1 ORDER BY relationship_strength DESC,name LIMIT 40`, [userId]),
-    client.query(`SELECT count(*)::int AS count FROM application_documents WHERE user_id=$1 AND status <> 'archived'`, [userId]),
-  ]);
+  const profileResult = await client.query(
+    `SELECT name,COALESCE(preferences->>'phone','') AS phone FROM users WHERE id=$1`,
+    [userId],
+  );
+  const preferencesResult = await client.query(
+    `SELECT desired_titles AS "desiredTitles",work_modes AS "workModes",salary_target AS "salaryTarget",
+      location_preference AS "locationPreference",industries,"values",red_flags AS "redFlags",
+      default_follow_up_days AS "defaultFollowUpDays"
+     FROM user_job_preferences WHERE user_id=$1`,
+    [userId],
+  );
+  const jobsResult = await client.query(
+    `SELECT title,company,raw_notes AS "rawNotes",achievements
+     FROM jobs WHERE user_id=$1
+     ORDER BY current DESC,ended_on DESC NULLS LAST,started_on DESC NULLS LAST,created_at DESC
+     LIMIT 8`,
+    [userId],
+  );
+  const skillsResult = await client.query(
+    `SELECT name FROM skills WHERE user_id=$1 ORDER BY proficiency DESC,name LIMIT 60`,
+    [userId],
+  );
+  const contactsResult = await client.query(
+    `SELECT name,company,role FROM contacts WHERE user_id=$1 ORDER BY relationship_strength DESC,name LIMIT 40`,
+    [userId],
+  );
+  const docsResult = await client.query(
+    `SELECT count(*)::int AS count FROM application_documents WHERE user_id=$1 AND status <> 'archived'`,
+    [userId],
+  );
 
   return {
     profile: {

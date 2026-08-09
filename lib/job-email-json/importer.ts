@@ -1,4 +1,6 @@
 import type { ParsedJobEmailPayload } from "@/lib/job-email-json/schema";
+import type { PoolClient } from "pg";
+import { refreshApplicationScore } from "@/lib/tracker-studio";
 
 type ParsedJobEmailEntry = ParsedJobEmailPayload["jobs"][number];
 
@@ -14,6 +16,8 @@ export type JobEmailImportResult = {
   jobs: Array<{
     jobId: string;
     status: "created" | "duplicate" | "failed";
+    applicationId?: string;
+    latestScore?: { fit: number; label: string } | null;
     reason?: string;
   }>;
 };
@@ -41,6 +45,14 @@ function isUniqueViolation(error: unknown) {
     && (error as { code?: unknown }).code === "23505";
 }
 
+function duplicateLockKeys(userId: string, job: ParsedJobEmailEntry) {
+  return [
+    `job-email-import:dedupe:${userId}:${job.dedupe_key}`,
+    job.source_job_id ? `job-email-import:source:${userId}:${job.company.toLowerCase()}:${job.source_job_id}` : null,
+    job.canonical_url ? `job-email-import:canonical:${userId}:${job.canonical_url}` : null,
+  ].filter((key): key is string => key !== null).sort();
+}
+
 async function importJobEmailEntry(
   client: JobEmailImportClient,
   userId: string,
@@ -48,6 +60,10 @@ async function importJobEmailEntry(
   options: JobEmailImportOptions,
 ): Promise<JobEmailImportResult["jobs"][number]> {
   try {
+    await client.query("BEGIN");
+    for (const lockKey of duplicateLockKeys(userId, job)) {
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [lockKey]);
+    }
     const existing = await client.query(
       `SELECT id FROM applications
        WHERE user_id = $1
@@ -59,15 +75,19 @@ async function importJobEmailEntry(
        LIMIT 1`,
       [userId, job.dedupe_key, job.source_job_id, job.company, job.canonical_url],
     );
-    if (existing.rowCount) return { jobId: job.job_id, status: "duplicate" };
+    if (existing.rowCount) {
+      await client.query("COMMIT");
+      return { jobId: job.job_id, status: "duplicate" };
+    }
 
-    await client.query(
+    const inserted = await client.query(
       `INSERT INTO applications (
          user_id, title, company, location, work_mode, salary_min, salary_max, salary_currency,
          salary_period, salary_raw, source_url, canonical_url, source_job_id, dedupe_key,
          posting_date, posting_date_text, discovered_date, search_run_date,
          description, notes, source, metadata
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22::jsonb)`,
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22::jsonb)
+       RETURNING id`,
       [
         userId,
         job.title,
@@ -93,8 +113,22 @@ async function importJobEmailEntry(
         JSON.stringify({ jobId: job.job_id, whyMatch: job.why_match, notableGaps: job.notable_gaps }),
       ],
     );
-    return { jobId: job.job_id, status: "created" };
+    const applicationId = (inserted.rows[0] as { id: string }).id;
+    await client.query(
+      `INSERT INTO application_events(user_id,application_id,event_type,title,body,metadata)
+       VALUES($1,$2,'created','Imported from email',$3,$4::jsonb)`,
+      [userId, applicationId, `${job.title} at ${job.company}`, JSON.stringify({ source: "email_json_import" })],
+    );
+    const score = await refreshApplicationScore(client as PoolClient, userId, applicationId);
+    await client.query("COMMIT");
+    return {
+      jobId: job.job_id,
+      status: "created",
+      applicationId,
+      latestScore: score?.latestScore ?? null,
+    };
   } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
     if (isUniqueViolation(error)) return { jobId: job.job_id, status: "duplicate" };
     return { jobId: job.job_id, status: "failed", reason: errorMessage(error) };
   }

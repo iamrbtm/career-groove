@@ -77,3 +77,50 @@ test("stores JSON-derived salary and import metadata", async () => {
     await client.end();
   }
 });
+
+test("records the creation event and latest tracker score", async () => {
+  const client = await makeDbClient();
+  try {
+    const userId = await seedUser(client);
+    const result = await importJobEmailEntries(client, userId, validPayload.jobs, { searchRunDate: validPayload.search_run_date });
+    assert.equal(result.jobs[0].status, "created");
+    assert.ok(result.jobs[0].latestScore);
+
+    const events = await client.query<{ event_type: string; title: string }>(
+      "SELECT event_type,title FROM application_events WHERE user_id=$1",
+      [userId],
+    );
+    const scores = await client.query<{ count: string }>(
+      "SELECT COUNT(*) FROM application_scores WHERE user_id=$1",
+      [userId],
+    );
+    assert.deepEqual(events.rows, [{ event_type: "created", title: "Imported from email" }]);
+    assert.equal(scores.rows[0].count, "1");
+  } finally {
+    await client.end();
+  }
+});
+
+test("concurrent imports with a shared fallback key create one application", async () => {
+  const firstClient = await makeDbClient();
+  const secondClient = await makeDbClient();
+  try {
+    const userId = await seedUser(firstClient);
+    const [job] = validPayload.jobs;
+    const first = { ...job, dedupe_key: "e".repeat(64) };
+    const second = { ...job, dedupe_key: "f".repeat(64) };
+    const [firstResult, secondResult] = await Promise.all([
+      importJobEmailEntries(firstClient, userId, [first], { searchRunDate: validPayload.search_run_date }),
+      importJobEmailEntries(secondClient, userId, [second], { searchRunDate: validPayload.search_run_date }),
+    ]);
+    const result = await firstClient.query<{ count: string }>(
+      "SELECT COUNT(*) FROM applications WHERE user_id=$1",
+      [userId],
+    );
+    assert.equal(Number(firstResult.jobsCreated + secondResult.jobsCreated), 1);
+    assert.equal(result.rows[0].count, "1");
+  } finally {
+    await firstClient.end();
+    await secondClient.end();
+  }
+});

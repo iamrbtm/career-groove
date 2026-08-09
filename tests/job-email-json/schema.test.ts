@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { inputSchema } from "@/lib/job-email-json/bulk-import-schema";
+import {
+  exceedsFreeTierImportLimit,
+  inputSchema,
+  parseBulkEmailImportRequest,
+} from "@/lib/job-email-json/bulk-import-schema";
 import { extractJobJson } from "@/lib/job-email-json/extractor";
 import { parseJobEmailPayload } from "@/lib/job-email-json/schema";
 import {
@@ -40,35 +44,26 @@ test("normalizes a missing work arrangement to remote", () => {
   assert.equal(payload.jobs[0].work_mode, "remote");
 });
 
-test("accepts only complete JSON-derived bulk import entries", () => {
+test("bulk import derives selected jobs from the validated email JSON", () => {
   const job = parseJobEmailPayload(extractJobJson(proseTrapBody)).jobs[0];
-  const result = inputSchema.safeParse({
-    searchRunDate: "2026-08-09",
-    entries: [{
-      jobId: job.job_id,
-      dedupeKey: job.dedupe_key,
-      title: job.title,
-      company: job.company,
-      location: job.location,
-      workMode: job.work_mode,
-      salaryMin: job.salary.min,
-      salaryMax: job.salary.max,
-      salaryCurrency: job.salary.currency,
-      salaryPeriod: job.salary.period,
-      salaryRaw: job.salary.raw,
-      sourceUrl: job.apply_url,
-      canonicalUrl: job.canonical_url,
-      sourceJobId: job.source_job_id,
-      postingDate: job.posting_date,
-      postingDateText: job.posting_date_text,
-      discoveredDate: job.discovered_date,
-      whyMatch: job.why_match,
-      notableGaps: job.notable_gaps,
-      description: job.why_match,
-      notes: job.notable_gaps,
-    }],
+  const request = inputSchema.parse({
+    emailText: proseTrapBody,
+    selectedJobIds: [job.job_id],
   });
 
-  assert.equal(result.success, true);
-  assert.equal(inputSchema.safeParse({ ...result.data, entries: [{ ...result.data?.entries[0], dedupeKey: "missing" }] }).success, false);
+  const result = parseBulkEmailImportRequest(request);
+  assert.equal(result.searchRunDate, "2026-08-09");
+  assert.equal(result.jobs[0].location, "United States");
+  assert.equal(result.jobs[0].salary.min, 53550);
+  assert.equal(inputSchema.safeParse({ selectedJobIds: [job.job_id], entries: [{ title: "forged" }] }).success, false);
+  assert.throws(() => parseBulkEmailImportRequest(inputSchema.parse({
+    emailText: proseTrapBody,
+    selectedJobIds: ["forged-job-id"],
+  })));
+});
+
+test("free-tier import guard counts selected active roles", () => {
+  assert.equal(exceedsFreeTierImportLimit(4, 1), false);
+  assert.equal(exceedsFreeTierImportLimit(4, 2), true);
+  assert.equal(exceedsFreeTierImportLimit(5, 1), true);
 });
