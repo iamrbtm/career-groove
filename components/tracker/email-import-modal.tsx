@@ -22,8 +22,8 @@ type ParsedJobEntry = {
 };
 
 type ParsedEmailResult = {
-  header: string;
-  footer: string;
+  header: string | null;
+  footer: string | null;
   jobs: ParsedJobEntry[];
   warnings: string[];
 };
