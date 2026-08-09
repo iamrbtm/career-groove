@@ -422,6 +422,30 @@ export const stepFromStatus: Record<string, number> = {
   offer: 5, rejected: 6, withdrawn: 6, archived: 6,
 };
 
+export function previewApplicationScore(entry: Partial<ApplicationRow> & { title: string; company: string; description: string }, context: TrackerContext): ScoreResult {
+  const row: ApplicationRow = {
+    id: "preview",
+    status: "saved",
+    title: entry.title,
+    company: entry.company,
+    location: entry.location ?? null,
+    workMode: entry.workMode ?? null,
+    salaryMin: entry.salaryMin ?? null,
+    salaryMax: entry.salaryMax ?? null,
+    description: entry.description,
+    notes: entry.notes ?? null,
+    sourceUrl: entry.sourceUrl ?? null,
+    priorityLabel: null,
+    nextActionType: null,
+    nextActionReason: null,
+    followUpDueAt: null,
+    appliedAt: null,
+    createdAt: new Date(),
+    metadata: {},
+  };
+  return computeScore(row, context);
+}
+
 export async function refreshApplicationScore(client: PoolClient, userId: string, applicationId: string) {
   const applicationResult = await client.query(
     `SELECT id,status,title,company,location,work_mode AS "workMode",
