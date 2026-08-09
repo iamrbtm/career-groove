@@ -44,7 +44,17 @@ CareerGroove connects to a host Ollama daemon from containers through `host.dock
 
 ## Job email import
 
-CareerGroove imports jobs only from the JSON block appended to an email:
+CareerGroove imports jobs only from the machine-readable block appended to an email.
+
+Preferred format for email delivery:
+
+```text
+BEGIN_JOB_JSON_BASE64
+eyJzY2hlbWFfdmVyc2lvbiI6IjEuMCIsImdlbmVyYXRlZF9hdCI6IjIwMjYtMDgtMDlUMTI6MDA6MDAtMDc6MDAiLCJzZWFyY2hfcnVuX2RhdGUiOiIyMDI2LTA4LTA5Iiwiam9ic19mb3VuZCI6MSwiam9icyI6W3siam9iX2lkIjoicmlwcGxpbmctaW1wbGVtZW50YXRpb24tc3BlY2lhbGlzdC1wbGF0Zm9ybSIsImRlZHVwZV9rZXkiOiIzODQ4MTY3MGJjYWRhYzdjOTUzZTRhZTBlMDIyNWI2YjA2NGQ0MWFjOGJmYTE3NjM2Zjc1NzIwNGI2OGY0MjhiIiwidGl0bGUiOiJJbXBsZW1lbnRhdGlvbiBTcGVjaWFsaXN0LCBQbGF0Zm9ybSIsImNvbXBhbnkiOiJSaXBwbGluZyIsImxvY2F0aW9uIjoiVW5pdGVkIFN0YXRlcyIsIndvcmtfYXJyYW5nZW1lbnQiOiJyZW1vdGUiLCJwb3N0aW5nX2RhdGUiOm51bGwsInBvc3RpbmdfZGF0ZV90ZXh0IjoiQ3VycmVudCBhY3RpdmUgcG9zdGluZzsgZXhhY3QgcG9zdGluZyBkYXRlIG5vdCBzaG93biIsImRpc2NvdmVyZWRfZGF0ZSI6IjIwMjYtMDgtMDkiLCJzYWxhcnkiOnsibWluIjo1MzU1MCwibWF4Ijo4OTc3NSwiY3VycmVuY3kiOiJVU0QiLCJwZXJpb2QiOiJ5ZWFyIiwicmF3IjoiJDUzLDU1MC0kODksNzc1IGRlcGVuZGluZyBvbiBVLlMuIGxvY2F0aW9uIHRpZXIifSwid2h5X21hdGNoIjoiU3Ryb25nIGltcGxlbWVudGF0aW9uIGFuZCB3b3JrZmxvdyBmaXQuIiwibm90YWJsZV9nYXBzIjoiUmVxdWVzdHMgU2FhUyBpbXBsZW1lbnRhdGlvbiBleHBlcmllbmNlLiIsImFwcGx5X3VybCI6Imh0dHBzOi8vZXhhbXBsZS5jb20vam9iIiwiY2Fub25pY2FsX3VybCI6Imh0dHBzOi8vZXhhbXBsZS5jb20vam9iIiwic291cmNlX2pvYl9pZCI6IjEyMzQ1In1dfQ==
+END_JOB_JSON_BASE64
+```
+
+Legacy raw JSON is still accepted when it arrives as valid unwrapped JSON:
 
 ```text
 BEGIN_JOB_JSON
@@ -52,7 +62,7 @@ BEGIN_JOB_JSON
 END_JOB_JSON
 ```
 
-No JSON means no import. Invalid JSON means no import. The prose portion of the email is for the human reader only.
+No machine-readable block means no import. Invalid payloads mean no import. The prose portion of the email is for the human reader only.
 
 To rebuild only the backup scheduler:
 
