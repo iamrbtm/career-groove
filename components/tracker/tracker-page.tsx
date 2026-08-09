@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { LoaderCircle, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { LoaderCircle, Mail, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell, PageHeading } from "@/components/app-shell";
 import { MotionButton } from "@/components/motion-button";
@@ -19,6 +19,7 @@ import { DecisionStep } from "./steps/decision-step";
 import { ClosedStep } from "./steps/closed-step";
 import { PipelineSignals } from "./pipeline-signals";
 import { CaptureModal } from "./capture-modal";
+import { EmailImportModal } from "./email-import-modal";
 import { OpportunitySearchModal } from "./opportunity-search-modal";
 
 type Application = {
@@ -75,6 +76,7 @@ export function TrackerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [captureOpen, setCaptureOpen] = useState(false);
+  const [emailImportOpen, setEmailImportOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Application | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -221,6 +223,12 @@ export function TrackerPage() {
             <Sparkles size={18} /> Find Opportunities
           </MotionButton>
           <MotionButton
+            onClick={() => setEmailImportOpen(true)}
+            className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-sky px-4 py-3 text-sm font-black shadow-pop"
+          >
+            <Mail size={18} /> Paste Email
+          </MotionButton>
+          <MotionButton
             onClick={() => setCaptureOpen(true)}
             className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-coral px-4 py-3 text-sm font-black shadow-pop"
           >
@@ -334,6 +342,12 @@ export function TrackerPage() {
       <CaptureModal
         open={captureOpen}
         onClose={() => setCaptureOpen(false)}
+        onSaved={handleSaved}
+      />
+
+      <EmailImportModal
+        open={emailImportOpen}
+        onClose={() => setEmailImportOpen(false)}
         onSaved={handleSaved}
       />
 
