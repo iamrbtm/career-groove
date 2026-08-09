@@ -9,7 +9,7 @@ export interface ResearchResult {
   companyDomain: string;
 }
 
-function isSafeUrl(input: string): boolean {
+export function isSafeUrl(input: string): boolean {
   let parsed: URL;
   try {
     parsed = new URL(input);
