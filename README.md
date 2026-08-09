@@ -26,7 +26,8 @@ A mobile-first personal career and life CRM built with Next.js, PostgreSQL, Auth
 
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose up -d --build
+docker compose --profile workers up -d --build
 ```
 
 Open http://breath.local:3000 (or use the server's LAN IP). The app container applies the idempotent schema and compatibility migrations before starting. OAuth, passkeys, AI providers, and GitHub feedback activate when their corresponding environment variables are configured. Passkeys additionally require `AUTH_EXPERIMENTAL_ENABLE_PASSKEYS=true` and a secure origin outside localhost.
@@ -39,17 +40,14 @@ Nginx should redirect public port 80 traffic to HTTPS, but direct access to the 
 
 OAuth providers require every callback origin to be registered with the provider. Register the public callback (for example, `https://career.example.com/api/auth/callback/github`) and any LAN callback only if the provider permits plain HTTP callbacks. Credentials sign-in works on LAN HTTP. Passkeys generally require HTTPS except on `localhost`, so use the public HTTPS hostname for passkeys.
 
-Compose includes an Ollama service with persistent model storage bind-mounted from `OLLAMA_MODELS_DIR` on the server into `/root/.ollama` in the Ollama container. By default this uses `./.ollama` next to the project and is ignored by Git.
+CareerGroove connects to a host Ollama daemon from containers through `host.docker.internal`. Configure the host daemon to listen on `0.0.0.0:11434`; the default `.env.example` value is `http://host.docker.internal:11434`.
 
-Install a model into that shared store with:
+To rebuild only the backup scheduler:
 
 ```bash
-docker compose exec ollama ollama pull llama3.2
+docker compose --profile workers build backup-scheduler
+docker compose --profile workers up -d --no-deps backup-scheduler
 ```
-
-Then connect Ollama from Settings and CareerGroove will discover the installed models through `http://ollama:11434`.
-
-If you already run Ollama directly on the server and want CareerGroove to use that daemon instead of the Compose service, set `CAREER_GROOVE_OLLAMA_BASE_URL=http://host.docker.internal:11434` in `.env` and configure the host Ollama daemon to listen on `0.0.0.0:11434`. If you want the Compose Ollama service to reuse an existing host model store, set `OLLAMA_MODELS_DIR` to that host directory before starting Compose.
 
 ## Backups
 

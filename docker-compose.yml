@@ -47,6 +47,7 @@ services:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }
   document-worker:
+    profiles: ["workers"]
     build:
       context: .
       target: worker
@@ -60,6 +61,7 @@ services:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }
   mobile-notification-worker:
+    profiles: ["workers"]
     build:
       context: .
       target: runner
@@ -71,6 +73,7 @@ services:
     depends_on:
       - app
   follow-up-worker:
+    profiles: ["workers"]
     build:
       context: .
       target: runner
@@ -85,6 +88,7 @@ services:
       - app
       - redis
   backup-scheduler:
+    profiles: ["workers"]
     build:
       context: .
       target: backup-scheduler
