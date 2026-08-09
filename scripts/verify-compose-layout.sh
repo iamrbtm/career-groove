@@ -2,7 +2,19 @@
 set -euo pipefail
 
 tmp="$(mktemp)"
-trap 'rm -f "$tmp"' EXIT
+created_env_file=0
+if [[ ! -e .env ]]; then
+  : > .env
+  created_env_file=1
+fi
+
+cleanup() {
+  rm -f "$tmp"
+  if [[ "$created_env_file" -eq 1 ]]; then
+    rm -f .env
+  fi
+}
+trap cleanup EXIT
 
 docker compose config --no-interpolate > "$tmp"
 
