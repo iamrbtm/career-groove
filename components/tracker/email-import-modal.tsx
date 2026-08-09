@@ -1,31 +1,30 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { AlertTriangle, CheckCircle2, LoaderCircle, Mail, Minus, Send, X } from "lucide-react";
+import { CheckCircle2, LoaderCircle, Mail, Minus, Send, X } from "lucide-react";
 
 type ParsedJobEntry = {
+  jobId: string;
+  dedupeKey: string;
   title: string;
   company: string;
   location: string;
-  workArrangement: string;
-  postingDate: string;
-  salaryMin: number | null;
-  salaryMax: number | null;
-  salaryCurrency: string;
-  whyItMatches: string;
+  workArrangement: "remote" | "hybrid" | "onsite";
+  postingDate: string | null;
+  postingDateText: string | null;
+  discoveredDate: string | null;
+  salary: { min: number | null; max: number | null; currency: "USD"; period: "hour" | "year" | "unknown"; raw: string | null };
+  whyMatch: string;
   notableGaps: string;
   applyUrl: string;
-  rawText: string;
-  confidence: "low" | "medium" | "high";
-  description?: string;
-  enrichmentSource?: string | null;
+  canonicalUrl: string | null;
+  sourceJobId: string | null;
 };
 
 type ParsedEmailResult = {
   header: string;
   footer: string;
   jobs: ParsedJobEntry[];
-  enrichmentStatus: string;
   warnings: string[];
 };
 
@@ -120,7 +119,7 @@ export function EmailImportModal({ open, onClose, onSaved }: {
       const res = await fetch("/api/applications/parse-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: emailText, enrich: false }),
+        body: JSON.stringify({ text: emailText }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not parse email.");
@@ -142,10 +141,10 @@ export function EmailImportModal({ open, onClose, onSaved }: {
         title: job.title,
         company: job.company,
         location: job.location || undefined,
-        workMode: job.workArrangement !== "unknown" ? job.workArrangement as "remote" | "hybrid" | "onsite" | "flexible" : undefined,
-        salaryMin: job.salaryMin,
-        salaryMax: job.salaryMax,
-        description: job.description || job.whyItMatches || job.rawText.slice(0, 2000),
+        workMode: job.workArrangement,
+        salaryMin: job.salary.min,
+        salaryMax: job.salary.max,
+        description: job.whyMatch || `${job.title} at ${job.company}`,
         sourceUrl: job.applyUrl || undefined,
       }));
       const res = await fetch("/api/applications/preview-score", {
@@ -185,14 +184,14 @@ export function EmailImportModal({ open, onClose, onSaved }: {
         title: job.title,
         company: job.company,
         location: job.location || "",
-        workMode: job.workArrangement !== "unknown" ? job.workArrangement as "remote" | "hybrid" | "onsite" | "flexible" : "unknown",
-        salaryMin: job.salaryMin,
-        salaryMax: job.salaryMax,
-        salaryCurrency: job.salaryCurrency,
+        workMode: job.workArrangement,
+        salaryMin: job.salary.min,
+        salaryMax: job.salary.max,
+        salaryCurrency: job.salary.currency,
         sourceUrl: job.applyUrl || "",
-        description: job.description || job.whyItMatches || job.rawText.slice(0, 2000),
+        description: job.whyMatch || `${job.title} at ${job.company}`,
         notes: [
-          job.whyItMatches ? `Why it matches: ${job.whyItMatches}` : "",
+          job.whyMatch ? `Why it matches: ${job.whyMatch}` : "",
           job.notableGaps ? `Notable gaps: ${job.notableGaps}` : "",
           job.postingDate ? `Posted: ${job.postingDate}` : "",
         ].filter(Boolean).join("\n"),
@@ -268,11 +267,6 @@ export function EmailImportModal({ open, onClose, onSaved }: {
                     ))}
                   </ul>
                 )}
-                {parsedResult.enrichmentStatus !== "none" && (
-                  <p className="mt-1 text-xs font-bold text-ink/55">
-                    Enrichment: {parsedResult.enrichmentStatus}
-                  </p>
-                )}
               </div>
             )}
 
@@ -336,11 +330,9 @@ export function EmailImportModal({ open, onClose, onSaved }: {
                       onChange={(e) => updateJob(index, "workArrangement", e.target.value)}
                       className="rounded-xl bg-white px-3 py-1.5 text-xs font-bold outline-none"
                     >
-                      <option value="unknown">Work mode</option>
                       <option value="remote">Remote</option>
                       <option value="hybrid">Hybrid</option>
                       <option value="onsite">On-site</option>
-                      <option value="flexible">Flexible</option>
                     </select>
                   </div>
 
@@ -378,22 +370,10 @@ export function EmailImportModal({ open, onClose, onSaved }: {
                     </div>
                   )}
 
-                  {job.confidence === "low" && (
-                    <p className="mt-2 flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-sun">
-                      <AlertTriangle size={12} /> Low confidence — please review
-                    </p>
-                  )}
-
-                  {job.enrichmentSource === null && job.applyUrl && (
-                    <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-coral/80">
-                      URL not fetched — using email data only
-                    </p>
-                  )}
-
                   <div className="mt-2 space-y-1">
-                    {job.whyItMatches && (
+                    {job.whyMatch && (
                       <p className="text-[11px] font-bold leading-4 text-ink/60">
-                        <span className="font-black text-plum">Matches:</span> {job.whyItMatches.slice(0, 150)}{job.whyItMatches.length > 150 ? "..." : ""}
+                        <span className="font-black text-plum">Matches:</span> {job.whyMatch.slice(0, 150)}{job.whyMatch.length > 150 ? "..." : ""}
                       </p>
                     )}
                     {job.notableGaps && (
