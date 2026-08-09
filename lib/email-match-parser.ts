@@ -1,3 +1,18 @@
+/**
+ * Daily Job Matches Email Parser
+ *
+ * Parses emails from job matching services (e.g., Daily Job Matches) into
+ * structured job entries. Pure functions — no Next.js or DB dependencies —
+ * so they can be reused by a future IMAP inbox sync worker.
+ *
+ * Future IMAP sync integration point:
+ * 1. Worker connects to IMAP inbox, fetches new emails
+ * 2. Filters emails by sender/subject matching the Daily Job Matches format
+ * 3. Passes raw email text to `parseJobMatchEmail({ text, userId, useAI })`
+ * 4. Calls `/api/applications/bulk-create` with parsed jobs
+ * 5. Marks email as processed
+ */
+
 import { z } from "zod";
 import { callAI } from "@/lib/call-ai";
 import { emailMatchEntrySchema } from "@/lib/email-match-schema";
@@ -119,19 +134,21 @@ export function splitEmailEntries(text: string): string[] {
     .filter((entry) => entry.length > 20);
 }
 
+const LABELED_FIELD_RE = /^(location|work arrangement|posting date|salary|why it matches|notable gaps|apply)\s*:/i;
+
 export function parseJobEntry(rawEntryText: string): ParsedJobEntry {
   const cleaned = rawEntryText.trim();
   const lines = cleaned.split(/\r?\n/).map(cleanLine).filter(Boolean);
 
   let title = "";
   let company = "";
-  const firstLine = lines[0] || "";
-  const emDashMatch = firstLine.match(/^(.+?)\s*[—–-]{1,2}\s*(.+)$/);
+  const titleCandidate = lines.find((line) => !LABELED_FIELD_RE.test(line) && line.length <= 120) || "";
+  const emDashMatch = titleCandidate.match(/^(.+?)\s*[—–-]{1,2}\s*(.+)$/);
   if (emDashMatch) {
     title = cleanLine(emDashMatch[1]);
     company = cleanLine(emDashMatch[2]);
-  } else if (firstLine.length <= 120) {
-    title = firstLine;
+  } else if (titleCandidate.length > 0 && titleCandidate.length <= 120) {
+    title = titleCandidate;
   }
 
   const location = extractLabeledField(cleaned, ["Location:", "Location"]);
