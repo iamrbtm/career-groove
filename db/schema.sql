@@ -131,12 +131,36 @@ CREATE TABLE IF NOT EXISTS applications (
   work_mode TEXT CHECK (work_mode IS NULL OR work_mode IN ('remote','hybrid','onsite','flexible','unknown')),
   salary_min INTEGER CHECK (salary_min IS NULL OR salary_min >= 0),
   salary_max INTEGER CHECK (salary_max IS NULL OR salary_max >= 0),
-  salary_currency TEXT NOT NULL DEFAULT 'USD', source_url TEXT, source TEXT, description TEXT NOT NULL, notes TEXT,
+  salary_currency TEXT NOT NULL DEFAULT 'USD', salary_period TEXT NOT NULL DEFAULT 'unknown' CONSTRAINT applications_salary_period_check CHECK (salary_period IN ('hour','year','unknown')),
+  salary_raw TEXT, source_url TEXT, canonical_url TEXT, source_job_id TEXT, dedupe_key TEXT,
+  posting_date DATE, posting_date_text TEXT, discovered_date DATE, search_run_date DATE,
+  source TEXT, description TEXT NOT NULL, notes TEXT,
   priority_label TEXT CHECK (priority_label IS NULL OR priority_label IN ('apply_first','research_before_applying','remix_resume_first','network_first','stretch_role','low_signal_lead','probably_skip','follow_up_now','prep_mode')),
   next_action_type TEXT, next_action_reason TEXT, follow_up_due_at TIMESTAMPTZ, applied_at TIMESTAMPTZ, archived_at TIMESTAMPTZ,
   metadata JSONB NOT NULL DEFAULT '{}', created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CHECK (salary_min IS NULL OR salary_max IS NULL OR salary_min <= salary_max)
 );
+ALTER TABLE applications
+  ADD COLUMN IF NOT EXISTS dedupe_key TEXT,
+  ADD COLUMN IF NOT EXISTS source_job_id TEXT,
+  ADD COLUMN IF NOT EXISTS canonical_url TEXT,
+  ADD COLUMN IF NOT EXISTS posting_date DATE,
+  ADD COLUMN IF NOT EXISTS posting_date_text TEXT,
+  ADD COLUMN IF NOT EXISTS discovered_date DATE,
+  ADD COLUMN IF NOT EXISTS salary_period TEXT NOT NULL DEFAULT 'unknown',
+  ADD COLUMN IF NOT EXISTS salary_raw TEXT,
+  ADD COLUMN IF NOT EXISTS search_run_date DATE;
+DO $$
+BEGIN
+  ALTER TABLE applications
+    ADD CONSTRAINT applications_salary_period_check
+    CHECK (salary_period IN ('hour','year','unknown'));
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+CREATE UNIQUE INDEX IF NOT EXISTS applications_user_dedupe_key_idx
+  ON applications(user_id, dedupe_key)
+  WHERE dedupe_key IS NOT NULL;
 CREATE TABLE IF NOT EXISTS application_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   application_id UUID NOT NULL REFERENCES applications(id) ON DELETE CASCADE,

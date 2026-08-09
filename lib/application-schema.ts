@@ -86,6 +86,34 @@ export const careerDjLabelSchema = z.enum(careerDjLabels);
 export type ApplicationStatus = z.infer<typeof applicationStatusSchema>;
 export type CommandSessionAction = z.infer<typeof commandSessionActionSchema>;
 
+export const jobEmailImportEntrySchema = z.object({
+  jobId: z.string().trim().min(1).max(500),
+  dedupeKey: z.string().regex(/^[a-f0-9]{64}$/),
+  title: z.string().trim().min(1).max(200),
+  company: z.string().trim().min(1).max(200),
+  location: z.string().trim().min(1).max(500),
+  workArrangement: z.enum(["remote", "hybrid", "onsite"]),
+  postingDate: z.string().date().nullable(),
+  postingDateText: z.string().trim().max(1000).nullable(),
+  discoveredDate: z.string().date().nullable(),
+  salary: z.object({
+    min: z.number().int().nonnegative().nullable(),
+    max: z.number().int().nonnegative().nullable(),
+    currency: z.literal("USD"),
+    period: z.enum(["hour", "year", "unknown"]),
+    raw: z.string().trim().max(1000).nullable(),
+  }).refine((salary) => salary.min === null || salary.max === null || salary.min <= salary.max, {
+    message: "Minimum salary must be less than maximum salary.",
+    path: ["min"],
+  }),
+  whyMatch: z.string().trim().max(5000),
+  notableGaps: z.string().trim().max(5000),
+  applyUrl: z.string().trim().url().max(2000),
+  canonicalUrl: z.string().trim().url().max(2000).nullable(),
+  sourceJobId: z.string().trim().min(1).max(500).nullable(),
+});
+export type JobEmailImportEntry = z.infer<typeof jobEmailImportEntrySchema>;
+
 const optionalText = (max = 5000) => z.string().trim().max(max).optional().nullable();
 const optionalUrl = z.union([z.string().trim().url().max(2000), z.literal(""), z.null()]).optional();
 const optionalDateTime = z.union([z.string().datetime(), z.literal(""), z.null()]).optional();
