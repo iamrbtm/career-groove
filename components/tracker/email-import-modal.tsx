@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useState } from "react";
 import { CheckCircle2, LoaderCircle, Mail, Minus, Send, X } from "lucide-react";
 
 type ParsedJobEntry = {
@@ -44,13 +44,15 @@ type FitScore = {
 };
 
 type CreatedApplication = {
-  id: string;
+  jobId: string;
   title: string;
   company: string;
-  latestScore: {
-    fit: number;
-    label: string;
-  } | null;
+};
+
+type ImportJobResult = {
+  jobId: string;
+  status: "created" | "duplicate" | "failed";
+  reason?: string;
 };
 
 const fitLabels: Record<string, { label: string; bg: string; copy: string }> = {
@@ -81,7 +83,8 @@ export function EmailImportModal({ open, onClose, onSaved }: {
   const [scoring, setScoring] = useState(false);
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState<CreatedApplication[]>([]);
-  const [failed, setFailed] = useState<Array<{ index: number; reason: string }>>([]);
+  const [duplicatesSkipped, setDuplicatesSkipped] = useState(0);
+  const [failed, setFailed] = useState<Array<{ jobId: string; reason: string }>>([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [showHeader, setShowHeader] = useState(false);
@@ -95,6 +98,7 @@ export function EmailImportModal({ open, onClose, onSaved }: {
     setJobs([]);
     setScores(new Map());
     setCreated([]);
+    setDuplicatesSkipped(0);
     setFailed([]);
     setError("");
     setNotice("");
@@ -181,30 +185,47 @@ export function EmailImportModal({ open, onClose, onSaved }: {
     setError("");
     try {
       const entries = jobs.map((job) => ({
+        jobId: job.jobId,
+        dedupeKey: job.dedupeKey,
         title: job.title,
         company: job.company,
-        location: job.location || "",
+        location: job.location,
         workMode: job.workArrangement,
         salaryMin: job.salary.min,
         salaryMax: job.salary.max,
         salaryCurrency: job.salary.currency,
-        sourceUrl: job.applyUrl || "",
-        description: job.whyMatch || `${job.title} at ${job.company}`,
-        notes: [
-          job.whyMatch ? `Why it matches: ${job.whyMatch}` : "",
-          job.notableGaps ? `Notable gaps: ${job.notableGaps}` : "",
-          job.postingDate ? `Posted: ${job.postingDate}` : "",
-        ].filter(Boolean).join("\n"),
+        salaryPeriod: job.salary.period,
+        salaryRaw: job.salary.raw,
+        sourceUrl: job.applyUrl,
+        canonicalUrl: job.canonicalUrl,
+        sourceJobId: job.sourceJobId,
+        postingDate: job.postingDate,
+        postingDateText: job.postingDateText,
+        discoveredDate: job.discoveredDate,
+        whyMatch: job.whyMatch,
+        notableGaps: job.notableGaps,
+        description: job.whyMatch,
+        notes: job.notableGaps,
       }));
       const res = await fetch("/api/applications/bulk-create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entries }),
+        body: JSON.stringify({ searchRunDate: parsedResult?.footer ?? null, entries }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not create applications.");
-      setCreated(data.created || []);
-      setFailed(data.failed || []);
+      const results = (data.jobs || []) as ImportJobResult[];
+      const jobsById = new Map(jobs.map((job) => [job.jobId, job]));
+      setCreated(results
+        .filter((result) => result.status === "created")
+        .map((result) => {
+          const job = jobsById.get(result.jobId);
+          return { jobId: result.jobId, title: job?.title || result.jobId, company: job?.company || "" };
+        }));
+      setDuplicatesSkipped(data.duplicatesSkipped || 0);
+      setFailed(results
+        .filter((result) => result.status === "failed")
+        .map((result) => ({ jobId: result.jobId, reason: result.reason || "Could not import this role." })));
       setStep("success");
       onSaved();
     } catch (err) {
@@ -413,7 +434,7 @@ export function EmailImportModal({ open, onClose, onSaved }: {
           <div className="mt-5 flex flex-col items-center gap-3 py-8">
             <LoaderCircle size={32} className="animate-spin text-coral" />
             <p className="text-sm font-black">Creating applications...</p>
-            <p className="text-xs font-bold text-ink/55">This may take a moment while we score each role.</p>
+            <p className="text-xs font-bold text-ink/55">This may take a moment while we save each role.</p>
           </div>
         )}
 
@@ -425,26 +446,27 @@ export function EmailImportModal({ open, onClose, onSaved }: {
                 {created.length} application{created.length !== 1 ? "s" : ""} created!
               </p>
               <p className="mt-1 text-sm font-bold text-ink/60">
-                {created.length > 1 ? "They're" : "It's"} now in your Tracker Studio with Career DJ fit scores.
+                {created.length > 1 ? "They're" : "It's"} now in your Tracker Studio.
               </p>
             </div>
 
             {created.length > 0 && (
               <div className="space-y-2">
                 {created.map((app) => (
-                  <div key={app.id} className="flex items-center justify-between rounded-xl bg-cream p-3">
+                  <div key={app.jobId} className="rounded-xl bg-cream p-3">
                     <div>
                       <p className="text-sm font-black">{app.title}</p>
                       <p className="text-xs font-bold text-ink/55">{app.company}</p>
                     </div>
-                    {app.latestScore && (
-                      <div className={`grid size-10 place-items-center rounded-xl border-2 border-ink text-xs font-black ${app.latestScore.fit >= 70 ? "bg-mint" : app.latestScore.fit >= 45 ? "bg-sun" : "bg-coral"}`}>
-                        {app.latestScore.fit}
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
+            )}
+
+            {duplicatesSkipped > 0 && (
+              <p className="rounded-2xl border-2 border-sun bg-sun/10 p-3 text-center text-xs font-black text-ink/70">
+                {duplicatesSkipped} duplicate role{duplicatesSkipped !== 1 ? "s were" : " was"} already in your Tracker Studio.
+              </p>
             )}
 
             {failed.length > 0 && (
@@ -455,7 +477,7 @@ export function EmailImportModal({ open, onClose, onSaved }: {
                 <ul className="mt-2 space-y-1">
                   {failed.map((f, i) => (
                     <li key={i} className="text-xs font-bold text-ink/60">
-                      {jobs[f.index]?.title || `Entry ${f.index + 1}`}: {f.reason}
+                      {jobs.find((job) => job.jobId === f.jobId)?.title || f.jobId}: {f.reason}
                     </li>
                   ))}
                 </ul>

@@ -42,6 +42,18 @@ OAuth providers require every callback origin to be registered with the provider
 
 CareerGroove connects to a host Ollama daemon from containers through `host.docker.internal`. Configure the host daemon to listen on `0.0.0.0:11434`; the default `.env.example` value is `http://host.docker.internal:11434`.
 
+## Job email import
+
+CareerGroove imports jobs only from the JSON block appended to an email:
+
+```text
+BEGIN_JOB_JSON
+{"schema_version":"1.0","generated_at":"2026-08-09T12:00:00-07:00","search_run_date":"2026-08-09","jobs_found":1,"jobs":[{"job_id":"rippling-implementation-specialist-platform","dedupe_key":"38481670bcadac7c953e4ae0e0225b6b064d41ac8bfa17636f757204b68f428b","title":"Implementation Specialist, Platform","company":"Rippling","location":"United States","work_arrangement":"remote","posting_date":null,"posting_date_text":"Current active posting; exact posting date not shown","discovered_date":"2026-08-09","salary":{"min":53550,"max":89775,"currency":"USD","period":"year","raw":"$53,550-$89,775 depending on U.S. location tier"},"why_match":"Strong implementation and workflow fit.","notable_gaps":"Requests SaaS implementation experience.","apply_url":"https://example.com/job","canonical_url":"https://example.com/job","source_job_id":"12345"}]}
+END_JOB_JSON
+```
+
+No JSON means no import. Invalid JSON means no import. The prose portion of the email is for the human reader only.
+
 To rebuild only the backup scheduler:
 
 ```bash
