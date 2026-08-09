@@ -42,6 +42,63 @@ export const invalidJobsFoundBody = bodyWithPayload({
   jobs_found: 2,
 });
 
+export const nullSalaryBody = bodyWithPayload({
+  ...validPayload,
+  jobs: [
+    {
+      ...validPayload.jobs[0],
+      salary: {
+        min: null,
+        max: null,
+        currency: "USD",
+        period: "unknown",
+        raw: "Not listed",
+      },
+    },
+  ],
+});
+
+export const invalidSalaryBody = bodyWithPayload({
+  ...validPayload,
+  jobs: [
+    {
+      ...validPayload.jobs[0],
+      salary: {
+        ...validPayload.jobs[0].salary,
+        min: "53550",
+      },
+    },
+  ],
+});
+
+export const invalidDateBody = bodyWithPayload({
+  ...validPayload,
+  generated_at: "2026-08-09 12:00:00",
+});
+
+export const invalidUrlBody = bodyWithPayload({
+  ...validPayload,
+  jobs: [
+    {
+      ...validPayload.jobs[0],
+      apply_url: "notaurl",
+    },
+  ],
+});
+
+export const duplicateJobIdBody = bodyWithPayload({
+  ...validPayload,
+  jobs_found: 2,
+  jobs: [
+    validPayload.jobs[0],
+    {
+      ...validPayload.jobs[0],
+      dedupe_key: "a".repeat(64),
+      source_job_id: "second-source-id",
+    },
+  ],
+});
+
 export const missingWorkArrangementBody = bodyWithPayload({
   ...validPayload,
   jobs: [
@@ -53,6 +110,8 @@ export const missingWorkArrangementBody = bodyWithPayload({
 });
 
 export const missingMarkerBody = "Jeremy,\nNo machine-readable payload today.";
+export const missingEndMarkerBody =
+  `BEGIN_JOB_JSON\n${JSON.stringify(validPayload)}\n`;
 export const malformedJsonBody =
   'BEGIN_JOB_JSON\n{"schema_version":"1.0", bad }\nEND_JOB_JSON';
 export const unsupportedVersionBody =

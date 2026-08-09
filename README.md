@@ -40,7 +40,7 @@ Nginx should redirect public port 80 traffic to HTTPS, but direct access to the 
 
 OAuth providers require every callback origin to be registered with the provider. Register the public callback (for example, `https://career.example.com/api/auth/callback/github`) and any LAN callback only if the provider permits plain HTTP callbacks. Credentials sign-in works on LAN HTTP. Passkeys generally require HTTPS except on `localhost`, so use the public HTTPS hostname for passkeys.
 
-CareerGroove connects to a host Ollama daemon from containers through `host.docker.internal`. Configure the host daemon to listen on `0.0.0.0:11434`; the default `.env.example` value is `http://host.docker.internal:11434`.
+CareerGroove connects to a host Ollama daemon from containers through `host.docker.internal`. Configure the host daemon to listen on `0.0.0.0:11434`; the default `.env.example` value is `http://host.docker.internal:11434`. For existing container-side provider settings that still point at `http://ollama:11434`, Compose now maps `ollama` to the host gateway as a compatibility alias.
 
 ## Job email import
 

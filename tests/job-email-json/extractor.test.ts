@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { extractJobJson } from "@/lib/job-email-json/extractor";
 import {
+  missingEndMarkerBody,
   missingMarkerBody,
   proseTrapBody,
   validEmailBody,
@@ -18,4 +19,8 @@ test("ignores misleading prose outside the JSON block", () => {
 
 test("rejects an email with missing JSON markers", () => {
   assert.throws(() => extractJobJson(missingMarkerBody));
+});
+
+test("rejects an email with a missing JSON end marker", () => {
+  assert.throws(() => extractJobJson(missingEndMarkerBody));
 });

@@ -5,7 +5,7 @@ import { refreshApplicationScore } from "@/lib/tracker-studio";
 type ParsedJobEmailEntry = ParsedJobEmailPayload["jobs"][number];
 
 export type JobEmailImportClient = {
-  query(queryText: string, values?: unknown[]): Promise<{ rowCount: number | null; rows: unknown[] }>;
+  query<Row = unknown>(queryText: string, values?: unknown[]): Promise<{ rowCount: number | null; rows: Row[] }>;
 };
 
 export type JobEmailImportResult = {
@@ -24,6 +24,12 @@ export type JobEmailImportResult = {
 
 export type JobEmailImportOptions = {
   searchRunDate: string | null;
+};
+
+export type JobEmailDuplicateCheck = {
+  jobId: string;
+  status: "new" | "duplicate";
+  applicationId?: string;
 };
 
 function descriptionFor(job: ParsedJobEmailEntry) {
@@ -53,6 +59,64 @@ function duplicateLockKeys(userId: string, job: ParsedJobEmailEntry) {
   ].filter((key): key is string => key !== null).sort();
 }
 
+function batchDuplicateKeys(job: ParsedJobEmailEntry) {
+  return [
+    `dedupe:${job.dedupe_key}`,
+    job.source_job_id ? `source:${job.company.trim().toLowerCase()}|${job.source_job_id.trim()}` : null,
+    job.canonical_url ? `canonical:${job.canonical_url.trim().toLowerCase()}` : null,
+  ].filter((key): key is string => key !== null);
+}
+
+async function findExistingApplication(
+  client: JobEmailImportClient,
+  userId: string,
+  job: ParsedJobEmailEntry,
+) {
+  return client.query<{ id: string }>(
+    `SELECT id FROM applications
+     WHERE user_id = $1
+       AND (
+         (dedupe_key IS NOT NULL AND dedupe_key = $2)
+         OR ($3::text IS NOT NULL AND source_job_id = $3 AND lower(company) = lower($4))
+         OR ($5::text IS NOT NULL AND canonical_url = $5)
+       )
+     LIMIT 1`,
+    [userId, job.dedupe_key, job.source_job_id, job.company, job.canonical_url],
+  );
+}
+
+export async function classifyJobEmailEntries(
+  client: JobEmailImportClient,
+  userId: string,
+  entries: readonly ParsedJobEmailEntry[],
+): Promise<JobEmailDuplicateCheck[]> {
+  const reservedKeys = new Set<string>();
+  const results = [] as JobEmailDuplicateCheck[];
+
+  for (const job of entries) {
+    const duplicateKeys = batchDuplicateKeys(job);
+    if (duplicateKeys.some((key) => reservedKeys.has(key))) {
+      results.push({ jobId: job.job_id, status: "duplicate" });
+      continue;
+    }
+
+    const existing = await findExistingApplication(client, userId, job);
+    if (existing.rowCount) {
+      results.push({
+        jobId: job.job_id,
+        status: "duplicate",
+        applicationId: (existing.rows[0] as { id: string }).id,
+      });
+      continue;
+    }
+
+    duplicateKeys.forEach((key) => reservedKeys.add(key));
+    results.push({ jobId: job.job_id, status: "new" });
+  }
+
+  return results;
+}
+
 async function importJobEmailEntry(
   client: JobEmailImportClient,
   userId: string,
@@ -64,17 +128,7 @@ async function importJobEmailEntry(
     for (const lockKey of duplicateLockKeys(userId, job)) {
       await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [lockKey]);
     }
-    const existing = await client.query(
-      `SELECT id FROM applications
-       WHERE user_id = $1
-         AND (
-           (dedupe_key IS NOT NULL AND dedupe_key = $2)
-           OR ($3::text IS NOT NULL AND source_job_id = $3 AND lower(company) = lower($4))
-           OR ($5::text IS NOT NULL AND canonical_url = $5)
-         )
-       LIMIT 1`,
-      [userId, job.dedupe_key, job.source_job_id, job.company, job.canonical_url],
-    );
+    const existing = await findExistingApplication(client, userId, job);
     if (existing.rowCount) {
       await client.query("COMMIT");
       return { jobId: job.job_id, status: "duplicate" };

@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { getUserTier, requireUser, unauthorized } from "@/lib/api-auth";
 import { JobEmailImportError } from "@/lib/job-email-json/errors";
-import { importJobEmailEntries } from "@/lib/job-email-json/importer";
+import { classifyJobEmailEntries, importJobEmailEntries } from "@/lib/job-email-json/importer";
 import {
   exceedsFreeTierImportLimit,
   inputSchema,
@@ -25,23 +25,28 @@ export async function POST(request: Request) {
     return Response.json({ error: "The email could not be parsed." }, { status: 500 });
   }
 
-  const tier = await getUserTier(user);
-  if (tier === "free") {
-    const countResult = await db.query(
-      `SELECT COUNT(*) FROM applications WHERE user_id=$1 AND archived_at IS NULL AND status <> 'archived'`,
-      [user],
-    );
-    const activeCount = parseInt(countResult.rows[0]?.count || "0", 10);
-    if (exceedsFreeTierImportLimit(activeCount, importRequest.jobs.length)) {
-      return Response.json(
-        { error: `Free plan is limited to 5 active roles. You have ${activeCount} active and tried to add ${importRequest.jobs.length}. Upgrade to Pro for unlimited tracking.` },
-        { status: 403 },
-      );
-    }
-  }
-
   const client = await db.connect();
   try {
+    const tier = await getUserTier(user);
+    const duplicateChecks = tier === "free"
+      ? await classifyJobEmailEntries(client, user, importRequest.jobs)
+      : null;
+
+    if (tier === "free") {
+      const countResult = await client.query(
+        `SELECT COUNT(*) FROM applications WHERE user_id=$1 AND archived_at IS NULL AND status <> 'archived'`,
+        [user],
+      );
+      const activeCount = parseInt(countResult.rows[0]?.count || "0", 10);
+      const newJobCount = duplicateChecks?.filter((job) => job.status === "new").length ?? 0;
+      if (exceedsFreeTierImportLimit(activeCount, newJobCount)) {
+        return Response.json(
+          { error: `Free plan is limited to 5 active roles. You have ${activeCount} active and tried to add ${newJobCount} new roles. Upgrade to Pro for unlimited tracking.` },
+          { status: 403 },
+        );
+      }
+    }
+
     const result = await importJobEmailEntries(client, user, importRequest.jobs, {
       searchRunDate: importRequest.searchRunDate,
     });

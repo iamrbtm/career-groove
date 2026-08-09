@@ -3,6 +3,10 @@ x-app-env: &app-env
   REDIS_URL: redis://redis:6379
   OLLAMA_BASE_URL: ${CAREER_GROOVE_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
 
+x-ollama-hosts: &ollama-hosts
+  - "host.docker.internal:host-gateway"
+  - "ollama:host-gateway"
+
 services:
   db:
     image: postgres:17-alpine
@@ -42,8 +46,7 @@ services:
     ports: ["3000:3000"]
     env_file: [.env]
     environment: *app-env
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    extra_hosts: *ollama-hosts
     depends_on:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -56,8 +59,7 @@ services:
     command: ["node", "scripts/document-worker.mjs"]
     env_file: [.env]
     environment: *app-env
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    extra_hosts: *ollama-hosts
     depends_on:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }

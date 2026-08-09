@@ -8,10 +8,15 @@ import {
 import { extractJobJson } from "@/lib/job-email-json/extractor";
 import { parseJobEmailPayload } from "@/lib/job-email-json/schema";
 import {
+  duplicateJobIdBody,
+  invalidDateBody,
   invalidJobsFoundBody,
+  invalidSalaryBody,
+  invalidUrlBody,
   invalidWorkArrangementBody,
   malformedJsonBody,
   missingWorkArrangementBody,
+  nullSalaryBody,
   proseTrapBody,
   unsupportedVersionBody,
 } from "./fixtures";
@@ -32,6 +37,28 @@ test("rejects malformed JSON", () => {
 
 test("rejects unsupported schema versions", () => {
   assert.throws(() => parseJobEmailPayload(extractJobJson(unsupportedVersionBody)));
+});
+
+test("accepts a null salary block", () => {
+  const payload = parseJobEmailPayload(extractJobJson(nullSalaryBody));
+  assert.equal(payload.jobs[0].salary.min, null);
+  assert.equal(payload.jobs[0].salary.period, "unknown");
+});
+
+test("rejects invalid salary typing", () => {
+  assert.throws(() => parseJobEmailPayload(extractJobJson(invalidSalaryBody)));
+});
+
+test("rejects invalid top-level timestamps", () => {
+  assert.throws(() => parseJobEmailPayload(extractJobJson(invalidDateBody)));
+});
+
+test("rejects invalid job URLs", () => {
+  assert.throws(() => parseJobEmailPayload(extractJobJson(invalidUrlBody)));
+});
+
+test("rejects duplicate job ids in one payload", () => {
+  assert.throws(() => parseJobEmailPayload(extractJobJson(duplicateJobIdBody)));
 });
 
 test("normalizes invalid work arrangements to remote", () => {
@@ -59,6 +86,10 @@ test("bulk import derives selected jobs from the validated email JSON", () => {
   assert.throws(() => parseBulkEmailImportRequest(inputSchema.parse({
     emailText: proseTrapBody,
     selectedJobIds: ["forged-job-id"],
+  })));
+  assert.throws(() => parseBulkEmailImportRequest(inputSchema.parse({
+    emailText: duplicateJobIdBody,
+    selectedJobIds: [job.job_id],
   })));
 });
 
