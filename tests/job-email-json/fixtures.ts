@@ -42,6 +42,16 @@ export const invalidJobsFoundBody = bodyWithPayload({
   jobs_found: 2,
 });
 
+export const missingWorkArrangementBody = bodyWithPayload({
+  ...validPayload,
+  jobs: [
+    {
+      ...validPayload.jobs[0],
+      work_arrangement: undefined,
+    },
+  ],
+});
+
 export const missingMarkerBody = "Jeremy,\nNo machine-readable payload today.";
 export const malformedJsonBody =
   'BEGIN_JOB_JSON\n{"schema_version":"1.0", bad }\nEND_JOB_JSON';

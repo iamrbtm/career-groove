@@ -6,6 +6,7 @@ import {
   invalidJobsFoundBody,
   invalidWorkArrangementBody,
   malformedJsonBody,
+  missingWorkArrangementBody,
   proseTrapBody,
   unsupportedVersionBody,
 } from "./fixtures";
@@ -30,5 +31,10 @@ test("rejects unsupported schema versions", () => {
 
 test("normalizes invalid work arrangements to remote", () => {
   const payload = parseJobEmailPayload(extractJobJson(invalidWorkArrangementBody));
+  assert.equal(payload.jobs[0].work_mode, "remote");
+});
+
+test("normalizes a missing work arrangement to remote", () => {
+  const payload = parseJobEmailPayload(extractJobJson(missingWorkArrangementBody));
   assert.equal(payload.jobs[0].work_mode, "remote");
 });
