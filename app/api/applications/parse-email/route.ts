@@ -1,7 +1,6 @@
 import { requireUser, unauthorized } from "@/lib/api-auth";
 import { humanizeJobDescription } from "@/lib/job-email-json/humanize";
-import { isSafeUrl } from "@/lib/research";
-import { researchUrl } from "@/lib/research";
+import { isSafeUrl, researchUrl } from "@/lib/research";
 import { JobEmailImportError } from "@/lib/job-email-json/errors";
 import { extractJobJson } from "@/lib/job-email-json/extractor";
 import { parseEmailImportInput, parseJobEmailPayload } from "@/lib/job-email-json/schema";

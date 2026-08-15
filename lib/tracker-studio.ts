@@ -363,6 +363,12 @@ export function computeScore(application: ApplicationRow, context: TrackerContex
       matchedSkills: skillMatches.slice(0, 8),
       preferredTitleMatches,
       companyContactCount: companyContacts.length,
+      descriptionLength: description.length,
+      descriptionSource: description.length >= 800
+        ? "scraped"
+        : description.length >= 200
+          ? "email-fallback"
+          : "unknown",
       readinessSignals: {
         jobs: context.jobs.length,
         skills: context.skills.length,

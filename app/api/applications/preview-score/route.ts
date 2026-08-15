@@ -13,6 +13,11 @@ const entrySchema = z.object({
   description: z.string().min(1).max(50000),
   notes: z.string().max(20000).optional().nullable(),
   sourceUrl: z.string().max(2000).optional().nullable(),
+  metadata: z
+    .object({
+      descriptionSource: z.enum(["scraped", "email-fallback", "unknown"]).optional(),
+    })
+    .optional(),
 });
 
 const inputSchema = z.union([
@@ -46,6 +51,8 @@ export async function POST(request: Request) {
         gaps: score.gaps,
         nextAction: score.nextAction,
         nextActionReason: score.nextActionReason,
+        descriptionSource: entry.metadata?.descriptionSource ?? null,
+        descriptionLength: score.contextSnapshot.descriptionLength,
       };
     });
     return Response.json({ scores });
