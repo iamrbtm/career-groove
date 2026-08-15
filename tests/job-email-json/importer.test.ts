@@ -5,11 +5,15 @@ import { extractJobJson } from "@/lib/job-email-json/extractor";
 import { parseJobEmailPayload } from "@/lib/job-email-json/schema";
 import { validEmailBody } from "./fixtures";
 
+function asResolved(job: ReturnType<typeof parseJobEmailPayload>["jobs"][number]) {
+  return { job, description: "test description", descriptionSource: "humanized" as const };
+}
+
 test("continues importing entries after one entry fails", async () => {
   const payload = parseJobEmailPayload(extractJobJson(validEmailBody));
   const entries = [
-    payload.jobs[0],
-    { ...payload.jobs[0], job_id: "second-job", dedupe_key: "a".repeat(64) },
+    asResolved(payload.jobs[0]),
+    asResolved({ ...payload.jobs[0], job_id: "second-job", dedupe_key: "a".repeat(64) }),
   ];
   let insertCount = 0;
   const client = {
@@ -19,7 +23,7 @@ test("continues importing entries after one entry fails", async () => {
       if (insertCount === 1) throw new Error("insert failed");
       return { rowCount: 1, rows: [{ id: "created-application" }] };
     },
-  };
+  } as unknown as Parameters<typeof importJobEmailEntries>[0];
 
   const result = await importJobEmailEntries(client, "user-id", entries, {
     searchRunDate: payload.search_run_date,
@@ -35,8 +39,8 @@ test("classifies in-request duplicate fallback keys before import", async () => 
   const payload = parseJobEmailPayload(extractJobJson(validEmailBody));
   const [job] = payload.jobs;
   const entries = [
-    { ...job, dedupe_key: "a".repeat(64), canonical_url: null },
-    { ...job, dedupe_key: "b".repeat(64), canonical_url: null },
+    asResolved({ ...job, dedupe_key: "a".repeat(64), canonical_url: null }),
+    asResolved({ ...job, dedupe_key: "b".repeat(64), canonical_url: null }),
   ];
   const client = {
     async query() {
@@ -47,7 +51,7 @@ test("classifies in-request duplicate fallback keys before import", async () => 
   const result = await classifyJobEmailEntries(client, "user-id", entries);
 
   assert.deepEqual(result, [
-    { jobId: entries[0].job_id, status: "new" },
-    { jobId: entries[1].job_id, status: "duplicate" },
+    { jobId: entries[0].job.job_id, status: "new" },
+    { jobId: entries[1].job.job_id, status: "duplicate" },
   ]);
 });

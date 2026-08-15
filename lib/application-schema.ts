@@ -86,6 +86,65 @@ export const careerDjLabelSchema = z.enum(careerDjLabels);
 export type ApplicationStatus = z.infer<typeof applicationStatusSchema>;
 export type CommandSessionAction = z.infer<typeof commandSessionActionSchema>;
 
+export const jobEmailSalarySchema = z.object({
+  min: z.number().int().nonnegative().nullable(),
+  max: z.number().int().nonnegative().nullable(),
+  currency: z.literal("USD"),
+  period: z.enum(["hour", "year", "unknown"]),
+  raw: z.string().trim().max(1000).nullable(),
+}).refine((salary) => salary.min === null || salary.max === null || salary.min <= salary.max, {
+  message: "Minimum salary must be less than maximum salary.",
+  path: ["min"],
+});
+
+export const jobEmailAtsProviderSchema = z.enum([
+  "lever",
+  "greenhouse",
+  "workday",
+  "ashby",
+  "smartrecruiters",
+  "icims",
+  "applytojob",
+  "employer_site",
+  "unknown",
+]);
+
+export const jobEmailEmploymentTypeSchema = z.enum([
+  "fulltime",
+  "parttime",
+  "contract",
+  "temporary",
+  "internship",
+]);
+
+export const jobDescriptionSchema = z.object({
+  summary: z.string().trim().max(2000),
+  responsibilities: z.array(z.string().trim().max(1000)).max(100),
+  requiredQualifications: z.array(z.string().trim().max(1000)).max(100),
+  preferredQualifications: z.array(z.string().trim().max(1000)).max(100),
+  technologies: z.array(z.string().trim().max(200)).max(100),
+  benefits: z.array(z.string().trim().max(500)).max(100),
+  employmentType: jobEmailEmploymentTypeSchema.nullable(),
+  schedule: z.string().trim().max(1000).nullable(),
+  travel: z.string().trim().max(1000).nullable(),
+  education: z.array(z.string().trim().max(500)).max(50),
+  experience: z.array(z.string().trim().max(1000)).max(100),
+  otherRequirements: z.array(z.string().trim().max(1000)).max(100),
+  sourceUrl: z.string().trim().url().max(2000).nullable(),
+  fetchedAt: z.string().datetime({ offset: true }).nullable(),
+});
+export type JobDescription = z.infer<typeof jobDescriptionSchema>;
+
+export const rawDescriptionSourceSchema = z.object({
+  sourceUrl: z.string().trim().url().max(2000),
+  fetchedAt: z.string().datetime({ offset: true }),
+  sourceJobId: z.string().trim().max(500).nullable(),
+  atsProvider: jobEmailAtsProviderSchema,
+  descriptionExcerpt: z.string().trim().max(500).nullable(),
+  fullTextFetchRequired: z.boolean().default(true),
+});
+export type RawDescriptionSource = z.infer<typeof rawDescriptionSourceSchema>;
+
 export const jobEmailImportEntrySchema = z.object({
   jobId: z.string().trim().min(1).max(500),
   dedupeKey: z.string().regex(/^[a-f0-9]{64}$/),
@@ -96,18 +155,12 @@ export const jobEmailImportEntrySchema = z.object({
   postingDate: z.string().date().nullable(),
   postingDateText: z.string().trim().max(1000).nullable(),
   discoveredDate: z.string().date().nullable(),
-  salary: z.object({
-    min: z.number().int().nonnegative().nullable(),
-    max: z.number().int().nonnegative().nullable(),
-    currency: z.literal("USD"),
-    period: z.enum(["hour", "year", "unknown"]),
-    raw: z.string().trim().max(1000).nullable(),
-  }).refine((salary) => salary.min === null || salary.max === null || salary.min <= salary.max, {
-    message: "Minimum salary must be less than maximum salary.",
-    path: ["min"],
-  }),
+  salary: jobEmailSalarySchema,
   whyMatch: z.string().trim().max(5000),
   notableGaps: z.string().trim().max(5000),
+  jobDescription: jobDescriptionSchema,
+  rawDescriptionSource: rawDescriptionSourceSchema,
+  fullDescription: z.string().trim().max(50000).nullable(),
   applyUrl: z.string().trim().url().max(2000),
   canonicalUrl: z.string().trim().url().max(2000).nullable(),
   sourceJobId: z.string().trim().min(1).max(500).nullable(),

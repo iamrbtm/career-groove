@@ -118,7 +118,10 @@ There is no fallback to parsing human-readable content.
   - `search_run_date`
   - `jobs_found`
   - `jobs`
-- Only schema version `1.0` is supported in this implementation.
+- Supported schema versions: `1.0`, `1.1`, `1.2`.
+- v1.0/v1.1 entries may omit `job_description` and `raw_description_source`; both default to empty/placeholder.
+- v1.2 entries include a structured `job_description` block plus a `raw_description_source` block whose `source_url` references the live posting.
+- When `raw_description_source.fullTextFetchRequired = true`, Career Groove fetches the `source_url` and uses the cleaned HTML body as the application description.
 - `jobs_found` must equal `jobs.length`.
 - `jobs` may be empty.
 

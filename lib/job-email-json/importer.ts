@@ -19,6 +19,7 @@ export type JobEmailImportResult = {
     applicationId?: string;
     latestScore?: { fit: number; label: string } | null;
     reason?: string;
+    descriptionSource?: "fetched" | "humanized" | "summary" | "fallback";
   }>;
 };
 
@@ -32,8 +33,14 @@ export type JobEmailDuplicateCheck = {
   applicationId?: string;
 };
 
-function descriptionFor(job: ParsedJobEmailEntry) {
-  return job.why_match || `${job.title} at ${job.company}`;
+export type ResolvedImportJob = {
+  job: ParsedJobEmailEntry;
+  description: string;
+  descriptionSource: "fetched" | "humanized" | "summary" | "fallback";
+};
+
+function descriptionFor(entry: ResolvedImportJob): string {
+  return entry.description;
 }
 
 function notesFor(job: ParsedJobEmailEntry) {
@@ -88,12 +95,13 @@ async function findExistingApplication(
 export async function classifyJobEmailEntries(
   client: JobEmailImportClient,
   userId: string,
-  entries: readonly ParsedJobEmailEntry[],
+  entries: readonly ResolvedImportJob[],
 ): Promise<JobEmailDuplicateCheck[]> {
   const reservedKeys = new Set<string>();
   const results = [] as JobEmailDuplicateCheck[];
 
-  for (const job of entries) {
+  for (const resolved of entries) {
+    const job = resolved.job;
     const duplicateKeys = batchDuplicateKeys(job);
     if (duplicateKeys.some((key) => reservedKeys.has(key))) {
       results.push({ jobId: job.job_id, status: "duplicate" });
@@ -120,9 +128,10 @@ export async function classifyJobEmailEntries(
 async function importJobEmailEntry(
   client: JobEmailImportClient,
   userId: string,
-  job: ParsedJobEmailEntry,
+  resolved: ResolvedImportJob,
   options: JobEmailImportOptions,
 ): Promise<JobEmailImportResult["jobs"][number]> {
+  const { job } = resolved;
   try {
     await client.query("BEGIN");
     for (const lockKey of duplicateLockKeys(userId, job)) {
@@ -161,10 +170,17 @@ async function importJobEmailEntry(
         job.posting_date_text,
         job.discovered_date,
         options.searchRunDate,
-        descriptionFor(job),
+        descriptionFor(resolved),
         notesFor(job),
         "email_json_import",
-        JSON.stringify({ jobId: job.job_id, whyMatch: job.why_match, notableGaps: job.notable_gaps }),
+        JSON.stringify({
+          jobId: job.job_id,
+          whyMatch: job.why_match,
+          notableGaps: job.notable_gaps,
+          descriptionSource: resolved.descriptionSource,
+          rawDescriptionSource: job.raw_description_source,
+          jobDescription: job.job_description,
+        }),
       ],
     );
     const applicationId = (inserted.rows[0] as { id: string }).id;
@@ -180,6 +196,7 @@ async function importJobEmailEntry(
       status: "created",
       applicationId,
       latestScore: score?.latestScore ?? null,
+      descriptionSource: resolved.descriptionSource,
     };
   } catch (error) {
     await client.query("ROLLBACK").catch(() => undefined);
@@ -191,7 +208,7 @@ async function importJobEmailEntry(
 export async function importJobEmailEntries(
   client: JobEmailImportClient,
   userId: string,
-  entries: readonly ParsedJobEmailEntry[],
+  entries: readonly ResolvedImportJob[],
   options: JobEmailImportOptions,
 ): Promise<JobEmailImportResult> {
   const jobs = [] as JobEmailImportResult["jobs"];

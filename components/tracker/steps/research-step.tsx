@@ -26,7 +26,9 @@ export function ResearchStep({
   const stored = readRecord(metadata.research);
   const autoRaw = readRecord(metadata.autoResearch);
   const autoStatus = stringValue(autoRaw.status);
-  const hasAutoData = autoStatus === "done";
+  const autoHasContent = [stringValue(autoRaw.mission), stringValue(autoRaw.market), stringValue(autoRaw.interest), stringValue(autoRaw.redFlags)]
+    .some((value) => value.trim().length > 0);
+  const hasAutoData = autoStatus === "done" && autoHasContent;
   const autoSources = Array.isArray(autoRaw.sources) ? (autoRaw.sources as string[]) : [];
 
   const [form, setForm] = useState<ResearchData>({
@@ -42,7 +44,9 @@ export function ResearchStep({
   useEffect(() => {
     const r = readRecord(metadata.research);
     const a = readRecord(metadata.autoResearch);
-    const done = stringValue(a.status) === "done";
+    const populated = [stringValue(a.mission), stringValue(a.market), stringValue(a.interest), stringValue(a.redFlags)]
+      .some((value) => value.trim().length > 0);
+    const done = stringValue(a.status) === "done" && populated;
     setForm({
       mission: done ? stringValue(a.mission) : stringValue(r.mission),
       market: done ? stringValue(a.market) : stringValue(r.market),

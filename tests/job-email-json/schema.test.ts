@@ -71,23 +71,23 @@ test("normalizes a missing work arrangement to remote", () => {
   assert.equal(payload.jobs[0].work_mode, "remote");
 });
 
-test("bulk import derives selected jobs from the validated email JSON", () => {
+test("bulk import derives selected jobs from the validated email JSON", async () => {
   const job = parseJobEmailPayload(extractJobJson(proseTrapBody)).jobs[0];
   const request = inputSchema.parse({
     emailText: proseTrapBody,
     selectedJobIds: [job.job_id],
   });
 
-  const result = parseBulkEmailImportRequest(request);
+  const result = await parseBulkEmailImportRequest(request);
   assert.equal(result.searchRunDate, "2026-08-09");
-  assert.equal(result.jobs[0].location, "United States");
-  assert.equal(result.jobs[0].salary.min, 53550);
+  assert.equal(result.jobs[0].job.location, "United States");
+  assert.equal(result.jobs[0].job.salary.min, 53550);
   assert.equal(inputSchema.safeParse({ selectedJobIds: [job.job_id], entries: [{ title: "forged" }] }).success, false);
-  assert.throws(() => parseBulkEmailImportRequest(inputSchema.parse({
+  await assert.rejects(() => parseBulkEmailImportRequest(inputSchema.parse({
     emailText: proseTrapBody,
     selectedJobIds: ["forged-job-id"],
   })));
-  assert.throws(() => parseBulkEmailImportRequest(inputSchema.parse({
+  await assert.rejects(() => parseBulkEmailImportRequest(inputSchema.parse({
     emailText: duplicateJobIdBody,
     selectedJobIds: [job.job_id],
   })));

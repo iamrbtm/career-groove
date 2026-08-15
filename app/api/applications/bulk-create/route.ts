@@ -14,9 +14,9 @@ export async function POST(request: Request) {
   const parsed = inputSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  let importRequest: ReturnType<typeof parseBulkEmailImportRequest>;
+  let importRequest: Awaited<ReturnType<typeof parseBulkEmailImportRequest>>;
   try {
-    importRequest = parseBulkEmailImportRequest(parsed.data);
+    importRequest = await parseBulkEmailImportRequest(parsed.data);
   } catch (error) {
     if (error instanceof JobEmailImportError) {
       return Response.json({ error: error.message, code: error.code }, { status: 400 });

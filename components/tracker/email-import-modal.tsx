@@ -3,6 +3,32 @@
 import { useState } from "react";
 import { CheckCircle2, LoaderCircle, Mail, Minus, Send, X } from "lucide-react";
 
+type JobDescription = {
+  summary: string;
+  responsibilities: string[];
+  requiredQualifications: string[];
+  preferredQualifications: string[];
+  technologies: string[];
+  benefits: string[];
+  employmentType: "fulltime" | "parttime" | "contract" | "temporary" | "internship" | null;
+  schedule: string | null;
+  travel: string | null;
+  education: string[];
+  experience: string[];
+  otherRequirements: string[];
+  sourceUrl: string | null;
+  fetchedAt: string | null;
+};
+
+type RawDescriptionSource = {
+  sourceUrl: string;
+  fetchedAt: string;
+  sourceJobId: string | null;
+  atsProvider: "lever" | "greenhouse" | "workday" | "ashby" | "smartrecruiters" | "icims" | "applytojob" | "employer_site" | "unknown";
+  descriptionExcerpt: string | null;
+  fullTextFetchRequired: boolean;
+};
+
 type ParsedJobEntry = {
   jobId: string;
   dedupeKey: string;
@@ -16,6 +42,10 @@ type ParsedJobEntry = {
   salary: { min: number | null; max: number | null; currency: "USD"; period: "hour" | "year" | "unknown"; raw: string | null };
   whyMatch: string;
   notableGaps: string;
+  jobDescription?: JobDescription | null;
+  rawDescriptionSource?: RawDescriptionSource | null;
+  fullDescription: string | null;
+  rawFetchStatus?: "fetched" | "humanized" | "summary" | "fallback" | "unsafe-url" | "timeout" | "no-source" | "short-body" | null;
   applyUrl: string;
   canonicalUrl: string | null;
   sourceJobId: string | null;
@@ -156,7 +186,9 @@ export function EmailImportModal({ open, onClose, onSaved }: {
         workMode: job.workArrangement,
         salaryMin: job.salary.min,
         salaryMax: job.salary.max,
-        description: job.whyMatch || `${job.title} at ${job.company}`,
+        description: (job.fullDescription && job.fullDescription.trim().length >= 200)
+          ? job.fullDescription
+          : (job.whyMatch || `${job.title} at ${job.company}`),
         sourceUrl: job.applyUrl || undefined,
       }));
       const res = await fetch("/api/applications/preview-score", {

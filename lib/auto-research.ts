@@ -57,6 +57,23 @@ export async function autoResearchApplication(
       ? parsed.screeningQuestions.slice(0, 4).map((q) => `- ${q}`).join("\n")
       : "What is the team structure?\nWhat does success look like in the first 90 days?\nWhat are the biggest challenges the team faces?";
 
+    const fetchedPosting = (result.rawJobText || "").trim().length >= 200;
+    const fetchedAbout = companyAbout.trim().length > 0;
+    const fetchedSearch = searchText.trim().length > 0;
+    const skillsFound = (parsed?.mustHaveSkills || []).length > 0;
+    const hasSignal = fetchedPosting || fetchedAbout || fetchedSearch || skillsFound;
+
+    if (!hasSignal) {
+      await db.query(
+        `UPDATE applications SET metadata = jsonb_set(COALESCE(metadata, '{}'::jsonb), '{autoResearch}', $3::jsonb, true) WHERE id=$1 AND user_id=$2`,
+        [applicationId, userId, JSON.stringify({
+          status: "failed",
+          reason: "No auto-research signal: posting body, company website text, search snippets, and parsed skills were all empty.",
+        })],
+      );
+      return;
+    }
+
     const researchData = {
       status: "done",
       mission,
