@@ -1,3 +1,12 @@
+x-app-env: &app-env
+  DATABASE_URL: postgresql://career_groove:career_groove@db:5432/career_groove
+  REDIS_URL: redis://redis:6379
+  OLLAMA_BASE_URL: ${CAREER_GROOVE_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+
+x-ollama-hosts: &ollama-hosts
+  - "host.docker.internal:host-gateway"
+  - "ollama:host-gateway"
+
 services:
   db:
     image: postgres:17-alpine
@@ -6,8 +15,9 @@ services:
       POSTGRES_DB: career_groove
       POSTGRES_USER: career_groove
       POSTGRES_PASSWORD: career_groove
+      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
-      - career_groove_data:/var/lib/postgresql/data
+      - ./db/data:/var/lib/postgresql/data
       - ./db/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
     ports:
       - "5432:5432"
@@ -35,32 +45,26 @@ services:
     restart: unless-stopped
     ports: ["3000:3000"]
     env_file: [.env]
-    environment:
-      DATABASE_URL: postgresql://career_groove:career_groove@db:5432/career_groove
-      OLLAMA_BASE_URL: ${CAREER_GROOVE_OLLAMA_BASE_URL:-http://ollama:11434}
-      REDIS_URL: redis://redis:6379
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    environment: *app-env
+    extra_hosts: *ollama-hosts
     depends_on:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }
   document-worker:
+    profiles: ["workers"]
     build:
       context: .
       target: worker
     restart: unless-stopped
     command: ["node", "scripts/document-worker.mjs"]
     env_file: [.env]
-    environment:
-      DATABASE_URL: postgresql://career_groove:career_groove@db:5432/career_groove
-      OLLAMA_BASE_URL: ${CAREER_GROOVE_OLLAMA_BASE_URL:-http://ollama:11434}
-      REDIS_URL: redis://redis:6379
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    environment: *app-env
+    extra_hosts: *ollama-hosts
     depends_on:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }
   mobile-notification-worker:
+    profiles: ["workers"]
     build:
       context: .
       target: runner
@@ -72,6 +76,7 @@ services:
     depends_on:
       - app
   follow-up-worker:
+    profiles: ["workers"]
     build:
       context: .
       target: runner
@@ -86,6 +91,7 @@ services:
       - app
       - redis
   backup-scheduler:
+    profiles: ["workers"]
     build:
       context: .
       target: backup-scheduler
@@ -102,13 +108,5 @@ services:
       - .:/workspace
     depends_on:
       db: { condition: service_healthy }
-  ollama:
-    image: ollama/ollama:latest
-    restart: unless-stopped
-    environment:
-      OLLAMA_HOST: 0.0.0.0:11434
-    volumes:
-      - ${OLLAMA_MODELS_DIR:-./.ollama}:/root/.ollama
 volumes:
-  career_groove_data:
   career_groove_redis:

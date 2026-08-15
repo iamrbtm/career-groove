@@ -1,33 +1,60 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { AlertTriangle, CheckCircle2, LoaderCircle, Mail, Minus, Send, X } from "lucide-react";
-import { normalizeDescription } from "@/lib/email-match-parser";
+import { useState } from "react";
+import { CheckCircle2, LoaderCircle, Mail, Minus, Send, X } from "lucide-react";
+
+type JobDescription = {
+  summary: string;
+  responsibilities: string[];
+  requiredQualifications: string[];
+  preferredQualifications: string[];
+  technologies: string[];
+  benefits: string[];
+  employmentType: "fulltime" | "parttime" | "contract" | "temporary" | "internship" | null;
+  schedule: string | null;
+  travel: string | null;
+  education: string[];
+  experience: string[];
+  otherRequirements: string[];
+  sourceUrl: string | null;
+  fetchedAt: string | null;
+};
+
+type RawDescriptionSource = {
+  sourceUrl: string;
+  fetchedAt: string;
+  sourceJobId: string | null;
+  atsProvider: "lever" | "greenhouse" | "workday" | "ashby" | "smartrecruiters" | "icims" | "applytojob" | "employer_site" | "unknown";
+  descriptionExcerpt: string | null;
+  fullTextFetchRequired: boolean;
+};
 
 type ParsedJobEntry = {
+  jobId: string;
+  dedupeKey: string;
   title: string;
   company: string;
   location: string;
-  workArrangement: string;
-  postingDate: string;
-  salaryMin: number | null;
-  salaryMax: number | null;
-  salaryCurrency: string;
-  whyItMatches: string;
+  workArrangement: "remote" | "hybrid" | "onsite";
+  postingDate: string | null;
+  postingDateText: string | null;
+  discoveredDate: string | null;
+  salary: { min: number | null; max: number | null; currency: "USD"; period: "hour" | "year" | "unknown"; raw: string | null };
+  whyMatch: string;
   notableGaps: string;
+  jobDescription?: JobDescription | null;
+  rawDescriptionSource?: RawDescriptionSource | null;
+  fullDescription: string | null;
+  rawFetchStatus?: "fetched" | "humanized" | "summary" | "fallback" | "unsafe-url" | "timeout" | "no-source" | "short-body" | null;
   applyUrl: string;
-  rawText: string;
-  confidence: "low" | "medium" | "high";
-  description?: string;
-  descriptionSource?: "scraped" | "email-fallback" | "unknown";
-  enrichmentSource?: string | null;
+  canonicalUrl: string | null;
+  sourceJobId: string | null;
 };
 
 type ParsedEmailResult = {
-  header: string;
-  footer: string;
+  header: string | null;
+  footer: string | null;
   jobs: ParsedJobEntry[];
-  enrichmentStatus: string;
   warnings: string[];
 };
 
@@ -47,13 +74,23 @@ type FitScore = {
 };
 
 type CreatedApplication = {
-  id: string;
+  jobId: string;
   title: string;
   company: string;
   latestScore: {
     fit: number;
     label: string;
   } | null;
+};
+
+type ImportJobResult = {
+  jobId: string;
+  status: "created" | "duplicate" | "failed";
+  latestScore?: {
+    fit: number;
+    label: string;
+  } | null;
+  reason?: string;
 };
 
 const fitLabels: Record<string, { label: string; bg: string; copy: string }> = {
@@ -70,22 +107,6 @@ const fitLabels: Record<string, { label: string; bg: string; copy: string }> = {
 
 type Step = "paste" | "review" | "creating" | "success";
 
-function buildDescription(
-  job: Pick<ParsedJobEntry, "description" | "whyItMatches" | "notableGaps" | "rawText">,
-): { description: string; source: "scraped" | "email-fallback" | "unknown" } {
-  const scraped = (job.description || "").trim();
-  if (scraped.length >= 200) {
-    return { description: normalizeDescription(scraped), source: "scraped" };
-  }
-  const fallback = normalizeDescription(
-    [job.whyItMatches, job.notableGaps, job.rawText].filter(Boolean).join("\n\n"),
-  );
-  if (fallback.length > 0) {
-    return { description: fallback, source: fallback.length >= scraped.length ? "email-fallback" : "unknown" };
-  }
-  return { description: scraped, source: "unknown" };
-}
-
 export function EmailImportModal({ open, onClose, onSaved }: {
   open: boolean;
   onClose: () => void;
@@ -100,7 +121,8 @@ export function EmailImportModal({ open, onClose, onSaved }: {
   const [scoring, setScoring] = useState(false);
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState<CreatedApplication[]>([]);
-  const [failed, setFailed] = useState<Array<{ index: number; reason: string }>>([]);
+  const [duplicatesSkipped, setDuplicatesSkipped] = useState(0);
+  const [failed, setFailed] = useState<Array<{ jobId: string; reason: string }>>([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [showHeader, setShowHeader] = useState(false);
@@ -114,6 +136,7 @@ export function EmailImportModal({ open, onClose, onSaved }: {
     setJobs([]);
     setScores(new Map());
     setCreated([]);
+    setDuplicatesSkipped(0);
     setFailed([]);
     setError("");
     setNotice("");
@@ -138,7 +161,7 @@ export function EmailImportModal({ open, onClose, onSaved }: {
       const res = await fetch("/api/applications/parse-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: emailText, enrich: true }),
+        body: JSON.stringify({ text: emailText }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not parse email.");
@@ -156,20 +179,18 @@ export function EmailImportModal({ open, onClose, onSaved }: {
   async function fetchScores(jobList: ParsedJobEntry[]) {
     setScoring(true);
     try {
-      const scoreEntries = jobList.map((job) => {
-        const { description, source } = buildDescription(job);
-        return {
-          title: job.title,
-          company: job.company,
-          location: job.location || undefined,
-          workMode: job.workArrangement !== "unknown" ? job.workArrangement as "remote" | "hybrid" | "onsite" | "flexible" : undefined,
-          salaryMin: job.salaryMin,
-          salaryMax: job.salaryMax,
-          description,
-          sourceUrl: job.applyUrl || undefined,
-          metadata: { descriptionSource: source },
-        };
-      });
+      const scoreEntries = jobList.map((job) => ({
+        title: job.title,
+        company: job.company,
+        location: job.location || undefined,
+        workMode: job.workArrangement,
+        salaryMin: job.salary.min,
+        salaryMax: job.salary.max,
+        description: (job.fullDescription && job.fullDescription.trim().length >= 200)
+          ? job.fullDescription
+          : (job.whyMatch || `${job.title} at ${job.company}`),
+        sourceUrl: job.applyUrl || undefined,
+      }));
       const res = await fetch("/api/applications/preview-score", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -190,10 +211,6 @@ export function EmailImportModal({ open, onClose, onSaved }: {
     }
   }
 
-  function updateJob(index: number, field: keyof ParsedJobEntry, value: string) {
-    setJobs((prev) => prev.map((job, i) => i === index ? { ...job, [field]: value } : job));
-  }
-
   function removeJob(index: number) {
     setJobs((prev) => prev.filter((_, i) => i !== index));
   }
@@ -203,35 +220,30 @@ export function EmailImportModal({ open, onClose, onSaved }: {
     setCreating(true);
     setError("");
     try {
-      const entries = jobs.map((job) => {
-        const { description, source } = buildDescription(job);
-        return {
-          title: job.title,
-          company: job.company,
-          location: job.location || "",
-          workMode: job.workArrangement !== "unknown" ? job.workArrangement as "remote" | "hybrid" | "onsite" | "flexible" : "unknown",
-          salaryMin: job.salaryMin,
-          salaryMax: job.salaryMax,
-          salaryCurrency: job.salaryCurrency,
-          sourceUrl: job.applyUrl || "",
-          description,
-          notes: [
-            job.whyItMatches ? `Why it matches: ${job.whyItMatches}` : "",
-            job.notableGaps ? `Notable gaps: ${job.notableGaps}` : "",
-            job.postingDate ? `Posted: ${job.postingDate}` : "",
-          ].filter(Boolean).join("\n"),
-          metadata: { descriptionSource: source },
-        };
-      });
       const res = await fetch("/api/applications/bulk-create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entries }),
+        body: JSON.stringify({ emailText, selectedJobIds: jobs.map((job) => job.jobId) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not create applications.");
-      setCreated(data.created || []);
-      setFailed(data.failed || []);
+      const results = (data.jobs || []) as ImportJobResult[];
+      const jobsById = new Map(jobs.map((job) => [job.jobId, job]));
+      setCreated(results
+        .filter((result) => result.status === "created")
+        .map((result) => {
+          const job = jobsById.get(result.jobId);
+          return {
+            jobId: result.jobId,
+            title: job?.title || result.jobId,
+            company: job?.company || "",
+            latestScore: result.latestScore || null,
+          };
+        }));
+      setDuplicatesSkipped(data.duplicatesSkipped || 0);
+      setFailed(results
+        .filter((result) => result.status === "failed")
+        .map((result) => ({ jobId: result.jobId, reason: result.reason || "Could not import this role." })));
       setStep("success");
       onSaved();
     } catch (err) {
@@ -294,11 +306,6 @@ export function EmailImportModal({ open, onClose, onSaved }: {
                     ))}
                   </ul>
                 )}
-                {parsedResult.enrichmentStatus !== "none" && (
-                  <p className="mt-1 text-xs font-bold text-ink/55">
-                    Enrichment: {parsedResult.enrichmentStatus}
-                  </p>
-                )}
               </div>
             )}
 
@@ -330,16 +337,8 @@ export function EmailImportModal({ open, onClose, onSaved }: {
                 <div key={index} className="rounded-2xl border-2 border-ink/10 bg-cream p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <input
-                        value={job.title}
-                        onChange={(e) => updateJob(index, "title", e.target.value)}
-                        className="w-full rounded-xl bg-white px-3 py-2 text-sm font-black outline-none"
-                      />
-                      <input
-                        value={job.company}
-                        onChange={(e) => updateJob(index, "company", e.target.value)}
-                        className="mt-1 w-full rounded-xl bg-white px-3 py-1.5 text-sm font-bold text-ink/70 outline-none"
-                      />
+                      <p className="rounded-xl bg-white px-3 py-2 text-sm font-black">{job.title}</p>
+                      <p className="mt-1 rounded-xl bg-white px-3 py-1.5 text-sm font-bold text-ink/70">{job.company}</p>
                     </div>
                     <button
                       type="button"
@@ -351,23 +350,8 @@ export function EmailImportModal({ open, onClose, onSaved }: {
                   </div>
 
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    <input
-                      value={job.location}
-                      onChange={(e) => updateJob(index, "location", e.target.value)}
-                      placeholder="Location"
-                      className="rounded-xl bg-white px-3 py-1.5 text-xs font-bold outline-none"
-                    />
-                    <select
-                      value={job.workArrangement}
-                      onChange={(e) => updateJob(index, "workArrangement", e.target.value)}
-                      className="rounded-xl bg-white px-3 py-1.5 text-xs font-bold outline-none"
-                    >
-                      <option value="unknown">Work mode</option>
-                      <option value="remote">Remote</option>
-                      <option value="hybrid">Hybrid</option>
-                      <option value="onsite">On-site</option>
-                      <option value="flexible">Flexible</option>
-                    </select>
+                    <p className="rounded-xl bg-white px-3 py-1.5 text-xs font-bold">{job.location}</p>
+                    <p className="rounded-xl bg-white px-3 py-1.5 text-xs font-bold capitalize">{job.workArrangement}</p>
                   </div>
 
                   {score && (
@@ -404,22 +388,10 @@ export function EmailImportModal({ open, onClose, onSaved }: {
                     </div>
                   )}
 
-                  {job.confidence === "low" && (
-                    <p className="mt-2 flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-sun">
-                      <AlertTriangle size={12} /> Low confidence — please review
-                    </p>
-                  )}
-
-                  {job.enrichmentSource === null && job.applyUrl && (
-                    <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-coral/80">
-                      URL not fetched — using email data only
-                    </p>
-                  )}
-
                   <div className="mt-2 space-y-1">
-                    {job.whyItMatches && (
+                    {job.whyMatch && (
                       <p className="text-[11px] font-bold leading-4 text-ink/60">
-                        <span className="font-black text-plum">Matches:</span> {job.whyItMatches.slice(0, 150)}{job.whyItMatches.length > 150 ? "..." : ""}
+                        <span className="font-black text-plum">Matches:</span> {job.whyMatch.slice(0, 150)}{job.whyMatch.length > 150 ? "..." : ""}
                       </p>
                     )}
                     {job.notableGaps && (
@@ -459,7 +431,7 @@ export function EmailImportModal({ open, onClose, onSaved }: {
           <div className="mt-5 flex flex-col items-center gap-3 py-8">
             <LoaderCircle size={32} className="animate-spin text-coral" />
             <p className="text-sm font-black">Creating applications...</p>
-            <p className="text-xs font-bold text-ink/55">This may take a moment while we score each role.</p>
+            <p className="text-xs font-bold text-ink/55">This may take a moment while we save each role.</p>
           </div>
         )}
 
@@ -471,14 +443,14 @@ export function EmailImportModal({ open, onClose, onSaved }: {
                 {created.length} application{created.length !== 1 ? "s" : ""} created!
               </p>
               <p className="mt-1 text-sm font-bold text-ink/60">
-                {created.length > 1 ? "They're" : "It's"} now in your Tracker Studio with Career DJ fit scores.
+                {created.length > 1 ? "They're" : "It's"} now in your Tracker Studio.
               </p>
             </div>
 
             {created.length > 0 && (
               <div className="space-y-2">
                 {created.map((app) => (
-                  <div key={app.id} className="flex items-center justify-between rounded-xl bg-cream p-3">
+                  <div key={app.jobId} className="flex items-center justify-between rounded-xl bg-cream p-3">
                     <div>
                       <p className="text-sm font-black">{app.title}</p>
                       <p className="text-xs font-bold text-ink/55">{app.company}</p>
@@ -493,6 +465,12 @@ export function EmailImportModal({ open, onClose, onSaved }: {
               </div>
             )}
 
+            {duplicatesSkipped > 0 && (
+              <p className="rounded-2xl border-2 border-sun bg-sun/10 p-3 text-center text-xs font-black text-ink/70">
+                {duplicatesSkipped} duplicate role{duplicatesSkipped !== 1 ? "s were" : " was"} already in your Tracker Studio.
+              </p>
+            )}
+
             {failed.length > 0 && (
               <div className="rounded-2xl border-2 border-coral bg-coral/10 p-3">
                 <p className="text-xs font-black uppercase tracking-[.14em] text-coral">
@@ -501,7 +479,7 @@ export function EmailImportModal({ open, onClose, onSaved }: {
                 <ul className="mt-2 space-y-1">
                   {failed.map((f, i) => (
                     <li key={i} className="text-xs font-bold text-ink/60">
-                      {jobs[f.index]?.title || `Entry ${f.index + 1}`}: {f.reason}
+                      {jobs.find((job) => job.jobId === f.jobId)?.title || f.jobId}: {f.reason}
                     </li>
                   ))}
                 </ul>

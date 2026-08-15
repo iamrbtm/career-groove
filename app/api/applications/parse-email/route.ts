@@ -1,132 +1,116 @@
-import { db } from "@/lib/db";
 import { requireUser, unauthorized } from "@/lib/api-auth";
-import { emailMatchParseInputSchema } from "@/lib/email-match-schema";
-import { parseJobMatchEmail } from "@/lib/email-match-parser";
-import { researchUrl, isSafeUrl } from "@/lib/research";
+import { humanizeJobDescription } from "@/lib/job-email-json/humanize";
+import { isSafeUrl, researchUrl } from "@/lib/research";
+import { JobEmailImportError } from "@/lib/job-email-json/errors";
+import { extractJobJson } from "@/lib/job-email-json/extractor";
+import { parseEmailImportInput, parseJobEmailPayload } from "@/lib/job-email-json/schema";
+
+const FETCH_TIMEOUT_MS = 15000;
+const MIN_USABLE_BODY = 200;
+
+type FetchOutcome =
+  | { status: "fetched"; body: string }
+  | { status: "unsafe-url" }
+  | { status: "timeout" }
+  | { status: "short-body"; body: string }
+  | { status: "no-source" };
+
+async function fetchFullText(sourceUrl: string): Promise<FetchOutcome> {
+  if (!sourceUrl) return { status: "no-source" };
+  if (!isSafeUrl(sourceUrl)) return { status: "unsafe-url" };
+  try {
+    const research = await Promise.race([
+      researchUrl(sourceUrl),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Fetch timeout")), FETCH_TIMEOUT_MS),
+      ),
+    ]);
+    const body = (research.rawJobText || "").trim();
+    if (body.length >= MIN_USABLE_BODY) return { status: "fetched", body };
+    return { status: "short-body", body };
+  } catch {
+    return { status: "timeout" };
+  }
+}
 
 export async function POST(request: Request) {
   const user = await requireUser();
   if (!user) return unauthorized();
-  const parsed = emailMatchParseInputSchema.safeParse(await request.json().catch(() => null));
+  const parsed = parseEmailImportInput.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  const { text, enrich = false, useAI = false } = parsed.data;
-
   try {
-    const result = await parseJobMatchEmail({ text, userId: user, useAI });
+    const jsonText = extractJobJson(parsed.data.text);
+    const payload = parseJobEmailPayload(jsonText);
 
-    if (!enrich) {
-      return Response.json({
-        header: result.header,
-        footer: result.footer,
-        jobs: result.jobs,
-        enrichmentStatus: "none",
-        warnings: result.parseWarnings,
-      });
-    }
-
-    type EnrichmentOutcome =
-      | { status: "fetched"; research: Awaited<ReturnType<typeof researchUrl>> }
-      | { status: "no-url" }
-      | { status: "unsafe-url" }
-      | { status: "cloudflare" }
-      | { status: "http-error" }
-      | { status: "timeout" };
-
-    function urlVariants(input: string): string[] {
-      const variants: string[] = [input];
-      try {
-        const parsed = new URL(input);
-        const swapProto = parsed.protocol === "https:" ? "http:" : "https:";
-        const swappedProto = new URL(input);
-        swappedProto.protocol = swapProto;
-        variants.push(swappedProto.toString());
-        if (parsed.hostname.startsWith("www.")) {
-          const stripped = new URL(input);
-          stripped.hostname = parsed.hostname.slice(4);
-          variants.push(stripped.toString());
-        } else {
-          const withWww = new URL(input);
-          withWww.hostname = `www.${parsed.hostname}`;
-          variants.push(withWww.toString());
+    const fetchOutcomes = await Promise.all(
+      payload.jobs.map(async (job) => {
+        if (!job.raw_description_source.fullTextFetchRequired) {
+          return { status: "no-source" as const };
         }
-      } catch {
-        // leave only the original
-      }
-      return Array.from(new Set(variants));
-    }
+        return fetchFullText(job.raw_description_source.sourceUrl);
+      }),
+    );
 
-    async function enrichWithRetries(applyUrl: string): Promise<EnrichmentOutcome> {
-      if (!applyUrl) return { status: "no-url" };
-      if (!isSafeUrl(applyUrl)) return { status: "unsafe-url" };
-      const attempts = urlVariants(applyUrl);
-      const reasons: string[] = [];
-      let lastResearch: Awaited<ReturnType<typeof researchUrl>> | null = null;
-      for (const variant of attempts) {
-        try {
-          const research = await Promise.race([
-            researchUrl(variant),
-            new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error("Timeout")), 15000),
-            ),
-          ]);
-          lastResearch = research;
-          if (research.rawJobText && research.rawJobText.length > 200) {
-            return { status: "fetched", research };
-          }
-          reasons.push(`${variant}: short/empty body`);
-        } catch (error) {
-          reasons.push(`${variant}: ${error instanceof Error ? error.message : "failed"}`);
-        }
-      }
-      if (lastResearch && (lastResearch.rawJobText || "").length > 0) {
-        return { status: "fetched", research: lastResearch };
-      }
-      console.warn("Email enrichment exhausted", { applyUrl, attempts: reasons });
-      return { status: "http-error" };
-    }
+    const warnings: string[] = [];
+    const jobs = payload.jobs.map((job, index) => {
+      const outcome = fetchOutcomes[index];
+      let fullDescription: string | null = null;
+      let humanized: string | null = null;
+      let rawFetchStatus: "fetched" | "no-source" | "unsafe-url" | "timeout" | "short-body" = "no-source";
 
-    const enrichmentPromises = result.jobs.map((job) => enrichWithRetries(job.applyUrl));
-
-    const enrichmentResults = await Promise.all(enrichmentPromises);
-    const enrichedJobs = result.jobs.map((job, index) => {
-      const outcome = enrichmentResults[index];
       if (outcome.status === "fetched") {
-        const research = outcome.research;
-        const description = research.rawJobText || job.whyItMatches || job.rawText;
-        return {
-          ...job,
-          description,
-          confidence: "high" as const,
-          enrichmentSource: research.companyDomain,
-        };
+        fullDescription = outcome.body;
+        rawFetchStatus = "fetched";
+      } else if (outcome.status === "short-body") {
+        fullDescription = humanizeJobDescription(job.job_description);
+        rawFetchStatus = "short-body";
+        warnings.push(`${job.company} – ${job.title}: source returned a short body; using the structured description instead.`);
+      } else {
+        humanized = humanizeJobDescription(job.job_description);
+        if (humanized.length >= MIN_USABLE_BODY) fullDescription = humanized;
+        rawFetchStatus = outcome.status === "no-source" ? "no-source" : outcome.status;
+        if (outcome.status === "timeout") {
+          warnings.push(`${job.company} – ${job.title}: could not fetch the original posting within ${FETCH_TIMEOUT_MS / 1000}s.`);
+        } else if (outcome.status === "unsafe-url") {
+          warnings.push(`${job.company} – ${job.title}: source URL blocked from auto-fetch.`);
+        }
       }
-      return { ...job, enrichmentSource: null };
+
+      return {
+        jobId: job.job_id,
+        dedupeKey: job.dedupe_key,
+        title: job.title,
+        company: job.company,
+        location: job.location,
+        workArrangement: job.work_arrangement,
+        postingDate: job.posting_date,
+        postingDateText: job.posting_date_text,
+        discoveredDate: job.discovered_date,
+        salary: job.salary,
+        whyMatch: job.why_match,
+        notableGaps: job.notable_gaps,
+        jobDescription: job.job_description,
+        humanizedDescription: humanized,
+        fullDescription,
+        rawFetchStatus,
+        applyUrl: job.apply_url,
+        canonicalUrl: job.canonical_url,
+        sourceJobId: job.source_job_id,
+        rawDescriptionSource: job.raw_description_source,
+      };
     });
 
-    const successCount = enrichmentResults.filter((r) => r.status === "fetched").length;
-
-    const enrichmentStatus = successCount === result.jobs.length
-      ? "complete"
-      : successCount > 0
-        ? "partial"
-        : "none";
-
-    const warnings = [...result.parseWarnings];
-    if (enrichmentStatus === "partial") {
-      warnings.push(`${successCount} of ${result.jobs.length} URLs enriched successfully.`);
-    } else if (enrichmentStatus === "none" && result.jobs.length > 0) {
-      warnings.push("URL enrichment failed for all entries. Using email-parsed data only.");
-    }
-
     return Response.json({
-      header: result.header,
-      footer: result.footer,
-      jobs: enrichedJobs,
-      enrichmentStatus,
+      header: payload.generated_at,
+      footer: payload.search_run_date,
+      jobs,
       warnings,
     });
   } catch (error) {
+    if (error instanceof JobEmailImportError) {
+      return Response.json({ error: error.message, code: error.code }, { status: 400 });
+    }
     console.error("Email parse failed", error);
     return Response.json({ error: "The email could not be parsed." }, { status: 500 });
   }

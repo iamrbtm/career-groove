@@ -26,7 +26,8 @@ A mobile-first personal career and life CRM built with Next.js, PostgreSQL, Auth
 
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose up -d --build
+docker compose --profile workers up -d --build
 ```
 
 Open http://breath.local:3000 (or use the server's LAN IP). The app container applies the idempotent schema and compatibility migrations before starting. OAuth, passkeys, AI providers, and GitHub feedback activate when their corresponding environment variables are configured. Passkeys additionally require `AUTH_EXPERIMENTAL_ENABLE_PASSKEYS=true` and a secure origin outside localhost.
@@ -39,17 +40,36 @@ Nginx should redirect public port 80 traffic to HTTPS, but direct access to the 
 
 OAuth providers require every callback origin to be registered with the provider. Register the public callback (for example, `https://career.example.com/api/auth/callback/github`) and any LAN callback only if the provider permits plain HTTP callbacks. Credentials sign-in works on LAN HTTP. Passkeys generally require HTTPS except on `localhost`, so use the public HTTPS hostname for passkeys.
 
-Compose includes an Ollama service with persistent model storage bind-mounted from `OLLAMA_MODELS_DIR` on the server into `/root/.ollama` in the Ollama container. By default this uses `./.ollama` next to the project and is ignored by Git.
+CareerGroove connects to a host Ollama daemon from containers through `host.docker.internal`. Configure the host daemon to listen on `0.0.0.0:11434`; the default `.env.example` value is `http://host.docker.internal:11434`. For existing container-side provider settings that still point at `http://ollama:11434`, Compose now maps `ollama` to the host gateway as a compatibility alias.
 
-Install a model into that shared store with:
+## Job email import
 
-```bash
-docker compose exec ollama ollama pull llama3.2
+CareerGroove imports jobs only from the machine-readable block appended to an email.
+
+Preferred format for email delivery:
+
+```text
+BEGIN_JOB_JSON_BASE64
+eyJzY2hlbWFfdmVyc2lvbiI6IjEuMCIsImdlbmVyYXRlZF9hdCI6IjIwMjYtMDgtMDlUMTI6MDA6MDAtMDc6MDAiLCJzZWFyY2hfcnVuX2RhdGUiOiIyMDI2LTA4LTA5Iiwiam9ic19mb3VuZCI6MSwiam9icyI6W3siam9iX2lkIjoicmlwcGxpbmctaW1wbGVtZW50YXRpb24tc3BlY2lhbGlzdC1wbGF0Zm9ybSIsImRlZHVwZV9rZXkiOiIzODQ4MTY3MGJjYWRhYzdjOTUzZTRhZTBlMDIyNWI2YjA2NGQ0MWFjOGJmYTE3NjM2Zjc1NzIwNGI2OGY0MjhiIiwidGl0bGUiOiJJbXBsZW1lbnRhdGlvbiBTcGVjaWFsaXN0LCBQbGF0Zm9ybSIsImNvbXBhbnkiOiJSaXBwbGluZyIsImxvY2F0aW9uIjoiVW5pdGVkIFN0YXRlcyIsIndvcmtfYXJyYW5nZW1lbnQiOiJyZW1vdGUiLCJwb3N0aW5nX2RhdGUiOm51bGwsInBvc3RpbmdfZGF0ZV90ZXh0IjoiQ3VycmVudCBhY3RpdmUgcG9zdGluZzsgZXhhY3QgcG9zdGluZyBkYXRlIG5vdCBzaG93biIsImRpc2NvdmVyZWRfZGF0ZSI6IjIwMjYtMDgtMDkiLCJzYWxhcnkiOnsibWluIjo1MzU1MCwibWF4Ijo4OTc3NSwiY3VycmVuY3kiOiJVU0QiLCJwZXJpb2QiOiJ5ZWFyIiwicmF3IjoiJDUzLDU1MC0kODksNzc1IGRlcGVuZGluZyBvbiBVLlMuIGxvY2F0aW9uIHRpZXIifSwid2h5X21hdGNoIjoiU3Ryb25nIGltcGxlbWVudGF0aW9uIGFuZCB3b3JrZmxvdyBmaXQuIiwibm90YWJsZV9nYXBzIjoiUmVxdWVzdHMgU2FhUyBpbXBsZW1lbnRhdGlvbiBleHBlcmllbmNlLiIsImFwcGx5X3VybCI6Imh0dHBzOi8vZXhhbXBsZS5jb20vam9iIiwiY2Fub25pY2FsX3VybCI6Imh0dHBzOi8vZXhhbXBsZS5jb20vam9iIiwic291cmNlX2pvYl9pZCI6IjEyMzQ1In1dfQ==
+END_JOB_JSON_BASE64
 ```
 
-Then connect Ollama from Settings and CareerGroove will discover the installed models through `http://ollama:11434`.
+Legacy raw JSON is still accepted when it arrives as valid unwrapped JSON:
 
-If you already run Ollama directly on the server and want CareerGroove to use that daemon instead of the Compose service, set `CAREER_GROOVE_OLLAMA_BASE_URL=http://host.docker.internal:11434` in `.env` and configure the host Ollama daemon to listen on `0.0.0.0:11434`. If you want the Compose Ollama service to reuse an existing host model store, set `OLLAMA_MODELS_DIR` to that host directory before starting Compose.
+```text
+BEGIN_JOB_JSON
+{"schema_version":"1.0","generated_at":"2026-08-09T12:00:00-07:00","search_run_date":"2026-08-09","jobs_found":1,"jobs":[{"job_id":"rippling-implementation-specialist-platform","dedupe_key":"38481670bcadac7c953e4ae0e0225b6b064d41ac8bfa17636f757204b68f428b","title":"Implementation Specialist, Platform","company":"Rippling","location":"United States","work_arrangement":"remote","posting_date":null,"posting_date_text":"Current active posting; exact posting date not shown","discovered_date":"2026-08-09","salary":{"min":53550,"max":89775,"currency":"USD","period":"year","raw":"$53,550-$89,775 depending on U.S. location tier"},"why_match":"Strong implementation and workflow fit.","notable_gaps":"Requests SaaS implementation experience.","apply_url":"https://example.com/job","canonical_url":"https://example.com/job","source_job_id":"12345"}]}
+END_JOB_JSON
+```
+
+No machine-readable block means no import. Invalid payloads mean no import. The prose portion of the email is for the human reader only.
+
+To rebuild only the backup scheduler:
+
+```bash
+docker compose --profile workers build backup-scheduler
+docker compose --profile workers up -d --no-deps backup-scheduler
+```
 
 ## Backups
 
