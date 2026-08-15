@@ -134,6 +134,41 @@ export function splitEmailEntries(text: string): string[] {
     .filter((entry) => entry.length > 20);
 }
 
+const NAV_VERB_PREFIXES = /^(apply|save|share|back to|sign in|log in|continue reading|read more|view all|see all|learn more|get started|join now|subscribe|skip to|search|menu|home|jobs?|company|people|salary|interviews|reviews|benefits|photos|life at|workplace|press|cookies?|privacy|terms|settings?)\b/i;
+
+const TRUNCATION_TARGET = 4000;
+
+export function normalizeDescription(text: string): string {
+  if (!text) return "";
+  const lines = text
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => line.replace(/\s+/g, " ").trim());
+  const kept: string[] = [];
+  let lastWasBlank = false;
+  for (const line of lines) {
+    if (!line) {
+      if (!lastWasBlank && kept.length > 0) kept.push("");
+      lastWasBlank = true;
+      continue;
+    }
+    lastWasBlank = false;
+    if (line.length < 60 && NAV_VERB_PREFIXES.test(line)) continue;
+    kept.push(line);
+  }
+  while (kept.length > 0 && kept[kept.length - 1] === "") kept.pop();
+  const joined = kept.join("\n").trim();
+
+  if (joined.length <= TRUNCATION_TARGET) return joined;
+  const window = joined.slice(0, TRUNCATION_TARGET);
+  const lastSentence = window.lastIndexOf(". ");
+  const lastPara = window.lastIndexOf("\n\n");
+  let cutoff = TRUNCATION_TARGET;
+  if (lastSentence > TRUNCATION_TARGET - 400) cutoff = lastSentence + 1;
+  else if (lastPara > TRUNCATION_TARGET - 400) cutoff = lastPara;
+  return joined.slice(0, cutoff).trimEnd();
+}
+
 const LABELED_FIELD_RE = /^(location|work arrangement|posting date|salary|why it matches|notable gaps|apply)\s*:/i;
 
 export function parseJobEntry(rawEntryText: string): ParsedJobEntry {

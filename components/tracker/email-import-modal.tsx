@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { AlertTriangle, CheckCircle2, LoaderCircle, Mail, Minus, Send, X } from "lucide-react";
+import { normalizeDescription } from "@/lib/email-match-parser";
 
 type ParsedJobEntry = {
   title: string;
@@ -18,6 +19,7 @@ type ParsedJobEntry = {
   rawText: string;
   confidence: "low" | "medium" | "high";
   description?: string;
+  descriptionSource?: "scraped" | "email-fallback" | "unknown";
   enrichmentSource?: string | null;
 };
 
@@ -67,6 +69,22 @@ const fitLabels: Record<string, { label: string; bg: string; copy: string }> = {
 };
 
 type Step = "paste" | "review" | "creating" | "success";
+
+function buildDescription(
+  job: Pick<ParsedJobEntry, "description" | "whyItMatches" | "notableGaps" | "rawText">,
+): { description: string; source: "scraped" | "email-fallback" | "unknown" } {
+  const scraped = (job.description || "").trim();
+  if (scraped.length >= 200) {
+    return { description: normalizeDescription(scraped), source: "scraped" };
+  }
+  const fallback = normalizeDescription(
+    [job.whyItMatches, job.notableGaps, job.rawText].filter(Boolean).join("\n\n"),
+  );
+  if (fallback.length > 0) {
+    return { description: fallback, source: fallback.length >= scraped.length ? "email-fallback" : "unknown" };
+  }
+  return { description: scraped, source: "unknown" };
+}
 
 export function EmailImportModal({ open, onClose, onSaved }: {
   open: boolean;
@@ -120,7 +138,7 @@ export function EmailImportModal({ open, onClose, onSaved }: {
       const res = await fetch("/api/applications/parse-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: emailText, enrich: false }),
+        body: JSON.stringify({ text: emailText, enrich: true }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not parse email.");
@@ -138,16 +156,20 @@ export function EmailImportModal({ open, onClose, onSaved }: {
   async function fetchScores(jobList: ParsedJobEntry[]) {
     setScoring(true);
     try {
-      const scoreEntries = jobList.map((job) => ({
-        title: job.title,
-        company: job.company,
-        location: job.location || undefined,
-        workMode: job.workArrangement !== "unknown" ? job.workArrangement as "remote" | "hybrid" | "onsite" | "flexible" : undefined,
-        salaryMin: job.salaryMin,
-        salaryMax: job.salaryMax,
-        description: job.description || job.whyItMatches || job.rawText.slice(0, 2000),
-        sourceUrl: job.applyUrl || undefined,
-      }));
+      const scoreEntries = jobList.map((job) => {
+        const { description, source } = buildDescription(job);
+        return {
+          title: job.title,
+          company: job.company,
+          location: job.location || undefined,
+          workMode: job.workArrangement !== "unknown" ? job.workArrangement as "remote" | "hybrid" | "onsite" | "flexible" : undefined,
+          salaryMin: job.salaryMin,
+          salaryMax: job.salaryMax,
+          description,
+          sourceUrl: job.applyUrl || undefined,
+          metadata: { descriptionSource: source },
+        };
+      });
       const res = await fetch("/api/applications/preview-score", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -181,22 +203,26 @@ export function EmailImportModal({ open, onClose, onSaved }: {
     setCreating(true);
     setError("");
     try {
-      const entries = jobs.map((job) => ({
-        title: job.title,
-        company: job.company,
-        location: job.location || "",
-        workMode: job.workArrangement !== "unknown" ? job.workArrangement as "remote" | "hybrid" | "onsite" | "flexible" : "unknown",
-        salaryMin: job.salaryMin,
-        salaryMax: job.salaryMax,
-        salaryCurrency: job.salaryCurrency,
-        sourceUrl: job.applyUrl || "",
-        description: job.description || job.whyItMatches || job.rawText.slice(0, 2000),
-        notes: [
-          job.whyItMatches ? `Why it matches: ${job.whyItMatches}` : "",
-          job.notableGaps ? `Notable gaps: ${job.notableGaps}` : "",
-          job.postingDate ? `Posted: ${job.postingDate}` : "",
-        ].filter(Boolean).join("\n"),
-      }));
+      const entries = jobs.map((job) => {
+        const { description, source } = buildDescription(job);
+        return {
+          title: job.title,
+          company: job.company,
+          location: job.location || "",
+          workMode: job.workArrangement !== "unknown" ? job.workArrangement as "remote" | "hybrid" | "onsite" | "flexible" : "unknown",
+          salaryMin: job.salaryMin,
+          salaryMax: job.salaryMax,
+          salaryCurrency: job.salaryCurrency,
+          sourceUrl: job.applyUrl || "",
+          description,
+          notes: [
+            job.whyItMatches ? `Why it matches: ${job.whyItMatches}` : "",
+            job.notableGaps ? `Notable gaps: ${job.notableGaps}` : "",
+            job.postingDate ? `Posted: ${job.postingDate}` : "",
+          ].filter(Boolean).join("\n"),
+          metadata: { descriptionSource: source },
+        };
+      });
       const res = await fetch("/api/applications/bulk-create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
