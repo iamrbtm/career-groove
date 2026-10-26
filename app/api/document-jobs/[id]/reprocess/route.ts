@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser, unauthorized } from "@/lib/api-auth";
+import { enqueueDocumentJob } from "@/lib/job-queue";
 
 const idSchema = z.string().uuid();
 
@@ -19,5 +20,15 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
     [id.data, user],
   );
   if (!created.rowCount) return Response.json({ error: "Draft not found." }, { status: 404 });
+  try {
+    await enqueueDocumentJob(created.rows[0].id);
+  } catch {
+    await db.query(
+      `UPDATE document_generation_jobs SET status='failed',error='Could not queue job',updated_at=now()
+       WHERE id=$1 AND user_id=$2`,
+      [created.rows[0].id, user],
+    );
+    return Response.json({ job: created.rows[0], warning: "Could not queue job" }, { status: 202 });
+  }
   return Response.json({ job: created.rows[0] }, { status: 202 });
 }
