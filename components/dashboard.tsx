@@ -44,10 +44,12 @@ export function Dashboard() {
   }, []);
   const today = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric" }).format(new Date());
   const [recentJobs, setRecentJobs] = useState<Array<{id:string;title:string;company:string}>>([]);
+  const [onboarding, setOnboarding] = useState<{complete:boolean}|null>(null);
   const [applications, setApplications] = useState<Array<{id:string;title:string;company:string;priorityLabel:string|null;followUpDueAt:string|null;status:string}>>([]);
   const [session, setSession] = useState<{title:string;actions:Array<{id:string;title:string;reason:string;routeTarget:string;status:string}>} | null>(null);
   const [overdueCount, setOverdueCount] = useState(0);
   useEffect(()=>{fetch("/api/jobs").then(async r=>{if(r.ok)setRecentJobs((await r.json()).jobs.slice(0,2))}).catch(()=>undefined)},[]);
+  useEffect(()=>{fetch("/api/user/onboarding").then(async r=>{if(r.ok)setOnboarding(await r.json())}).catch(()=>undefined)},[]);
   useEffect(()=>{fetch("/api/applications").then(async r=>{if(r.ok)setApplications((await r.json()).applications.slice(0,4))}).catch(()=>undefined); fetch("/api/command-sessions").then(async r=>{if(r.ok)setSession((await r.json()).session||null)}).catch(()=>undefined); fetch("/api/follow-ups/overdue").then(async r=>{if(r.ok)setOverdueCount((await r.json()).totalOverdue)}).catch(()=>undefined)},[]);
   const tools = tier === "free" ? allTools.filter((_, i) => !proToolIndices.has(i)) : allTools;
   const nav = tier === "pro" ? allNav.concat(proNavItems) : allNav;
@@ -72,6 +74,20 @@ export function Dashboard() {
           <button onClick={()=>router.push("/interview")} className="mt-6 flex items-center gap-2 font-black text-mint">Continue your story <ArrowUpRight size={18}/></button>
         </div>
       </motion.section>
+
+      {onboarding && !onboarding.complete && applications.length === 0 && <section className="mt-5">
+        <div className="flex flex-col items-start justify-between gap-5 rounded-4xl border-2 border-ink bg-mint/40 p-6 shadow-soft sm:flex-row sm:items-center">
+          <div className="flex items-start gap-4">
+            <div className="grid size-12 shrink-0 place-items-center rounded-2xl border-2 border-fg bg-sun"><Sparkles size={23} /></div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-[.2em] text-plum">First-run warm-up</p>
+              <h2 className="mt-1 font-[var(--font-display)] text-2xl font-black">Four small moves to find your groove.</h2>
+              <p className="mt-1 text-sm text-fg/60">Contact details, one chapter, one saved role, one resume—then the stage is yours.</p>
+            </div>
+          </div>
+          <MotionButton onClick={()=>router.push("/onboarding")} className="rounded-2xl border-2 border-fg bg-coral px-5 py-3 text-sm font-black shadow-pop">Start the warm-up</MotionButton>
+        </div>
+      </section>}
 
       <section className="mt-8 grid gap-5 lg:grid-cols-[1.15fr_.85fr]">
         <div className="rounded-3xl border-2 border-fg bg-panel p-5 shadow-[0_5px_0_#26312c]">

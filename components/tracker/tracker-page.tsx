@@ -135,6 +135,23 @@ export function TrackerPage() {
     if (data.application) setApplications((prev) => prev.map((a) => a.id === data.application.id ? { ...a, ...data.application } : a));
   }
 
+  const loadDocumentJobs = useCallback(async () => {
+    const res = await fetch("/api/document-jobs", { cache: "no-store" });
+    if (!res.ok) return;
+    setDocumentJobs((await res.json()).jobs || []);
+  }, []);
+
+  const pollingDocumentJobs = useMemo(
+    () => documentJobs.some((job) => job.status === "queued" || job.status === "processing"),
+    [documentJobs],
+  );
+
+  useEffect(() => {
+    if (!pollingDocumentJobs) return;
+    const timer = window.setInterval(() => void loadDocumentJobs(), 3000);
+    return () => window.clearInterval(timer);
+  }, [pollingDocumentJobs, loadDocumentJobs]);
+
   const refreshAll = useCallback(async (preferredId?: string) => {
     await Promise.all([refreshApplications(preferredId), refreshSupportingData()]);
   }, []);
@@ -149,6 +166,13 @@ export function TrackerPage() {
     const targetId = searchParams.get("applicationId");
     if (targetId && applications.some((a) => a.id === targetId)) setSelectedId(targetId);
   }, [applications, searchParams]);
+
+  useEffect(() => {
+    if (searchParams.get("capture") === "1") {
+      setCaptureOpen(true);
+      router.replace("/applications", { scroll: false });
+    }
+  }, [searchParams, router]);
 
   useEffect(() => {
     if (!selected?.id) { setEvents([]); setDocuments([]); setContacts([]); setInterviews([]); setOutcomes([]); return; }
@@ -311,6 +335,7 @@ export function TrackerPage() {
                         documents={documents}
                         documentJobs={documentJobs}
                         onRefresh={() => loadDetail(selected.id)}
+                        onDocumentJobCreated={() => void loadDocumentJobs()}
                         onAdvance={advanceStep}
                       />
                     )}
