@@ -6,6 +6,8 @@ import { Calendar, CheckCircle2, FileText, LoaderCircle, Mail, MessageCircleMore
 import { AppShell, PageHeading } from "./app-shell";
 import { MotionButton } from "./motion-button";
 import { followUpTypeLabels, type FollowUpType } from "@/lib/follow-up";
+import { apiFetch, getApiError } from "@/lib/ui/api-fetch";
+import { useToast } from "@/lib/ui/toast";
 
 type OverdueFollowUp = {
   id: string;
@@ -25,6 +27,7 @@ type OverdueFollowUp = {
 
 export function FollowUpDashboard() {
   const router = useRouter();
+  const { push } = useToast();
   const [dueNow, setDueNow] = useState<OverdueFollowUp[]>([]);
   const [undrafted, setUndrafted] = useState<OverdueFollowUp[]>([]);
   const [upcoming, setUpcoming] = useState<OverdueFollowUp[]>([]);
@@ -76,46 +79,51 @@ export function FollowUpDashboard() {
       const text = await res.text();
       if (!res.ok) throw new Error(text || "Generation failed.");
 
-      const docRes = await fetch("/api/document-jobs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          kind: "cover_letter",
-          applicationId: fu.applicationId,
-        }),
-      });
-      const docData = await docRes.json();
-      const documentJobId = docData.job?.id;
-
-      if (documentJobId) {
-        await fetch(`/api/applications/${fu.applicationId}/documents`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            documentGenerationJobId: documentJobId,
-            kind: "cover_letter",
-            title: followUpTypeLabels[fu.followUpType as FollowUpType] || "Follow-up",
-            status: "generated",
-          }),
-        });
-      }
-
-      await fetch(`/api/follow-ups/${fu.id}`, {
+      const docJobId = await generateDraftDocument(fu);
+      await apiFetch(`/api/follow-ups/${fu.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: text,
           status: "draft",
-          metadata: { documentGenerationJobId: documentJobId },
+          metadata: { documentGenerationJobId: docJobId },
         }),
       });
-      flashNotice("Draft generated!");
+      push("Draft generated!");
       await loadOverdue();
     } catch (err) {
-      flashNotice(err instanceof Error ? err.message : "Could not generate.");
+      push(getApiError(err), "error");
     } finally {
       setGenerating(null);
     }
+  }
+
+  async function generateDraftDocument(fu: OverdueFollowUp): Promise<string | undefined> {
+    const jobRes = await apiFetch("/api/document-jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        kind: "cover_letter",
+        applicationId: fu.applicationId,
+      }),
+    });
+    const jobData = await jobRes.json();
+    const documentJobId = jobData.job?.id as string | undefined;
+
+    if (documentJobId) {
+      await apiFetch(`/api/applications/${fu.applicationId}/documents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          documentGenerationJobId: documentJobId,
+          kind: "cover_letter",
+          title: followUpTypeLabels[fu.followUpType as FollowUpType] || "Follow-up",
+          status: "generated",
+        }),
+      });
+    }
+
+    return documentJobId;
   }
 
   async function handleSendEmail(fu: OverdueFollowUp) {
@@ -171,20 +179,32 @@ export function FollowUpDashboard() {
   }
 
   async function markSent(id: string) {
-    await fetch(`/api/follow-ups/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "sent" }),
-    });
+    try {
+      await apiFetch(`/api/follow-ups/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "sent" }),
+      });
+    } catch (err) {
+      push(getApiError(err), "error");
+      return;
+    }
+    push("Marked as sent.");
     await loadOverdue();
   }
 
   async function skipFollowUp(id: string) {
-    await fetch(`/api/follow-ups/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "skipped" }),
-    });
+    try {
+      await apiFetch(`/api/follow-ups/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "skipped" }),
+      });
+    } catch (err) {
+      push(getApiError(err), "error");
+      return;
+    }
+    push("Follow-up skipped.");
     await loadOverdue();
   }
 

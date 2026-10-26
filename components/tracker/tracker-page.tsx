@@ -19,6 +19,8 @@ import { DecisionStep } from "./steps/decision-step";
 import { ClosedStep } from "./steps/closed-step";
 import { PipelineSignals } from "./pipeline-signals";
 import { fireSaveConfetti } from "@/lib/confetti";
+import { apiFetch, getApiError } from "@/lib/ui/api-fetch";
+import { useToast } from "@/lib/ui/toast";
 import { CaptureModal } from "./capture-modal";
 import { EmailImportModal } from "./email-import-modal";
 import { OpportunitySearchModal } from "./opportunity-search-modal";
@@ -63,6 +65,7 @@ const totalSteps = 6;
 export function TrackerPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { push } = useToast();
   const [applications, setApplications] = useState<Application[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [events, setEvents] = useState<ApplicationEvent[]>([]);
@@ -175,11 +178,16 @@ export function TrackerPage() {
   async function advanceStep() {
     if (!selected) return;
     const nextStep = Math.min(currentStep + 1, totalSteps);
-    await fetch(`/api/applications/${selected.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ step: nextStep }),
-    });
+    try {
+      await apiFetch(`/api/applications/${selected.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ step: nextStep }),
+      });
+    } catch (err) {
+      push(getApiError(err), "error");
+      return;
+    }
     setActiveStepState(nextStep);
     await refreshAll(selected.id);
     await loadDetail(selected.id);
@@ -187,11 +195,16 @@ export function TrackerPage() {
 
   async function handleArchive() {
     if (!selected) return;
-    await fetch(`/api/applications/${selected.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "archived" }),
-    });
+    try {
+      await apiFetch(`/api/applications/${selected.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "archived" }),
+      });
+    } catch (err) {
+      push(getApiError(err), "error");
+      return;
+    }
     await refreshAll();
   }
 
