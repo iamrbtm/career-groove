@@ -2,6 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+src_root="${CAREER_GROOVE_BACKUP_SOURCE_ROOT:-$repo_root}"
 backup_root="${CAREER_GROOVE_BACKUP_ROOT:-$repo_root/backups}"
 timestamp="$(date +%Y%m%d_%H%M%S)"
 manifest="$(mktemp)"
@@ -11,13 +12,17 @@ cleanup() {
 }
 trap cleanup EXIT
 
-cd "$repo_root"
+if [[ ! -e "$src_root/.git" ]]; then
+  echo "[source-backup] Skipping: source root is not a git repository: $src_root" >&2
+  exit 1
+fi
+
 mkdir -p "$backup_root/source"
 
 # Back up tracked files plus untracked files that are not ignored by .gitignore.
-git ls-files -co --exclude-standard -z > "$manifest"
+(cd "$src_root" && git ls-files -co --exclude-standard -z) > "$manifest"
 
-tar --null -T "$manifest" -czf "$backup_root/source/career_groove_source_${timestamp}.tar.gz"
+(cd "$src_root" && tar --null -T "$manifest" -czf "$backup_root/source/career_groove_source_${timestamp}.tar.gz")
 tr '\0' '\n' < "$manifest" > "$backup_root/source/career_groove_source_${timestamp}_files.txt"
 
 echo "Source backup written:"
