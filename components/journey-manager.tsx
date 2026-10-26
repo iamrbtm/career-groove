@@ -18,9 +18,12 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
+import { AnimatePresence, motion } from "framer-motion";
 import { AppShell, PageHeading } from "./app-shell";
 import { EmptyState } from "./empty-state";
 import { parseChapterAI, skillCategories, SkillCategory } from "@/lib/chapter-ai";
+import { apiFetch, getApiError } from "@/lib/ui/api-fetch";
+import { useToast } from "@/lib/ui/toast";
 
 type AnyRow = Record<string, any>;
 type CredentialKind = "education" | "license" | "certification";
@@ -47,6 +50,7 @@ export function JourneyManager() {
   const [tab, setTab] = useState("jobs");
   const [credentialTab, setCredentialTab] =
     useState<CredentialKind>("education");
+  const [manualOpen, setManualOpen] = useState(false);
   const [notice, setNotice] = useState("");
 
   const load = useCallback(async () => {
@@ -151,6 +155,33 @@ export function JourneyManager() {
               <FormTitle icon={<BriefcaseBusiness />} text="Add a work chapter" />
               <p className="text-sm leading-6 text-fg/60">Answer one question at a time. Your interviewer will help uncover the responsibilities, skills, and results worth remembering.</p>
               <Link href="/interview" className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-fg bg-coral py-3 font-black shadow-[0_4px_0_#26312c]"><Plus size={17}/> Start chapter interview</Link>
+              <button
+                type="button"
+                onClick={() => setManualOpen((open) => !open)}
+                aria-expanded={manualOpen}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-edge/15 bg-panel py-3 font-black text-fg/70 transition hover:border-edge/40 hover:text-fg"
+              >
+                <Pencil size={17}/>
+                {manualOpen ? "Hide manual entry" : "Add manually"}
+              </button>
+              <AnimatePresence initial={false}>
+                {manualOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                    transition={{ type: "spring", stiffness: 420, damping: 26 }}
+                    className="mt-5 overflow-hidden rounded-3xl border-2 border-edge/15 bg-panel/55 p-4 shadow-[0_3px_0_rgba(38,49,44,.14)]"
+                  >
+                    <ManualChapterForm
+                      onSaved={async () => {
+                        setManualOpen(false);
+                        await load();
+                      }}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           )}
           {tab === "homes" && (
@@ -445,6 +476,76 @@ function SkillEditor({ skill, onClose, onSaved, onDeleted }: { skill: AnyRow; on
       <div className="mt-6 flex items-center gap-3"><button type="button" onClick={removeSkill} disabled={saving} className="grid size-12 place-items-center rounded-2xl border-2 border-edge/15 bg-panel text-fg/50 hover:border-coral hover:text-coral" aria-label={`Delete ${skill.name}`} title="Delete skill"><Trash2 size={19}/></button><button type="button" onClick={onClose} className="ml-auto rounded-2xl px-4 py-3 text-sm font-black">Cancel</button><button disabled={saving || !name.trim()} className="flex items-center gap-2 rounded-2xl border-2 border-fg bg-mint px-5 py-3 text-sm font-black shadow-[0_3px_0_#26312c] disabled:opacity-50"><Save size={17}/>{saving ? "Saving…" : "Save changes"}</button></div>
     </form>
   </div>;
+}
+
+function ManualChapterForm({ onSaved }: { onSaved: () => Promise<void> }) {
+  const { push } = useToast();
+  const [current, setCurrent] = useState(false);
+  const [saving, setSaving] = useState(false);
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const raw = Object.fromEntries(new FormData(form));
+    const startedOn = String(raw.startedOn || "").trim();
+    const endedOn = String(raw.endedOn || "").trim();
+    const rawNotes = String(raw.rawNotes || "").trim();
+    const body = {
+      company: String(raw.company).trim(),
+      title: String(raw.title).trim(),
+      current,
+      achievements: [],
+      ...(startedOn ? { startedOn } : {}),
+      ...(!current && endedOn ? { endedOn } : {}),
+      ...(rawNotes ? { rawNotes } : {}),
+    };
+    setSaving(true);
+    try {
+      await apiFetch("/api/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      push("Chapter saved.");
+      form.reset();
+      setCurrent(false);
+      await onSaved();
+    } catch (caught) {
+      push(getApiError(caught), "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+  return (
+    <form onSubmit={save} className="space-y-3">
+      <p className="text-xs font-black uppercase tracking-[.2em] text-plum">
+        Manual entry
+      </p>
+      <Input name="title" label="Title" placeholder="Line cook" required autoFocus />
+      <Input name="company" label="Company" placeholder="Sun Cafe" required />
+      <div className="grid grid-cols-2 gap-3">
+        <Input name="startedOn" label="Start date" type="date" />
+        {!current && <Input name="endedOn" label="End date" type="date" />}
+      </div>
+      <label className="flex items-center gap-2 text-sm font-bold">
+        <input
+          type="checkbox"
+          name="current"
+          checked={current}
+          onChange={(event) => setCurrent(event.target.checked)}
+          className="accent-coral"
+        />
+        I&apos;m still doing this
+      </label>
+      <TextArea name="rawNotes" label="Description — optional" />
+      <button
+        disabled={saving}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-fg bg-mint py-3 font-black shadow-[0_4px_0_#26312c] disabled:opacity-50"
+      >
+        <Plus size={17} />
+        {saving ? "Saving…" : "Save chapter"}
+      </button>
+    </form>
+  );
 }
 
 function ChapterEditor({
@@ -744,6 +845,7 @@ function Input(props: {
   required?: boolean;
   placeholder?: string;
   defaultValue?: string;
+  autoFocus?: boolean;
 }) {
   const { label, ...input } = props;
   return (
