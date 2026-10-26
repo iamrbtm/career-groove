@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { getUserTier, requireUser, unauthorized } from "@/lib/api-auth";
-import { normalizeStatus, normalizeWorkMode } from "@/lib/csv-import-normalize";
+import { normalizeCsvDate, normalizeStatus, normalizeWorkMode } from "@/lib/csv-import-normalize";
 
 function parseCsvLine(line: string) {
   const values: string[] = [];
@@ -113,8 +113,8 @@ export async function POST(request: Request) {
           status,
           row.description || `${row.title} at ${row.company}`,
           row.notes || null,
-          row.followUpDueAt && /^\d{4}-\d{2}-\d{2}/.test(row.followUpDueAt) ? row.followUpDueAt : null,
-          row.appliedAt && /^\d{4}-\d{2}-\d{2}/.test(row.appliedAt) ? row.appliedAt : null,
+          row.followUpDueAt && /^\d{4}-\d{2}-\d{2}/.test(row.followUpDueAt) ? normalizeCsvDate(row.followUpDueAt) : null,
+          row.appliedAt && /^\d{4}-\d{2}-\d{2}/.test(row.appliedAt) ? normalizeCsvDate(row.appliedAt) : null,
           JSON.stringify({ importedAt: new Date().toISOString(), importSource: "csv" }),
         ],
       );
