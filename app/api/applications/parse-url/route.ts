@@ -1,6 +1,8 @@
 import { auth } from "@/auth";
 import { parseJobPost } from "@/lib/job-post-parser";
+import { safeFetchUrl, UnsafeUrlError } from "@/lib/fetch-url";
 import { writeFile, unlink } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 
 function isSafeUrl(input: string): boolean {
   let parsed: URL;
@@ -29,10 +31,11 @@ export async function POST(request: Request) {
   let text = description || "";
   if (url) {
     try {
-      const response = await fetch(url);
-      if (!response.ok) return Response.json({ error: `Could not fetch URL (${response.status})` }, { status: 400 });
-      const html = await response.text();
-      const tmpPath = `/tmp/cg-parse-${Date.now()}.html`;
+      const { status, text: html } = await safeFetchUrl(url);
+      if (status < 200 || status >= 300) {
+        return Response.json({ error: `Could not fetch URL (${status})` }, { status: 400 });
+      }
+      const tmpPath = `/tmp/cg-parse-${randomUUID()}.html`;
       await writeFile(tmpPath, html);
       text = html
         .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
@@ -42,7 +45,13 @@ export async function POST(request: Request) {
         .replace(/\s+/g, " ")
         .trim();
       await unlink(tmpPath).catch(() => {});
-    } catch {
+    } catch (error) {
+      if (
+        error instanceof UnsafeUrlError ||
+        (error as { name?: string } | null)?.name === "TimeoutError"
+      ) {
+        return Response.json({ error: "Only public job posting URLs are supported." }, { status: 400 });
+      }
       return Response.json({ error: "Could not fetch the URL content." }, { status: 400 });
     }
   }
