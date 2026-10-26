@@ -1,12 +1,19 @@
+import { timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
 import { sendAPNsNotification } from "@/lib/apns";
 import { buildFollowUpSubject, getDefaultDelay, type FollowUpType, followUpTypes } from "@/lib/follow-up";
 
-const workerSecret = process.env.MOBILE_NOTIFICATION_WORKER_SECRET;
+function authorized(request: Request) {
+  const expected = process.env.FOLLOW_UP_WORKER_SECRET || process.env.MOBILE_NOTIFICATION_WORKER_SECRET;
+  const actual = request.headers.get("authorization")?.replace(/^Bearer /, "");
+  if (!expected || !actual) return false;
+  const left = Buffer.from(expected);
+  const right = Buffer.from(actual);
+  return left.length === right.length && timingSafeEqual(left, right);
+}
 
 export async function POST(request: Request) {
-  const auth = request.headers.get("authorization")?.replace("Bearer ", "");
-  if (!workerSecret || auth !== workerSecret) {
+  if (!authorized(request)) {
     return new Response("Unauthorized", { status: 401 });
   }
 

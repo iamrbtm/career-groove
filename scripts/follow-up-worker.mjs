@@ -1,9 +1,9 @@
 const intervalMs = Number(process.env.FOLLOW_UP_WORKER_INTERVAL_MS || 3600000);
 const endpoint = process.env.FOLLOW_UP_WORKER_ENDPOINT || "http://app:3000/api/internal/follow-up-worker";
-const secret = process.env.MOBILE_NOTIFICATION_WORKER_SECRET;
+const secret = process.env.FOLLOW_UP_WORKER_SECRET || process.env.MOBILE_NOTIFICATION_WORKER_SECRET;
 
 if (!secret) {
-  console.error("MOBILE_NOTIFICATION_WORKER_SECRET is required for the follow-up worker.");
+  console.error("FOLLOW_UP_WORKER_SECRET or MOBILE_NOTIFICATION_WORKER_SECRET is required.");
   process.exit(1);
 }
 
