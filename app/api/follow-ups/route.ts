@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { db, withTransaction } from "@/lib/db";
 import { requireUser, unauthorized } from "@/lib/api-auth";
 import { followUpTypes } from "@/lib/follow-up";
 
@@ -52,19 +52,24 @@ export async function POST(request: Request) {
   const appCheck = await db.query("SELECT id FROM applications WHERE id=$1 AND user_id=$2", [input.applicationId, user]);
   if (!appCheck.rowCount) return Response.json({ error: "Application not found." }, { status: 404 });
 
-  const result = await db.query(
-    `INSERT INTO application_follow_ups(user_id,application_id,sequence_number,follow_up_type,subject,message,scheduled_for,delivery_method)
-     VALUES($1,$2,$3,$4,$5,$6,$7,$8)
-     RETURNING id,application_id AS "applicationId",sequence_number AS "sequenceNumber",
-      follow_up_type AS "followUpType",subject,message,status,scheduled_for AS "scheduledFor",
-      delivery_method AS "deliveryMethod",ai_generated AS "aiGenerated",created_at AS "createdAt"`,
-    [user, input.applicationId, input.sequenceNumber, input.followUpType, input.subject || null, input.message || null, input.scheduledFor || null, input.deliveryMethod],
-  );
-
-  await db.query(
-    `UPDATE applications SET follow_up_due_at=$1,updated_at=now() WHERE id=$2 AND user_id=$3`,
-    [input.scheduledFor || null, input.applicationId, user],
-  );
+  const status = input.scheduledFor ? "scheduled" : "draft";
+  const result = await withTransaction(async (client) => {
+    const insert = await client.query(
+      `INSERT INTO application_follow_ups(user_id,application_id,sequence_number,follow_up_type,subject,message,scheduled_for,delivery_method,status)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       RETURNING id,application_id AS "applicationId",sequence_number AS "sequenceNumber",
+        follow_up_type AS "followUpType",subject,message,status,scheduled_for AS "scheduledFor",
+        delivery_method AS "deliveryMethod",ai_generated AS "aiGenerated",created_at AS "createdAt"`,
+      [user, input.applicationId, input.sequenceNumber, input.followUpType, input.subject || null, input.message || null, input.scheduledFor || null, input.deliveryMethod, status],
+    );
+    if (input.scheduledFor) {
+      await client.query(
+        `UPDATE applications SET follow_up_due_at=$1,updated_at=now() WHERE id=$2 AND user_id=$3`,
+        [input.scheduledFor, input.applicationId, user],
+      );
+    }
+    return insert;
+  });
 
   return Response.json({ followUp: result.rows[0] }, { status: 201 });
 }
