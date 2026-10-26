@@ -179,10 +179,10 @@ export function ResearchChat() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="fixed bottom-24 right-5 z-40 grid size-14 place-items-center rounded-full border-2 border-ink bg-coral shadow-[0_4px_0_#26312c] transition-transform active:translate-y-0.5 active:shadow-none md:bottom-8"
+        className="fixed bottom-24 right-5 z-40 grid size-14 place-items-center rounded-full border-2 border-fg bg-coral shadow-[0_4px_0_#26312c] transition-transform active:translate-y-0.5 active:shadow-none md:bottom-8"
         aria-label={open ? "Close research chat" : "Open research chat"}
       >
-        {open ? <X size={24} className="text-ink" /> : <MessageCircleMore size={24} className="text-ink" />}
+        {open ? <X size={24} className="text-fg" /> : <MessageCircleMore size={24} className="text-fg" />}
       </button>
 
       <AnimatePresence>
@@ -192,11 +192,11 @@ export function ResearchChat() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="fixed bottom-40 right-4 z-40 flex max-h-[600px] w-[calc(100vw-2rem)] max-w-[420px] flex-col rounded-3xl border-2 border-ink bg-white shadow-[0_8px_0_#26312c] md:bottom-24 md:right-5"
+            className="fixed bottom-40 right-4 z-40 flex max-h-[600px] w-[calc(100vw-2rem)] max-w-[420px] flex-col rounded-3xl border-2 border-fg bg-panel shadow-[0_8px_0_#26312c] md:bottom-24 md:right-5"
           >
-            <div className="flex items-center gap-3 border-b-2 border-ink/10 px-5 py-4">
+            <div className="flex items-center gap-3 border-b-2 border-edge/10 px-5 py-4">
               <div className="grid size-9 place-items-center rounded-xl bg-sun">
-                <Bot size={18} className="text-ink" />
+                <Bot size={18} className="text-fg" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-black">Groove Assistant</p>
@@ -218,8 +218,8 @@ export function ResearchChat() {
                   <div
                     className={`max-w-[90%] rounded-3xl px-4 py-3 text-sm leading-6 ${
                       msg.role === "user"
-                        ? "bg-coral/20 text-ink"
-                        : "bg-cream text-ink"
+                        ? "bg-coral/20 text-fg"
+                        : "bg-paper text-fg"
                     }`}
                   >
                     {msg.role === "assistant" && msg.content ? (
@@ -227,7 +227,7 @@ export function ResearchChat() {
                     ) : msg.content ? (
                       msg.content
                     ) : (
-                      <span className="italic text-ink/40">Thinking...</span>
+                      <span className="italic text-fg/40">Thinking...</span>
                     )}
                   </div>
                 </div>
@@ -235,7 +235,7 @@ export function ResearchChat() {
 
               {loading && !messages[messages.length - 1]?.content && (
                 <div className="flex justify-start">
-                  <div className="rounded-3xl bg-cream px-4 py-3 text-sm text-ink/60">
+                  <div className="rounded-3xl bg-paper px-4 py-3 text-sm text-fg/60">
                     <div className="flex items-center gap-2">
                       <LoaderCircle size={14} className="animate-spin" />
                       Researching...
@@ -256,7 +256,7 @@ export function ResearchChat() {
                     type="button"
                     disabled={generatingDoc}
                     onClick={() => generateDocument("resume")}
-                    className="flex items-center gap-1.5 rounded-2xl border-2 border-ink bg-sun px-4 py-2 text-xs font-black shadow-[0_3px_0_#26312c] active:translate-y-0.5 active:shadow-none disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-2xl border-2 border-fg bg-sun px-4 py-2 text-xs font-black shadow-[0_3px_0_#26312c] active:translate-y-0.5 active:shadow-none disabled:opacity-50"
                   >
                     {generatingDoc ? <LoaderCircle size={14} className="animate-spin" /> : <Sparkles size={14} />}
                     Resume
@@ -265,7 +265,7 @@ export function ResearchChat() {
                     type="button"
                     disabled={generatingDoc}
                     onClick={() => generateDocument("cover_letter")}
-                    className="flex items-center gap-1.5 rounded-2xl border-2 border-ink bg-mint px-4 py-2 text-xs font-black shadow-[0_3px_0_#26312c] active:translate-y-0.5 active:shadow-none disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-2xl border-2 border-fg bg-mint px-4 py-2 text-xs font-black shadow-[0_3px_0_#26312c] active:translate-y-0.5 active:shadow-none disabled:opacity-50"
                   >
                     {generatingDoc ? <LoaderCircle size={14} className="animate-spin" /> : <Sparkles size={14} />}
                     Cover Letter
@@ -274,7 +274,7 @@ export function ResearchChat() {
                     type="button"
                     disabled={generatingDoc}
                     onClick={() => generateDocument("both")}
-                    className="flex items-center gap-1.5 rounded-2xl border-2 border-ink bg-white px-4 py-2 text-xs font-black shadow-[0_3px_0_#26312c] active:translate-y-0.5 active:shadow-none disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-2xl border-2 border-fg bg-panel px-4 py-2 text-xs font-black shadow-[0_3px_0_#26312c] active:translate-y-0.5 active:shadow-none disabled:opacity-50"
                   >
                     {generatingDoc ? <LoaderCircle size={14} className="animate-spin" /> : <Sparkles size={14} />}
                     Both
@@ -285,7 +285,7 @@ export function ResearchChat() {
               <div ref={bottomRef} />
             </div>
 
-            <form onSubmit={send} className="flex items-end gap-2 border-t-2 border-ink/10 px-4 py-3">
+            <form onSubmit={send} className="flex items-end gap-2 border-t-2 border-edge/10 px-4 py-3">
               <textarea
                 ref={inputRef}
                 value={input}
@@ -298,12 +298,12 @@ export function ResearchChat() {
                 }}
                 placeholder="Paste a job URL or ask about a company..."
                 rows={2}
-                className="min-h-10 flex-1 resize-none rounded-2xl bg-cream px-4 py-3 text-sm outline-none placeholder:text-ink/30"
+                className="min-h-10 flex-1 resize-none rounded-2xl bg-paper px-4 py-3 text-sm outline-none placeholder:text-fg/30"
               />
               <button
                 type="submit"
                 disabled={loading || !input.trim()}
-                className="grid size-11 shrink-0 place-items-center rounded-2xl border-2 border-ink bg-mint shadow-[0_3px_0_#26312c] disabled:opacity-40"
+                className="grid size-11 shrink-0 place-items-center rounded-2xl border-2 border-fg bg-mint shadow-[0_3px_0_#26312c] disabled:opacity-40"
               >
                 {loading ? <LoaderCircle size={18} className="animate-spin" /> : <Send size={18} />}
               </button>

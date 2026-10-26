@@ -129,7 +129,7 @@ export function JourneyManager() {
           <button
             key={id}
             onClick={() => setTab(id)}
-            className={`flex items-center gap-2 rounded-full border-2 border-ink px-4 py-2 text-sm font-black ${tab === id ? "bg-sun shadow-[0_3px_0_#26312c]" : "bg-white"}`}
+            className={`flex items-center gap-2 rounded-full border-2 border-fg px-4 py-2 text-sm font-black ${tab === id ? "bg-sun shadow-[0_3px_0_#26312c]" : "bg-panel"}`}
           >
             <Icon size={17} />
             {label}
@@ -145,12 +145,12 @@ export function JourneyManager() {
         </p>
       )}
       <section className={`mt-6 grid items-start gap-6 ${tab === "skills" ? "" : "lg:grid-cols-[.75fr_1.25fr]"}`}>
-        <div className="h-fit rounded-3xl border-2 border-ink bg-white p-5 shadow-[0_5px_0_#26312c]">
+        <div className="h-fit rounded-3xl border-2 border-fg bg-panel p-5 shadow-[0_5px_0_#26312c]">
           {tab === "jobs" && (
             <div>
               <FormTitle icon={<BriefcaseBusiness />} text="Add a work chapter" />
-              <p className="text-sm leading-6 text-ink/60">Answer one question at a time. Your interviewer will help uncover the responsibilities, skills, and results worth remembering.</p>
-              <Link href="/interview" className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-coral py-3 font-black shadow-[0_4px_0_#26312c]"><Plus size={17}/> Start chapter interview</Link>
+              <p className="text-sm leading-6 text-fg/60">Answer one question at a time. Your interviewer will help uncover the responsibilities, skills, and results worth remembering.</p>
+              <Link href="/interview" className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-fg bg-coral py-3 font-black shadow-[0_4px_0_#26312c]"><Plus size={17}/> Start chapter interview</Link>
             </div>
           )}
           {tab === "homes" && (
@@ -195,7 +195,7 @@ export function JourneyManager() {
                   onChange={(event) =>
                     setCredentialTab(event.target.value as CredentialKind)
                   }
-                  className="mt-1 w-full rounded-xl border-2 border-ink/15 px-3 py-2.5 text-sm normal-case"
+                  className="mt-1 w-full rounded-xl border-2 border-edge/15 px-3 py-2.5 text-sm normal-case"
                 >
                   <option value="education">Education</option>
                   <option value="license">License</option>
@@ -214,8 +214,8 @@ export function JourneyManager() {
           {tab === "skills" && (
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
               <div><FormTitle icon={<BadgeCheck />} text="Your skill board" />
-              <p className="max-w-2xl text-sm leading-6 text-ink/60">Skills are grouped by category. Select any card to update its name, proficiency, or category.</p></div>
-              <Link href="/interview" className="flex shrink-0 items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-coral px-5 py-3 font-black shadow-[0_4px_0_#26312c]"><Plus size={17}/> Add a work chapter</Link>
+              <p className="max-w-2xl text-sm leading-6 text-fg/60">Skills are grouped by category. Select any card to update its name, proficiency, or category.</p></div>
+              <Link href="/interview" className="flex shrink-0 items-center justify-center gap-2 rounded-2xl border-2 border-fg bg-coral px-5 py-3 font-black shadow-[0_4px_0_#26312c]"><Plus size={17}/> Add a work chapter</Link>
             </div>
           )}
         </div>
@@ -365,8 +365,8 @@ function CredentialTabs({
             onClick={() => onSelect(id)}
             className={`flex shrink-0 items-center gap-2 rounded-2xl border-2 px-3 py-2 text-sm font-black transition ${
               selected === id
-                ? "border-ink bg-mint shadow-[0_3px_0_#26312c]"
-                : "border-ink/15 bg-white/70 text-ink/60 hover:border-ink/40"
+                ? "border-fg bg-mint shadow-[0_3px_0_#26312c]"
+                : "border-edge/15 bg-panel/70 text-fg/60 hover:border-edge/40"
             }`}
           >
             <Icon size={17} />
@@ -399,11 +399,11 @@ function SkillBoard({ skills, onSelect }: { skills: AnyRow[]; onSelect: (skill: 
   return <div className="overflow-x-auto pb-4"><div className="grid min-w-[1120px] grid-cols-6 gap-4">
     {categoryEntries.map(([category, label]) => {
       const columnSkills = skills.filter((skill) => (skill.category || "other") === category);
-      return <section key={category} className="min-h-72 rounded-3xl border-2 border-ink/15 bg-white/55 p-3">
+      return <section key={category} className="min-h-72 rounded-3xl border-2 border-edge/15 bg-panel/55 p-3">
         <div className="flex items-start justify-between gap-2 px-1 py-2"><h3 className="text-xs font-black uppercase leading-5 tracking-wider text-plum">{label}</h3><span className="rounded-full bg-ink px-2 py-0.5 text-xs font-black text-cream">{columnSkills.length}</span></div>
-        <div className="mt-2 space-y-3">{columnSkills.map((skill) => <button key={skill.id} type="button" onClick={() => onSelect(skill)} className="w-full rounded-2xl border-2 border-ink/15 bg-white p-3 text-left shadow-[0_3px_0_rgba(38,49,44,.14)] transition hover:-translate-y-0.5 hover:border-coral focus:outline-none focus:ring-2 focus:ring-coral">
+        <div className="mt-2 space-y-3">{columnSkills.map((skill) => <button key={skill.id} type="button" onClick={() => onSelect(skill)} className="w-full rounded-2xl border-2 border-edge/15 bg-panel p-3 text-left shadow-[0_3px_0_rgba(38,49,44,.14)] transition hover:-translate-y-0.5 hover:border-coral focus:outline-none focus:ring-2 focus:ring-coral">
           <span className="block text-sm font-black leading-5">{skill.name}</span>
-          <span className="mt-2 block text-xs font-bold text-ink/50">{proficiencyLabels[Number(skill.proficiency)] || "Unrated"}</span>
+          <span className="mt-2 block text-xs font-bold text-fg/50">{proficiencyLabels[Number(skill.proficiency)] || "Unrated"}</span>
         </button>)}</div>
       </section>;
     })}
@@ -431,18 +431,18 @@ function SkillEditor({ skill, onClose, onSaved, onDeleted }: { skill: AnyRow; on
     catch (caught) { setError(caught instanceof Error ? caught.message : "Skill deletion failed."); setSaving(false); }
   }
   return <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-ink/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={`Edit ${skill.name}`}>
-    <form onSubmit={save} className="w-full max-w-lg rounded-4xl border-2 border-ink bg-cream p-6 shadow-pop md:p-8">
-      <div className="flex items-start justify-between gap-4"><div className="flex gap-3"><div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-sun/50"><BadgeCheck size={21}/></div><div><p className="text-xs font-black uppercase tracking-[.2em] text-plum">Edit skill</p><h2 className="font-[var(--font-display)] text-2xl font-black">Tune this skill</h2></div></div><button type="button" onClick={onClose} className="grid size-10 place-items-center rounded-full bg-white" aria-label="Close skill editor"><X/></button></div>
+    <form onSubmit={save} className="w-full max-w-lg rounded-4xl border-2 border-fg bg-paper p-6 shadow-pop md:p-8">
+      <div className="flex items-start justify-between gap-4"><div className="flex gap-3"><div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-sun/50"><BadgeCheck size={21}/></div><div><p className="text-xs font-black uppercase tracking-[.2em] text-plum">Edit skill</p><h2 className="font-[var(--font-display)] text-2xl font-black">Tune this skill</h2></div></div><button type="button" onClick={onClose} className="grid size-10 place-items-center rounded-full bg-panel" aria-label="Close skill editor"><X/></button></div>
       <div className="mt-6">
-        <label className="block text-xs font-black uppercase tracking-wider text-plum">Skill name<input value={name} onChange={(event) => setName(event.target.value)} className="mt-1 w-full rounded-xl border-2 border-ink/15 bg-white px-3 py-3 text-sm font-bold normal-case outline-none focus:border-coral"/></label>
+        <label className="block text-xs font-black uppercase tracking-wider text-plum">Skill name<input value={name} onChange={(event) => setName(event.target.value)} className="mt-1 w-full rounded-xl border-2 border-edge/15 bg-panel px-3 py-3 text-sm font-bold normal-case outline-none focus:border-coral"/></label>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <label className="block text-xs font-black uppercase tracking-wider text-plum">Proficiency<select value={proficiency} onChange={(event) => setProficiency(Number(event.target.value))} className="mt-1 w-full rounded-xl border-2 border-ink/15 bg-white px-3 py-2.5 text-sm font-bold normal-case outline-none focus:border-coral">{proficiencyLabels.slice(1).map((label, index) => <option key={label} value={index + 1}>{label}</option>)}</select></label>
-          <label className="block text-xs font-black uppercase tracking-wider text-plum">Category<select value={category} onChange={(event) => setCategory(event.target.value as SkillCategory)} className="mt-1 w-full rounded-xl border-2 border-ink/15 bg-white px-3 py-2.5 text-sm font-bold normal-case outline-none focus:border-coral">{categoryEntries.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label className="block text-xs font-black uppercase tracking-wider text-plum">Proficiency<select value={proficiency} onChange={(event) => setProficiency(Number(event.target.value))} className="mt-1 w-full rounded-xl border-2 border-edge/15 bg-panel px-3 py-2.5 text-sm font-bold normal-case outline-none focus:border-coral">{proficiencyLabels.slice(1).map((label, index) => <option key={label} value={index + 1}>{label}</option>)}</select></label>
+          <label className="block text-xs font-black uppercase tracking-wider text-plum">Category<select value={category} onChange={(event) => setCategory(event.target.value as SkillCategory)} className="mt-1 w-full rounded-xl border-2 border-edge/15 bg-panel px-3 py-2.5 text-sm font-bold normal-case outline-none focus:border-coral">{categoryEntries.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         </div>
-        <p className="mt-4 text-xs font-bold text-ink/45">Used in {skill.chapterCount} work {skill.chapterCount === 1 ? "chapter" : "chapters"}</p>
+        <p className="mt-4 text-xs font-bold text-fg/45">Used in {skill.chapterCount} work {skill.chapterCount === 1 ? "chapter" : "chapters"}</p>
         {error && <p className="mt-2 text-xs font-bold text-coral">{error}</p>}
       </div>
-      <div className="mt-6 flex items-center gap-3"><button type="button" onClick={removeSkill} disabled={saving} className="grid size-12 place-items-center rounded-2xl border-2 border-ink/15 bg-white text-ink/50 hover:border-coral hover:text-coral" aria-label={`Delete ${skill.name}`} title="Delete skill"><Trash2 size={19}/></button><button type="button" onClick={onClose} className="ml-auto rounded-2xl px-4 py-3 text-sm font-black">Cancel</button><button disabled={saving || !name.trim()} className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-mint px-5 py-3 text-sm font-black shadow-[0_3px_0_#26312c] disabled:opacity-50"><Save size={17}/>{saving ? "Saving…" : "Save changes"}</button></div>
+      <div className="mt-6 flex items-center gap-3"><button type="button" onClick={removeSkill} disabled={saving} className="grid size-12 place-items-center rounded-2xl border-2 border-edge/15 bg-panel text-fg/50 hover:border-coral hover:text-coral" aria-label={`Delete ${skill.name}`} title="Delete skill"><Trash2 size={19}/></button><button type="button" onClick={onClose} className="ml-auto rounded-2xl px-4 py-3 text-sm font-black">Cancel</button><button disabled={saving || !name.trim()} className="flex items-center gap-2 rounded-2xl border-2 border-fg bg-mint px-5 py-3 text-sm font-black shadow-[0_3px_0_#26312c] disabled:opacity-50"><Save size={17}/>{saving ? "Saving…" : "Save changes"}</button></div>
     </form>
   </div>;
 }
@@ -554,7 +554,7 @@ function ChapterEditor({
     >
       <form
         onSubmit={save}
-        className="mx-auto max-w-3xl rounded-4xl border-2 border-ink bg-cream p-5 shadow-pop md:p-8"
+        className="mx-auto max-w-3xl rounded-4xl border-2 border-fg bg-paper p-5 shadow-pop md:p-8"
       >
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -568,7 +568,7 @@ function ChapterEditor({
           <button
             type="button"
             onClick={onClose}
-            className="grid size-10 place-items-center rounded-full bg-white"
+            className="grid size-10 place-items-center rounded-full bg-panel"
             aria-label="Close chapter"
           >
             <X />
@@ -635,10 +635,10 @@ function ChapterEditor({
         )}
         <div className="mt-5 flex flex-wrap justify-end gap-3">
           <div className="mr-auto flex flex-wrap gap-3">
-          <Link href={`/interview?jobId=${job.id}`} className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-coral px-5 py-3 text-sm font-black shadow-[0_3px_0_#26312c]">
+          <Link href={`/interview?jobId=${job.id}`} className="flex items-center gap-2 rounded-2xl border-2 border-fg bg-coral px-5 py-3 text-sm font-black shadow-[0_3px_0_#26312c]">
             <MessageCircleQuestion size={17}/> Re-interview
           </Link>
-          <button type="button" onClick={reprocess} disabled={saving || reprocessing} className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-mint px-5 py-3 text-sm font-black shadow-[0_3px_0_#26312c] disabled:opacity-50">
+          <button type="button" onClick={reprocess} disabled={saving || reprocessing} className="flex items-center gap-2 rounded-2xl border-2 border-fg bg-mint px-5 py-3 text-sm font-black shadow-[0_3px_0_#26312c] disabled:opacity-50">
             <RefreshCw size={17} className={reprocessing ? "animate-spin" : ""}/>{reprocessing ? "Re-processing…" : "Re-process with AI"}
           </button>
           </div>
@@ -651,7 +651,7 @@ function ChapterEditor({
           </button>
           <button
             disabled={saving}
-            className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-sun px-5 py-3 text-sm font-black shadow-[0_3px_0_#26312c]"
+            className="flex items-center gap-2 rounded-2xl border-2 border-fg bg-sun px-5 py-3 text-sm font-black shadow-[0_3px_0_#26312c]"
           >
             <Save size={17} />
             {saving ? "Saving…" : "Save changes"}
@@ -687,7 +687,7 @@ function JobCard({
       : null;
 
   return (
-    <article className="rounded-3xl border-2 border-ink/15 bg-white/70 p-5">
+    <article className="rounded-3xl border-2 border-edge/15 bg-panel/70 p-5">
       <div className="flex gap-4">
         <button
           onClick={onView}
@@ -710,7 +710,7 @@ function JobCard({
               </span>
             )}
           </div>
-          <p className="text-sm text-ink/55">
+          <p className="text-sm text-fg/55">
             {job.company}
             {job.location ? ` · ${job.location}` : ""}
           </p>
@@ -729,7 +729,7 @@ function JobCard({
         <button
           onClick={onDelete}
           aria-label={`Delete ${job.title}`}
-          className="self-start text-ink/30 hover:text-coral"
+          className="self-start text-fg/30 hover:text-coral"
         >
           <Trash2 size={18} />
         </button>
@@ -751,7 +751,7 @@ function Input(props: {
       {label}
       <input
         {...input}
-        className="mt-1 w-full rounded-xl border-2 border-ink/15 px-3 py-2.5 text-sm font-bold normal-case outline-none focus:border-coral"
+        className="mt-1 w-full rounded-xl border-2 border-edge/15 px-3 py-2.5 text-sm font-bold normal-case outline-none focus:border-coral"
       />
     </label>
   );
@@ -779,7 +779,7 @@ function TextArea({
         defaultValue={value === undefined ? defaultValue : undefined}
         value={value}
         onChange={onChange ? (event) => onChange(event.target.value) : undefined}
-        className={`mt-1 w-full resize-y rounded-2xl border-2 border-ink/15 bg-white p-4 text-sm font-medium normal-case leading-6 outline-none focus:border-coral ${tall ? "min-h-48" : "min-h-28"}`}
+        className={`mt-1 w-full resize-y rounded-2xl border-2 border-edge/15 bg-panel p-4 text-sm font-medium normal-case leading-6 outline-none focus:border-coral ${tall ? "min-h-48" : "min-h-28"}`}
       />
     </label>
   );
@@ -794,7 +794,7 @@ function FormTitle({ icon, text }: { icon: React.ReactNode; text: string }) {
 }
 function Submit() {
   return (
-    <button className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-coral py-3 font-black shadow-[0_4px_0_#26312c]">
+    <button className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-fg bg-coral py-3 font-black shadow-[0_4px_0_#26312c]">
       <Plus size={17} />
       Save chapter
     </button>
@@ -812,7 +812,7 @@ function Card({
   onDelete: () => void;
 }) {
   return (
-    <article className="rounded-3xl border-2 border-ink/15 bg-white/70 p-5">
+    <article className="rounded-3xl border-2 border-edge/15 bg-panel/70 p-5">
       <div className="flex gap-4">
         <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-mint/40">
           {icon}
@@ -821,12 +821,12 @@ function Card({
           <h3 className="font-[var(--font-display)] text-lg font-black">
             {title}
           </h3>
-          <p className="text-sm text-ink/55">{sub}</p>
+          <p className="text-sm text-fg/55">{sub}</p>
         </div>
         <button
           onClick={onDelete}
           aria-label={`Delete ${title}`}
-          className="self-start text-ink/30 hover:text-coral"
+          className="self-start text-fg/30 hover:text-coral"
         >
           <Trash2 size={18} />
         </button>
@@ -865,27 +865,27 @@ function ResidenceCard({
   const endedOn = formatMonthYear(home.endedOn);
 
   return (
-    <article className="rounded-3xl border-2 border-ink/15 bg-white/70 p-5">
+    <article className="rounded-3xl border-2 border-edge/15 bg-panel/70 p-5">
       <div className="flex items-start gap-4">
         <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-mint/40">
           <Home />
         </div>
         <div className="grid min-w-0 flex-1 gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
           <div className="min-w-0">
-            <address className="not-italic text-sm leading-5 text-ink/55">
-              <span className="block break-words font-black text-ink">
+            <address className="not-italic text-sm leading-5 text-fg/55">
+              <span className="block break-words font-black text-fg">
                 {addressLineOne}
               </span>
               <span className="block break-words">{addressLineTwo}</span>
             </address>
           </div>
           <div
-            className="flex items-center gap-2 text-xs font-bold text-ink/65 sm:justify-end"
+            className="flex items-center gap-2 text-xs font-bold text-fg/65 sm:justify-end"
             aria-label={`Residence dates: ${startedOn || "start date not set"} to ${endedOn || "present"}`}
           >
             <CalendarDays size={17} className="shrink-0 text-plum" />
             <span>{startedOn || "Not set"}</span>
-            <span aria-hidden="true" className="text-ink/30">→</span>
+            <span aria-hidden="true" className="text-fg/30">→</span>
             <span>{endedOn || "Present"}</span>
           </div>
         </div>
@@ -894,7 +894,7 @@ function ResidenceCard({
             type="button"
             onClick={onEdit}
             aria-label={`Edit ${home.label || addressLineOne}`}
-            className="text-ink/30 hover:text-plum"
+            className="text-fg/30 hover:text-plum"
           >
             <Pencil size={18} />
           </button>
@@ -902,7 +902,7 @@ function ResidenceCard({
             type="button"
             onClick={onDelete}
             aria-label={`Delete ${home.label || addressLineOne}`}
-            className="text-ink/30 hover:text-coral"
+            className="text-fg/30 hover:text-coral"
           >
             <Trash2 size={18} />
           </button>
@@ -952,7 +952,7 @@ function ResidenceEditor({
     >
       <form
         onSubmit={save}
-        className="w-full max-w-xl rounded-4xl border-2 border-ink bg-cream p-6 shadow-pop md:p-8"
+        className="w-full max-w-xl rounded-4xl border-2 border-fg bg-paper p-6 shadow-pop md:p-8"
       >
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -968,7 +968,7 @@ function ResidenceEditor({
               </h2>
             </div>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close residence editor" className="grid size-10 place-items-center rounded-full bg-white">
+          <button type="button" onClick={onClose} aria-label="Close residence editor" className="grid size-10 place-items-center rounded-full bg-panel">
             <X />
           </button>
         </div>
@@ -991,7 +991,7 @@ function ResidenceEditor({
         {error && <p className="mt-4 rounded-2xl bg-coral/20 p-3 text-sm font-bold">{error}</p>}
         <div className="mt-6 flex justify-end gap-3">
           <button type="button" onClick={onClose} className="rounded-2xl px-5 py-3 text-sm font-black">Cancel</button>
-          <button disabled={saving} className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-mint px-5 py-3 text-sm font-black shadow-[0_3px_0_#26312c] disabled:opacity-50">
+          <button disabled={saving} className="flex items-center gap-2 rounded-2xl border-2 border-fg bg-mint px-5 py-3 text-sm font-black shadow-[0_3px_0_#26312c] disabled:opacity-50">
             <Save size={17} />
             {saving ? "Saving…" : "Save changes"}
           </button>

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Bot, LoaderCircle, Search } from "lucide-react";
 import { AI_TASKS } from "@/lib/ai-tasks";
 
-type Provider = "openai" | "anthropic" | "google" | "ollama" | "nvidia";
+type Provider = "openai" | "anthropic" | "google" | "ollama" | "nvidia" | "kilo";
 type Connection = { provider: Provider; selectedModel: string; active: boolean; models: { id: string; name: string }[] };
 type Mapping = { task: string; provider: Provider; model: string };
 
@@ -14,6 +14,7 @@ const providerNames: Record<Provider, string> = {
   google: "Gemini",
   ollama: "Ollama",
   nvidia: "NVIDIA",
+  kilo: "Kilo",
 };
 
 function SearchableSelect({
@@ -54,21 +55,21 @@ function SearchableSelect({
   return (
     <div ref={ref} className="relative">
       <div className="relative">
-        <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink/35" />
+        <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg/35" />
         <input
           value={open ? search : selectedLabel || ""}
           onChange={(e) => setSearch(e.target.value)}
           onFocus={() => { if (!disabled) setOpen(true); }}
           placeholder={placeholder}
           disabled={disabled}
-          className="w-full rounded-xl border-2 border-ink/15 bg-white py-2 pl-8 pr-3 text-sm font-bold outline-none focus:border-coral"
+          className="w-full rounded-xl border-2 border-edge/15 bg-panel py-2 pl-8 pr-3 text-sm font-bold outline-none focus:border-coral"
         />
       </div>
       {open && (
-        <div className="absolute z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-xl border-2 border-ink/15 bg-white shadow-lg">
+        <div className="absolute z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-xl border-2 border-edge/15 bg-panel shadow-lg">
           <div
-            className={`cursor-pointer border-b border-ink/10 px-3 py-2 text-sm ${
-              !value ? "bg-sun/20 font-black" : "hover:bg-cream"
+            className={`cursor-pointer border-b border-edge/10 px-3 py-2 text-sm ${
+              !value ? "bg-sun/20 font-black" : "hover:bg-paper"
             }`}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => { onChange(""); setOpen(false); setSearch(""); }}
@@ -76,13 +77,13 @@ function SearchableSelect({
             {placeholder}
           </div>
           {!filtered.length && (
-            <div className="px-3 py-4 text-center text-xs text-ink/40">No models match your search</div>
+            <div className="px-3 py-4 text-center text-xs text-fg/40">No models match your search</div>
           )}
           {filtered.map((option) => (
             <div
               key={option.value}
               className={`cursor-pointer px-3 py-2 text-sm ${
-                value === option.value ? "bg-sun/20 font-black" : "hover:bg-cream"
+                value === option.value ? "bg-sun/20 font-black" : "hover:bg-paper"
               }`}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => { onChange(option.value); setOpen(false); setSearch(""); }}
@@ -157,12 +158,12 @@ export function TaskModelAssigner({ refreshKey = 0, onChanged }: { refreshKey?: 
   );
 
   return (
-    <section className="lg:col-span-2 rounded-3xl border-2 border-ink bg-white p-6 shadow-[0_5px_0_#26312c]">
+    <section className="lg:col-span-2 rounded-3xl border-2 border-fg bg-panel p-6 shadow-[0_5px_0_#26312c]">
       <div className="flex items-start gap-3">
         <div className="grid size-11 place-items-center rounded-2xl bg-sun"><Bot /></div>
         <div>
           <h2 className="font-[var(--font-display)] text-xl font-black">AI task assignments</h2>
-          <p className="mt-1 text-sm text-ink/55">Assign a specific provider and model to each AI task. The assigned model is tried first; if it fails, other active AIs are used as fallback.</p>
+          <p className="mt-1 text-sm text-fg/55">Assign a specific provider and model to each AI task. The assigned model is tried first; if it fails, other active AIs are used as fallback.</p>
         </div>
       </div>
       {notice && <p role="status" className="mt-4 rounded-2xl bg-coral/15 px-4 py-3 text-sm font-bold">{notice}</p>}
@@ -172,14 +173,14 @@ export function TaskModelAssigner({ refreshKey = 0, onChanged }: { refreshKey?: 
           const currentValue = mapping ? `${mapping.provider}:${mapping.model}` : "";
           const isSaving = saving === task.id;
           return (
-            <div key={task.id} className={`rounded-2xl border-2 p-4 ${mapping ? "border-sun bg-sun/10" : "border-ink/10 bg-cream/30"}`}>
+            <div key={task.id} className={`rounded-2xl border-2 p-4 ${mapping ? "border-sun bg-sun/10" : "border-edge/10 bg-paper/30"}`}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="font-black text-sm">{task.label}</span>
                     {mapping && <span className="rounded-full bg-sun px-2 py-0.5 text-[10px] font-black uppercase">Assigned</span>}
                   </div>
-                  <p className="mt-0.5 text-xs text-ink/50">{task.description}</p>
+                  <p className="mt-0.5 text-xs text-fg/50">{task.description}</p>
                 </div>
                 <div className="w-full shrink-0 sm:mt-0 sm:w-64">
                   <SearchableSelect
@@ -197,7 +198,7 @@ export function TaskModelAssigner({ refreshKey = 0, onChanged }: { refreshKey?: 
         })}
       </div>
       {!modelOptions.length && (
-        <p className="mt-4 text-center text-sm font-bold text-ink/40">Connect an AI provider and select a model first.</p>
+        <p className="mt-4 text-center text-sm font-bold text-fg/40">Connect an AI provider and select a model first.</p>
       )}
     </section>
   );

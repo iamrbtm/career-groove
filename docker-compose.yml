@@ -1,112 +1,38 @@
-x-app-env: &app-env
-  DATABASE_URL: postgresql://career_groove:career_groove@db:5432/career_groove
-  REDIS_URL: redis://redis:6379
-  OLLAMA_BASE_URL: ${CAREER_GROOVE_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-
 x-ollama-hosts: &ollama-hosts
   - "host.docker.internal:host-gateway"
   - "ollama:host-gateway"
 
 services:
-  db:
-    image: postgres:17-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: career_groove
-      POSTGRES_USER: career_groove
-      POSTGRES_PASSWORD: career_groove
-      PGDATA: /var/lib/postgresql/data/pgdata
-    volumes:
-      - ./db/data:/var/lib/postgresql/data
-      - ./db/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U career_groove -d career_groove"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - career_groove_redis:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
   app:
     build:
       context: .
-      target: runner
+      target: all-in-one
+    image: career_groove:all-in-one
     restart: unless-stopped
-    ports: ["3000:3000"]
-    env_file: [.env]
-    environment: *app-env
-    extra_hosts: *ollama-hosts
-    depends_on:
-      db: { condition: service_healthy }
-      redis: { condition: service_healthy }
-  document-worker:
-    profiles: ["workers"]
-    build:
-      context: .
-      target: worker
-    restart: unless-stopped
-    command: ["node", "scripts/document-worker.mjs"]
-    env_file: [.env]
-    environment: *app-env
-    extra_hosts: *ollama-hosts
-    depends_on:
-      db: { condition: service_healthy }
-      redis: { condition: service_healthy }
-  mobile-notification-worker:
-    profiles: ["workers"]
-    build:
-      context: .
-      target: runner
-    restart: unless-stopped
-    command: ["node", "scripts/mobile-notification-worker.mjs"]
+    container_name: career_groove
+    ports:
+      - "3000:3000"
+      - "5432:5432"
+      - "6379:6379"
     env_file: [.env]
     environment:
-      MOBILE_NOTIFICATION_ENDPOINT: http://app:3000/api/internal/mobile-notifications
-    depends_on:
-      - app
-  follow-up-worker:
-    profiles: ["workers"]
-    build:
-      context: .
-      target: runner
-    restart: unless-stopped
-    command: ["node", "scripts/follow-up-worker.mjs"]
-    env_file: [.env]
-    environment:
-      FOLLOW_UP_WORKER_ENDPOINT: http://app:3000/api/internal/follow-up-worker
+      REDIS_URL: redis://127.0.0.1:6379
+      OLLAMA_BASE_URL: ${CAREER_GROOVE_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      MOBILE_NOTIFICATION_ENDPOINT: http://127.0.0.1:3000/api/internal/mobile-notifications
+      FOLLOW_UP_WORKER_ENDPOINT: http://127.0.0.1:3000/api/internal/follow-up-worker
       FOLLOW_UP_WORKER_INTERVAL_MS: 3600000
-      REDIS_URL: redis://redis:6379
-    depends_on:
-      - app
-      - redis
-  backup-scheduler:
-    profiles: ["workers"]
-    build:
-      context: .
-      target: backup-scheduler
-    restart: unless-stopped
-    user: "${CAREER_GROOVE_BACKUP_UID:-1000}:${CAREER_GROOVE_BACKUP_GID:-1000}"
-    working_dir: /workspace
-    command: ["node", "scripts/backup/scheduler.mjs"]
-    env_file: [.env]
-    environment:
-      DATABASE_URL: postgresql://career_groove:career_groove@db:5432/career_groove
-      CAREER_GROOVE_BACKUP_ROOT: /workspace/backups
+      CAREER_GROOVE_BACKUP_ROOT: /app/backups
       TZ: ${TZ:-America/Los_Angeles}
+    extra_hosts: *ollama-hosts
     volumes:
-      - .:/workspace
-    depends_on:
-      db: { condition: service_healthy }
+      - ./db/data:/var/lib/postgresql/data
+      - ./backups:/app/backups
+      - career_groove_redis:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
 volumes:
   career_groove_redis:

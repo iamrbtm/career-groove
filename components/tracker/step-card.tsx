@@ -12,17 +12,17 @@ export function StepCard({
   return (
     <section className={`rounded-3xl border-2 transition ${
       isCurrent
-        ? "border-ink bg-white shadow-[0_5px_0_#26312c]"
+        ? "border-fg bg-panel shadow-[0_5px_0_#26312c]"
         : isComplete
-          ? "border-mint/40 bg-white/80"
-          : "border-ink/10 bg-white/60"
+          ? "border-mint/40 bg-panel/80"
+          : "border-edge/10 bg-panel/60"
     }`}>
       <button
         onClick={onToggle}
         className="flex w-full items-center gap-4 p-5 text-left"
       >
-        <div className={`grid size-9 shrink-0 place-items-center rounded-full border-2 border-ink text-xs font-black ${
-          isComplete ? "bg-mint" : isCurrent ? "bg-sun" : "bg-white"
+        <div className={`grid size-9 shrink-0 place-items-center rounded-full border-2 border-fg text-xs font-black ${
+          isComplete ? "bg-mint" : isCurrent ? "bg-sun" : "bg-panel"
         }`}>
           {isComplete ? <Check size={16} /> : stepNumber}
         </div>
@@ -35,9 +35,9 @@ export function StepCard({
             <p className="mt-0.5 text-[10px] font-black uppercase tracking-[.18em] text-mint/70">Complete</p>
           )}
         </div>
-        {isExpanded ? <ChevronUp size={18} className="shrink-0 text-ink/40" /> : <ChevronDown size={18} className="shrink-0 text-ink/40" />}
+        {isExpanded ? <ChevronUp size={18} className="shrink-0 text-fg/40" /> : <ChevronDown size={18} className="shrink-0 text-fg/40" />}
       </button>
-      {isExpanded && <div className="border-t border-ink/10 px-5 pb-6 pt-4">{children}</div>}
+      {isExpanded && <div className="border-t border-edge/10 px-5 pb-6 pt-4">{children}</div>}
     </section>
   );
 }

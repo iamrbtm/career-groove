@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 
-const PROVIDERS = ["openai", "anthropic", "google", "ollama", "nvidia"] as const;
+const PROVIDERS = ["openai", "anthropic", "google", "ollama", "nvidia", "kilo"] as const;
 type Provider = typeof PROVIDERS[number];
 
 const MODEL_OPTIONS: Record<Provider, string[]> = {
@@ -10,6 +10,11 @@ const MODEL_OPTIONS: Record<Provider, string[]> = {
   google: ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"],
   ollama: ["llama3", "mistral", "mixtral", "gemma2", "qwen2.5-coder"],
   nvidia: ["nvidia/llama-3.3-70b-instruct", "nvidia/llama-3.1-405b-reasoning", "nvidia/llama-3.1-8b-instruct", "nvidia/mixtral-8x22b-instruct", "nvidia/command-r-08-2024"],
+  kilo: ["kilo-auto/free", "tencent/hy3:free", "poolside/laguna-s-2.1:free", "poolside/laguna-xs-2.1:free", "stepfun/step-3.7-flash:free", "nvidia/nemotron-3-ultra-550b-a55b:free", "openrouter/free"],
+};
+
+const BASE_URL_PLACEHOLDERS: Partial<Record<Provider, string>> = {
+  kilo: "https://api.kilo.ai/api/gateway",
 };
 
 export default function AdminAIConfig() {
@@ -75,7 +80,7 @@ export default function AdminAIConfig() {
         </div>
         <div>
           <label className="text-xs font-black uppercase tracking-wider text-plum">Base URL (optional)</label>
-          <input value={baseUrl} onChange={e => setBaseUrl(e.target.value)} placeholder="https://api.openai.com/v1" className="mt-1.5 block w-full rounded-2xl border-2 border-ink bg-white px-4 py-3 font-bold placeholder:text-ink/30" />
+          <input value={baseUrl} onChange={e => setBaseUrl(e.target.value)} placeholder={BASE_URL_PLACEHOLDERS[provider] || "https://api.openai.com/v1"} className="mt-1.5 block w-full rounded-2xl border-2 border-ink bg-white px-4 py-3 font-bold placeholder:text-ink/30" />
         </div>
         {message && <p className={`text-sm font-bold ${message.includes("Saved") ? "text-green-700" : "text-coral"}`}>{message}</p>}
         <button disabled={saving} onClick={save} className="rounded-2xl border-2 border-ink bg-ink px-6 py-3 font-black text-cream transition active:translate-y-1 disabled:opacity-60">

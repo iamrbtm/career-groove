@@ -2,6 +2,40 @@ import { z } from "zod";
 import { jobDescriptionSchema, rawDescriptionSourceSchema } from "@/lib/application-schema";
 import { JobEmailImportError } from "@/lib/job-email-json/errors";
 
+function normalizeJobDescriptionShape(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return value;
+  }
+
+  const input = value as Record<string, unknown>;
+  return {
+    ...input,
+    requiredQualifications: input.requiredQualifications ?? input.required_qualifications,
+    preferredQualifications: input.preferredQualifications ?? input.preferred_qualifications,
+    employmentType: input.employmentType ?? input.employment_type,
+    otherRequirements: input.otherRequirements ?? input.other_requirements,
+    sourceUrl: input.sourceUrl ?? input.source_url,
+    fetchedAt: input.fetchedAt ?? input.fetched_at,
+  };
+}
+
+function normalizeRawDescriptionSourceShape(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return value;
+  }
+
+  const input = value as Record<string, unknown>;
+  return {
+    ...input,
+    sourceUrl: input.sourceUrl ?? input.source_url,
+    fetchedAt: input.fetchedAt ?? input.fetched_at,
+    sourceJobId: input.sourceJobId ?? input.source_job_id,
+    atsProvider: input.atsProvider ?? input.ats_provider,
+    descriptionExcerpt: input.descriptionExcerpt ?? input.description_excerpt,
+    fullTextFetchRequired: input.fullTextFetchRequired ?? input.full_text_fetch_required,
+  };
+}
+
 const workModeSchema = z.string().optional().transform((value) => (
   value === "remote" || value === "hybrid" || value === "onsite" ? value : "remote"
 ));
@@ -43,6 +77,16 @@ const emptyRawDescriptionSource = {
   fullTextFetchRequired: false as const,
 };
 
+const jobDescriptionInputSchema = z.preprocess(
+  normalizeJobDescriptionShape,
+  jobDescriptionSchema.or(z.null()).optional(),
+);
+
+const rawDescriptionSourceInputSchema = z.preprocess(
+  normalizeRawDescriptionSourceShape,
+  rawDescriptionSourceSchema.or(z.null()).optional(),
+);
+
 const jobSchema = z.object({
   job_id: z.string().trim().min(1).max(500),
   dedupe_key: z.string().regex(/^[a-f0-9]{64}$/),
@@ -56,8 +100,8 @@ const jobSchema = z.object({
   salary: salarySchema,
   why_match: z.string().trim().max(5000),
   notable_gaps: z.string().trim().max(5000),
-  job_description: jobDescriptionSchema.or(z.null()).optional().default(emptyJobDescriptionSchema),
-  raw_description_source: rawDescriptionSourceSchema.or(z.null()).optional().default(emptyRawDescriptionSource),
+  job_description: jobDescriptionInputSchema,
+  raw_description_source: rawDescriptionSourceInputSchema,
   apply_url: z.string().trim().url().max(2000),
   canonical_url: z.string().trim().url().max(2000).nullable(),
   source_job_id: z.string().trim().min(1).max(500).nullable(),

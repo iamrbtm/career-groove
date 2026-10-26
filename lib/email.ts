@@ -78,7 +78,7 @@ export async function sendEmail(
   userId: string,
   connectionId: string,
   payload: EmailPayload,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; messageId?: string }> {
   const conn = await db.query(
     `SELECT provider, email, encrypted_access_token, encrypted_refresh_token, smtp_host, smtp_port,
             smtp_username, encrypted_smtp_password, sender_name
@@ -107,7 +107,7 @@ export async function sendEmail(
 async function sendViaSMTP(
   connection: Record<string, unknown>,
   payload: EmailPayload,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; messageId?: string }> {
   const provider = connection.provider as EmailProvider;
   const preset = provider !== "smtp" ? EMAIL_PROVIDER_PRESETS[provider as Exclude<EmailProvider, "smtp">] : null;
 
@@ -144,7 +144,7 @@ async function sendViaSMTP(
     ? `${connection.sender_name} <${connection.email}>`
     : (connection.email as string);
 
-  await transporter.sendMail({
+  const info = await transporter.sendMail({
     from,
     to: payload.to,
     subject: payload.subject,
@@ -157,13 +157,13 @@ async function sendViaSMTP(
     })),
   });
 
-  return { ok: true };
+  return { ok: true, messageId: info.messageId };
 }
 
 async function sendViaGmailApi(
   connection: Record<string, unknown>,
   payload: EmailPayload,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; messageId?: string }> {
   let token: string;
   try {
     token = decryptSecret(connection.encrypted_access_token as string);
@@ -195,13 +195,14 @@ async function sendViaGmailApi(
     const error = await response.text();
     return { ok: false, error: `Gmail API error: ${error}` };
   }
-  return { ok: true };
+  const data = (await response.json()) as { id?: string };
+  return { ok: true, messageId: data.id };
 }
 
 async function sendViaOutlookApi(
   connection: Record<string, unknown>,
   payload: EmailPayload,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; messageId?: string }> {
   let token: string;
   try {
     token = decryptSecret(connection.encrypted_access_token as string);
@@ -227,5 +228,6 @@ async function sendViaOutlookApi(
     const error = await response.text();
     return { ok: false, error: `Outlook API error: ${error}` };
   }
-  return { ok: true };
+  const data = (await response.json()) as { id?: string };
+  return { ok: true, messageId: data.id };
 }

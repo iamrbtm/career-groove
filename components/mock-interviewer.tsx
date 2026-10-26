@@ -93,20 +93,20 @@ export function MockInterviewer() {
   return <AppShell>
     <PageHeading eyebrow={applicationContext ? "Application Soundcheck" : "Reverse mock interviewer"} title={applicationContext ? `${applicationContext.application.title} soundcheck` : "Practice with your real story."} copy={applicationContext ? `Prep is grounded in ${applicationContext.application.company}, the saved role, research notes, interviews, and linked materials.` : "CareerGroove uses your saved experience to ask sharper questions and coach answers grounded in what you have actually done."} />
     <section className="mt-7 grid gap-5 lg:grid-cols-[.65fr_1.35fr]">
-      <aside className="rounded-3xl border-2 border-ink bg-sun/40 p-6">
+      <aside className="rounded-3xl border-2 border-fg bg-sun/40 p-6">
         <Sparkles />
         <h2 className="mt-5 font-[var(--font-display)] text-2xl font-black">Context loaded</h2>
-        <p className="mt-2 text-sm text-ink/60">{applicationContext ? `${applicationContext.application.company} role context is ready.` : jobs.length ? `${jobs.length} work chapter${jobs.length === 1 ? "" : "s"} ready for the interviewer.` : "Add work chapters in Journey for more specific coaching."}</p>
-        {applicationContext && <button onClick={() => void generateBrief()} disabled={briefLoading} className="mt-4 rounded-2xl border-2 border-ink bg-white px-4 py-2.5 text-sm font-black disabled:opacity-60">{briefLoading ? "Building brief..." : "Build prep brief"}</button>}
-        {brief && <pre className="mt-4 max-h-96 overflow-auto whitespace-pre-wrap rounded-2xl bg-white/70 p-4 text-xs leading-5">{brief}</pre>}
-        {!applicationContext && jobs.slice(0, 4).map((job) => <div key={job.id} className="mt-4 rounded-2xl bg-white/60 p-3"><p className="text-sm font-black">{job.title}</p><p className="text-xs text-ink/50">{job.company}</p></div>)}
+        <p className="mt-2 text-sm text-fg/60">{applicationContext ? `${applicationContext.application.company} role context is ready.` : jobs.length ? `${jobs.length} work chapter${jobs.length === 1 ? "" : "s"} ready for the interviewer.` : "Add work chapters in Journey for more specific coaching."}</p>
+        {applicationContext && <button onClick={() => void generateBrief()} disabled={briefLoading} className="mt-4 rounded-2xl border-2 border-fg bg-panel px-4 py-2.5 text-sm font-black disabled:opacity-60">{briefLoading ? "Building brief..." : "Build prep brief"}</button>}
+        {brief && <pre className="mt-4 max-h-96 overflow-auto whitespace-pre-wrap rounded-2xl bg-panel/70 p-4 text-xs leading-5">{brief}</pre>}
+        {!applicationContext && jobs.slice(0, 4).map((job) => <div key={job.id} className="mt-4 rounded-2xl bg-panel/60 p-3"><p className="text-sm font-black">{job.title}</p><p className="text-xs text-fg/50">{job.company}</p></div>)}
       </aside>
-      <div className="flex min-h-[560px] flex-col rounded-3xl border-2 border-ink bg-white p-4 shadow-[0_5px_0_#26312c]">
-        <div className="flex-1 space-y-4 overflow-auto p-2">{messages.map((message, index) => <div key={index} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[85%] rounded-3xl px-4 py-3 text-sm leading-6 ${message.role === "user" ? "bg-coral text-ink" : "bg-cream"}`}>{message.content || "Thinking..."}</div></div>)}</div>
+      <div className="flex min-h-[560px] flex-col rounded-3xl border-2 border-fg bg-panel p-4 shadow-[0_5px_0_#26312c]">
+        <div className="flex-1 space-y-4 overflow-auto p-2">{messages.map((message, index) => <div key={index} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[85%] rounded-3xl px-4 py-3 text-sm leading-6 ${message.role === "user" ? "bg-coral text-fg" : "bg-paper"}`}>{message.content || "Thinking..."}</div></div>)}</div>
         {error && <p className="mb-2 rounded-xl bg-coral/15 p-3 text-sm font-bold">{error}</p>}
-        <form onSubmit={send} className="flex gap-2 border-t-2 border-ink/10 pt-3">
-          <textarea aria-label="Your answer" value={input} onChange={(event) => setInput(event.target.value)} placeholder="Type your answer..." className="min-h-14 flex-1 resize-none rounded-2xl bg-cream px-4 py-3 outline-none" />
-          <button disabled={loading} className="grid size-14 place-items-center rounded-2xl border-2 border-ink bg-mint shadow-[0_3px_0_#26312c]">{loading ? <LoaderCircle className="animate-spin" /> : <Send size={19} />}</button>
+        <form onSubmit={send} className="flex gap-2 border-t-2 border-edge/10 pt-3">
+          <textarea aria-label="Your answer" value={input} onChange={(event) => setInput(event.target.value)} placeholder="Type your answer..." className="min-h-14 flex-1 resize-none rounded-2xl bg-paper px-4 py-3 outline-none" />
+          <button disabled={loading} className="grid size-14 place-items-center rounded-2xl border-2 border-fg bg-mint shadow-[0_3px_0_#26312c]">{loading ? <LoaderCircle className="animate-spin" /> : <Send size={19} />}</button>
         </form>
       </div>
     </section>

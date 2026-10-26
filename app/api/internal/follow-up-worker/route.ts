@@ -37,7 +37,7 @@ export async function POST(request: Request) {
         try {
           const subject = buildFollowUpSubject(fu.followUpType as FollowUpType, fu.appTitle, fu.appCompany);
           await db.query(
-            `UPDATE application_follow_ups SET status='draft', subject=$3, updated_at=now()
+            `UPDATE application_follow_ups SET status='draft', subject=$2, updated_at=now()
              WHERE id=$1 AND status='scheduled'`,
             [fu.id, subject],
           );

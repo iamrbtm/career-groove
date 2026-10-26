@@ -83,10 +83,10 @@ export function AnalyticsStudio() {
       eyebrow="Analytics Studio"
       title="What is working?"
       copy="A calm read on source quality, materials, role-fit patterns, follow-up health, and the next adjustment worth making."
-      action={<Link href="/applications" className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-sun px-4 py-3 text-sm font-black shadow-pop">Open Applications <ArrowRight size={17} /></Link>}
+      action={<Link href="/applications" className="flex items-center gap-2 rounded-2xl border-2 border-fg bg-sun px-4 py-3 text-sm font-black shadow-pop">Open Applications <ArrowRight size={17} /></Link>}
     />
 
-    {loading ? <div className="mt-7 rounded-3xl border-2 border-ink/15 bg-white/70 p-6 text-sm font-bold text-ink/55">Loading the signal...</div> : null}
+    {loading ? <div className="mt-7 rounded-3xl border-2 border-edge/15 bg-panel/70 p-6 text-sm font-bold text-fg/55">Loading the signal...</div> : null}
 
     <section className="mt-7 rounded-3xl border-2 border-ink bg-ink p-6 text-cream shadow-soft">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
@@ -132,20 +132,20 @@ export function AnalyticsStudio() {
         {analytics?.outcomes?.map((outcome) => <BarRow key={outcome.outcome} label={titleCase(outcome.outcome.replace("_", " "))} value={`${outcome.count}`} width={Math.min(100, outcome.count * 20)} copy="Logged outcomes" />)}
       </Panel>
 
-      <section className="rounded-3xl border-2 border-ink/15 bg-white/75 p-5">
+      <section className="rounded-3xl border-2 border-edge/15 bg-panel/75 p-5">
         <div className="flex items-start gap-3">
-          <div className="grid size-11 shrink-0 place-items-center rounded-2xl border-2 border-ink bg-lilac/30"><Sparkles size={19} /></div>
+          <div className="grid size-11 shrink-0 place-items-center rounded-2xl border-2 border-fg bg-lilac/30"><Sparkles size={19} /></div>
           <div>
             <p className="text-xs font-black uppercase tracking-[.18em] text-plum">Rejection Intelligence</p>
             <h2 className="font-[var(--font-display)] text-xl font-black">Patterns without blame</h2>
           </div>
         </div>
         <div className="mt-4 space-y-3">
-          {insights?.insights?.length ? insights.insights.slice(0, 4).map((insight) => <article key={insight.id} className="rounded-2xl bg-cream p-4">
+          {insights?.insights?.length ? insights.insights.slice(0, 4).map((insight) => <article key={insight.id} className="rounded-2xl bg-paper p-4">
             <p className="text-[10px] font-black uppercase tracking-[.16em] text-plum">{insight.kind} · {insight.confidence}</p>
             <h3 className="mt-1 font-black">{insight.title}</h3>
-            <p className="mt-2 text-sm leading-6 text-ink/65">{insight.suggestion}</p>
-          </article>) : <p className="rounded-2xl bg-cream p-4 text-sm font-bold text-ink/55">{insights?.lowData ? "Not enough closed-role history yet. Keep logging outcomes gently." : "No active insights need attention right now."}</p>}
+            <p className="mt-2 text-sm leading-6 text-fg/65">{insight.suggestion}</p>
+          </article>) : <p className="rounded-2xl bg-paper p-4 text-sm font-bold text-fg/55">{insights?.lowData ? "Not enough closed-role history yet. Keep logging outcomes gently." : "No active insights need attention right now."}</p>}
         </div>
       </section>
     </section>
@@ -153,34 +153,34 @@ export function AnalyticsStudio() {
 }
 
 function MetricCard({ label, value, copy }: { label: string; value: string | number; copy: string }) {
-  return <div className="rounded-3xl border-2 border-ink/15 bg-white p-5">
+  return <div className="rounded-3xl border-2 border-edge/15 bg-panel p-5">
     <p className="text-xs font-black uppercase tracking-[.18em] text-plum">{label}</p>
     <p className="mt-3 font-[var(--font-display)] text-3xl font-black">{value}</p>
-    <p className="mt-1 text-sm font-bold text-ink/55">{copy}</p>
+    <p className="mt-1 text-sm font-bold text-fg/55">{copy}</p>
   </div>;
 }
 
 function Panel({ icon, title, empty, children }: { icon: React.ReactNode; title: string; empty: string; children: React.ReactNode }) {
   const hasChildren = Array.isArray(children) ? children.filter(Boolean).length > 0 : Boolean(children);
-  return <section className="rounded-3xl border-2 border-ink/15 bg-white/75 p-5">
+  return <section className="rounded-3xl border-2 border-edge/15 bg-panel/75 p-5">
     <div className="flex items-center gap-3">
-      <div className="grid size-10 place-items-center rounded-2xl border-2 border-ink bg-mint/50">{icon}</div>
+      <div className="grid size-10 place-items-center rounded-2xl border-2 border-fg bg-mint/50">{icon}</div>
       <h2 className="font-[var(--font-display)] text-xl font-black">{title}</h2>
     </div>
-    <div className="mt-4 space-y-3">{hasChildren ? children : <p className="rounded-2xl bg-cream p-4 text-sm font-bold text-ink/55">{empty}</p>}</div>
+    <div className="mt-4 space-y-3">{hasChildren ? children : <p className="rounded-2xl bg-paper p-4 text-sm font-bold text-fg/55">{empty}</p>}</div>
   </section>;
 }
 
 function BarRow({ label, value, width, copy }: { label: string; value: string; width: number; copy: string }) {
-  return <div className="rounded-2xl bg-cream p-4">
+  return <div className="rounded-2xl bg-paper p-4">
     <div className="flex items-center justify-between gap-3">
       <p className="truncate font-black">{label}</p>
-      <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-black">{value}</span>
+      <span className="shrink-0 rounded-full bg-panel px-2.5 py-1 text-xs font-black">{value}</span>
     </div>
-    <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
+    <div className="mt-3 h-2 overflow-hidden rounded-full bg-panel">
       <div className="h-full rounded-full bg-plum" style={{ width: `${Math.max(5, Math.min(100, width))}%` }} />
     </div>
-    <p className="mt-2 text-xs font-bold text-ink/55">{copy}</p>
+    <p className="mt-2 text-xs font-bold text-fg/55">{copy}</p>
   </div>;
 }
 

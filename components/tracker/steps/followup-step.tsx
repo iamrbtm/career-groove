@@ -202,16 +202,16 @@ export function FollowUpStep({
 
   const statusBadge = (status: string) => {
     const colors: Record<string, string> = {
-      draft: "bg-ink/10 text-ink/60",
-      scheduled: "bg-sun/70 text-ink",
-      sent: "bg-mint text-ink",
+      draft: "bg-ink/10 text-fg/60",
+      scheduled: "bg-sun/70 text-fg",
+      sent: "bg-mint text-fg",
       skipped: "bg-coral/20 text-coral",
       failed: "bg-coral/20 text-coral",
     };
     return <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[.16em] ${colors[status] || "bg-ink/10"}`}>{status}</span>;
   };
 
-  if (loading) return <div className="rounded-2xl bg-cream p-6 text-center text-sm text-ink/55">Loading follow-ups...</div>;
+  if (loading) return <div className="rounded-2xl bg-paper p-6 text-center text-sm text-fg/55">Loading follow-ups...</div>;
 
   return (
     <div className="space-y-5">
@@ -220,33 +220,33 @@ export function FollowUpStep({
           <p className="flex items-center gap-2 text-xs font-black uppercase tracking-[.18em] text-plum">
             <CheckCircle2 size={14} /> Record your application
           </p>
-          <p className="mt-1 text-sm leading-6 text-ink/60">
+          <p className="mt-1 text-sm leading-6 text-fg/60">
             Log when you submitted so follow-ups are timed from the right moment. If you haven&apos;t applied yet, use the
             steps before this one to get ready.
           </p>
-          <label className="mt-3 block text-[10px] font-black uppercase tracking-[.16em] text-ink/55">Applied on</label>
+          <label className="mt-3 block text-[10px] font-black uppercase tracking-[.16em] text-fg/55">Applied on</label>
           <input
             type="datetime-local"
             value={appliedDate}
             onChange={(e) => setAppliedDate(e.target.value)}
-            className="mt-1 w-full rounded-2xl bg-white px-4 py-3 text-sm font-bold outline-none"
+            className="mt-1 w-full rounded-2xl bg-panel px-4 py-3 text-sm font-bold outline-none"
           />
           <input
             value={confirmationNumber}
             onChange={(e) => setConfirmationNumber(e.target.value)}
             placeholder="Confirmation number (optional)"
-            className="mt-2 w-full rounded-2xl bg-white px-4 py-3 text-sm font-bold outline-none"
+            className="mt-2 w-full rounded-2xl bg-panel px-4 py-3 text-sm font-bold outline-none"
           />
           <textarea
             value={appliedNote}
             onChange={(e) => setAppliedNote(e.target.value)}
             placeholder="Where did you apply? Any notes (optional)"
-            className="mt-2 min-h-20 w-full rounded-2xl bg-white px-4 py-3 text-sm font-bold outline-none"
+            className="mt-2 min-h-20 w-full rounded-2xl bg-panel px-4 py-3 text-sm font-bold outline-none"
           />
           <button
             onClick={recordApplication}
             disabled={recording}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-mint px-4 py-2.5 text-sm font-black disabled:opacity-60"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-fg bg-mint px-4 py-2.5 text-sm font-black disabled:opacity-60"
           >
             {recording ? <LoaderCircle size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
             {recording ? "Saving..." : "I applied"}
@@ -256,7 +256,7 @@ export function FollowUpStep({
         <div className="rounded-2xl border-2 border-mint/60 bg-mint/15 p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2">
-              <CheckCircle2 size={16} className="text-ink/60" />
+              <CheckCircle2 size={16} className="text-fg/60" />
               <div>
                 <p className="text-xs font-black uppercase tracking-[.18em] text-plum">Application recorded</p>
                 <p className="mt-0.5 text-sm font-black">
@@ -266,7 +266,7 @@ export function FollowUpStep({
             </div>
             <button
               onClick={() => setEditingApplied(!editingApplied)}
-              className="shrink-0 rounded-xl border-2 border-ink bg-white px-3 py-1.5 text-[10px] font-black"
+              className="shrink-0 rounded-xl border-2 border-fg bg-panel px-3 py-1.5 text-[10px] font-black"
             >
               {editingApplied ? "Close" : "Edit date"}
             </button>
@@ -277,12 +277,12 @@ export function FollowUpStep({
                 type="datetime-local"
                 value={appliedDate}
                 onChange={(e) => setAppliedDate(e.target.value)}
-                className="w-full flex-1 rounded-2xl bg-white px-4 py-3 text-sm font-bold outline-none"
+                className="w-full flex-1 rounded-2xl bg-panel px-4 py-3 text-sm font-bold outline-none"
               />
               <button
                 onClick={saveAppliedDate}
                 disabled={recording}
-                className="shrink-0 rounded-2xl border-2 border-ink bg-mint px-4 py-3 text-sm font-black disabled:opacity-60"
+                className="shrink-0 rounded-2xl border-2 border-fg bg-mint px-4 py-3 text-sm font-black disabled:opacity-60"
               >
                 {recording ? <LoaderCircle size={16} className="animate-spin" /> : "Save"}
               </button>
@@ -291,32 +291,32 @@ export function FollowUpStep({
         </div>
       )}
 
-      <p className="text-sm leading-6 text-ink/60">
+      <p className="text-sm leading-6 text-fg/60">
         Schedule a sequence of follow-up messages. Create drafts with AI, set timing, and track what has been sent.
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl bg-cream p-4">
+        <div className="rounded-2xl bg-paper p-4">
           <p className="flex items-center gap-2 text-xs font-black uppercase tracking-[.18em] text-plum"><Plus size={14} /> New follow-up</p>
-          <label className="mt-3 block text-[10px] font-black uppercase tracking-[.16em] text-ink/55">Type</label>
+          <label className="mt-3 block text-[10px] font-black uppercase tracking-[.16em] text-fg/55">Type</label>
           <select value={newType} onChange={(e) => setNewType(e.target.value as FollowUpType)}
-            className="mt-1 w-full rounded-2xl bg-white px-4 py-3 text-sm font-bold outline-none">
+            className="mt-1 w-full rounded-2xl bg-panel px-4 py-3 text-sm font-bold outline-none">
             {followUpTypes.map((t) => <option key={t} value={t}>{followUpTypeLabels[t]}</option>)}
           </select>
-          <p className="mt-2 text-xs text-ink/50">{followUpTypeDescriptions[newType]}</p>
-          <label className="mt-3 block text-[10px] font-black uppercase tracking-[.16em] text-ink/55">Schedule for</label>
+          <p className="mt-2 text-xs text-fg/50">{followUpTypeDescriptions[newType]}</p>
+          <label className="mt-3 block text-[10px] font-black uppercase tracking-[.16em] text-fg/55">Schedule for</label>
           <input type="datetime-local" value={newDate} onChange={(e) => setNewDate(e.target.value)}
-            className="mt-1 w-full rounded-2xl bg-white px-4 py-3 text-sm font-bold outline-none" />
+            className="mt-1 w-full rounded-2xl bg-panel px-4 py-3 text-sm font-bold outline-none" />
           <button onClick={addFollowUp} disabled={saving}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-mint px-4 py-2.5 text-sm font-black disabled:opacity-60">
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-fg bg-mint px-4 py-2.5 text-sm font-black disabled:opacity-60">
             {saving ? <LoaderCircle size={16} className="animate-spin" /> : <Calendar size={16} />}
             {saving ? "Saving..." : "Add to sequence"}
           </button>
         </div>
 
-        <div className="rounded-2xl bg-cream p-4">
+        <div className="rounded-2xl bg-paper p-4">
           <p className="flex items-center gap-2 text-xs font-black uppercase tracking-[.18em] text-plum"><Sparkles size={14} /> AI draft assistant</p>
-          <p className="mt-2 text-xs text-ink/55">Generate a draft from a saved follow-up below, or write your own. AI drafts are personalized to this role.</p>
+          <p className="mt-2 text-xs text-fg/55">Generate a draft from a saved follow-up below, or write your own. AI drafts are personalized to this role.</p>
         </div>
       </div>
 
@@ -326,7 +326,7 @@ export function FollowUpStep({
             Follow-up sequence ({followUps.length})
           </p>
           {followUps.map((fu) => (
-            <div key={fu.id} className="rounded-2xl border-2 border-ink/10 bg-white p-4">
+            <div key={fu.id} className="rounded-2xl border-2 border-edge/10 bg-panel p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
@@ -336,9 +336,9 @@ export function FollowUpStep({
                     <p className="truncate font-black text-sm">{followUpTypeLabels[fu.followUpType]}</p>
                     {statusBadge(fu.status)}
                   </div>
-                  {fu.subject && <p className="mt-1 truncate text-xs text-ink/55">{fu.subject}</p>}
+                  {fu.subject && <p className="mt-1 truncate text-xs text-fg/55">{fu.subject}</p>}
                   {fu.scheduledFor && (
-                    <p className="mt-1 flex items-center gap-1 text-xs text-ink/50">
+                    <p className="mt-1 flex items-center gap-1 text-xs text-fg/50">
                       <Calendar size={12} />
                       {new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(fu.scheduledFor))}
                     </p>
@@ -347,7 +347,7 @@ export function FollowUpStep({
                 <div className="flex shrink-0 items-center gap-2">
                   {fu.status === "draft" && (
                     <button onClick={() => scheduleFollowUp(fu)} disabled={saving}
-                      className="rounded-xl border-2 border-ink bg-sun px-3 py-1.5 text-[10px] font-black disabled:opacity-60">
+                      className="rounded-xl border-2 border-fg bg-sun px-3 py-1.5 text-[10px] font-black disabled:opacity-60">
                       Schedule
                     </button>
                   )}
@@ -358,12 +358,12 @@ export function FollowUpStep({
                 </div>
               </div>
               {fu.message ? (
-                <div className="mt-3 rounded-xl bg-cream p-3">
-                  <p className="whitespace-pre-wrap text-xs leading-5 text-ink/80">{fu.message}</p>
+                <div className="mt-3 rounded-xl bg-paper p-3">
+                  <p className="whitespace-pre-wrap text-xs leading-5 text-fg/80">{fu.message}</p>
                 </div>
               ) : (
                 <button onClick={() => generateDraft(fu)} disabled={generating === fu.id}
-                  className="mt-3 flex items-center gap-2 rounded-xl border-2 border-ink/15 bg-cream px-4 py-2 text-xs font-black disabled:opacity-60">
+                  className="mt-3 flex items-center gap-2 rounded-xl border-2 border-edge/15 bg-paper px-4 py-2 text-xs font-black disabled:opacity-60">
                   {generating === fu.id ? <LoaderCircle size={14} className="animate-spin" /> : <Sparkles size={14} />}
                   {generating === fu.id ? "Generating..." : "Generate AI draft"}
                 </button>
@@ -374,13 +374,13 @@ export function FollowUpStep({
       )}
 
       {followUps.length === 0 && !loading && (
-        <div className="rounded-2xl border-2 border-dashed border-ink/20 bg-white/50 p-6 text-center">
+        <div className="rounded-2xl border-2 border-dashed border-edge/20 bg-panel/50 p-6 text-center">
           <Send size={24} className="mx-auto text-coral" />
-          <p className="mt-2 text-sm font-bold text-ink/55">No follow-ups scheduled yet. Add your first one above.</p>
+          <p className="mt-2 text-sm font-bold text-fg/55">No follow-ups scheduled yet. Add your first one above.</p>
         </div>
       )}
 
-      {notice && <p className="text-sm font-bold text-ink/65">{notice}</p>}
+      {notice && <p className="text-sm font-bold text-fg/65">{notice}</p>}
     </div>
   );
 }

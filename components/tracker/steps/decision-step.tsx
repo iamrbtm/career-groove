@@ -70,34 +70,34 @@ export function DecisionStep({
 
   return (
     <div className="space-y-4">
-      <p className="text-sm leading-6 text-ink/60">
+      <p className="text-sm leading-6 text-fg/60">
         Compare the offer against what matters and make a decision.
       </p>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <input value={form.salary} onChange={(e) => setForm({ ...form, salary: e.target.value })} placeholder="Salary" className="rounded-2xl bg-cream px-4 py-3 text-sm font-bold outline-none" />
-        <input value={form.bonus} onChange={(e) => setForm({ ...form, bonus: e.target.value })} placeholder="Bonus" className="rounded-2xl bg-cream px-4 py-3 text-sm font-bold outline-none" />
-        <input value={form.schedule} onChange={(e) => setForm({ ...form, schedule: e.target.value })} placeholder="Schedule" className="rounded-2xl bg-cream px-4 py-3 text-sm font-bold outline-none" />
-        <input value={form.remotePolicy} onChange={(e) => setForm({ ...form, remotePolicy: e.target.value })} placeholder="Remote policy" className="rounded-2xl bg-cream px-4 py-3 text-sm font-bold outline-none" />
-        <input value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} placeholder="Start date" className="rounded-2xl bg-cream px-4 py-3 text-sm font-bold outline-none" />
-        <input value={form.decisionDeadline} onChange={(e) => setForm({ ...form, decisionDeadline: e.target.value })} placeholder="Decision deadline" className="rounded-2xl bg-cream px-4 py-3 text-sm font-bold outline-none" />
+        <input value={form.salary} onChange={(e) => setForm({ ...form, salary: e.target.value })} placeholder="Salary" className="rounded-2xl bg-paper px-4 py-3 text-sm font-bold outline-none" />
+        <input value={form.bonus} onChange={(e) => setForm({ ...form, bonus: e.target.value })} placeholder="Bonus" className="rounded-2xl bg-paper px-4 py-3 text-sm font-bold outline-none" />
+        <input value={form.schedule} onChange={(e) => setForm({ ...form, schedule: e.target.value })} placeholder="Schedule" className="rounded-2xl bg-paper px-4 py-3 text-sm font-bold outline-none" />
+        <input value={form.remotePolicy} onChange={(e) => setForm({ ...form, remotePolicy: e.target.value })} placeholder="Remote policy" className="rounded-2xl bg-paper px-4 py-3 text-sm font-bold outline-none" />
+        <input value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} placeholder="Start date" className="rounded-2xl bg-paper px-4 py-3 text-sm font-bold outline-none" />
+        <input value={form.decisionDeadline} onChange={(e) => setForm({ ...form, decisionDeadline: e.target.value })} placeholder="Decision deadline" className="rounded-2xl bg-paper px-4 py-3 text-sm font-bold outline-none" />
       </div>
-      <textarea value={form.benefitsNotes} onChange={(e) => setForm({ ...form, benefitsNotes: e.target.value })} placeholder="Benefits notes" className="min-h-20 w-full rounded-2xl bg-cream px-4 py-3 text-sm font-bold outline-none" />
+      <textarea value={form.benefitsNotes} onChange={(e) => setForm({ ...form, benefitsNotes: e.target.value })} placeholder="Benefits notes" className="min-h-20 w-full rounded-2xl bg-paper px-4 py-3 text-sm font-bold outline-none" />
 
       <div className="flex flex-wrap gap-2">
-        <button onClick={() => saveOffer()} disabled={saving} className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-mint px-4 py-2.5 text-sm font-black disabled:opacity-60">
+        <button onClick={() => saveOffer()} disabled={saving} className="flex items-center gap-2 rounded-2xl border-2 border-fg bg-mint px-4 py-2.5 text-sm font-black disabled:opacity-60">
           {saving && !notice ? <LoaderCircle size={16} className="animate-spin" /> : null}
           Save details
         </button>
-        <button onClick={() => saveOffer("accepted")} disabled={saving} className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-mint px-4 py-2.5 text-sm font-black disabled:opacity-60">
+        <button onClick={() => saveOffer("accepted")} disabled={saving} className="flex items-center gap-2 rounded-2xl border-2 border-fg bg-mint px-4 py-2.5 text-sm font-black disabled:opacity-60">
           <Check size={16} /> Accept
         </button>
-        <button onClick={() => saveOffer("declined")} disabled={saving} className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-coral px-4 py-2.5 text-sm font-black text-white disabled:opacity-60">
+        <button onClick={() => saveOffer("declined")} disabled={saving} className="flex items-center gap-2 rounded-2xl border-2 border-fg bg-coral px-4 py-2.5 text-sm font-black text-white disabled:opacity-60">
           <X size={16} /> Decline
         </button>
       </div>
 
-      {notice && <p className="text-sm font-bold text-ink/65">{notice}</p>}
+      {notice && <p className="text-sm font-bold text-fg/65">{notice}</p>}
     </div>
   );
 }

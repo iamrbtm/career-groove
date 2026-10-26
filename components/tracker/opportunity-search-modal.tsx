@@ -151,8 +151,8 @@ export function OpportunitySearchModal({ open, onClose, onSaved }: {
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-ink/60 p-4">
-      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col rounded-3xl border-2 border-ink bg-white shadow-soft">
-        <div className="flex items-start justify-between gap-3 border-b-2 border-ink/10 p-5">
+      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col rounded-3xl border-2 border-fg bg-panel shadow-soft">
+        <div className="flex items-start justify-between gap-3 border-b-2 border-edge/10 p-5">
           <div className="flex items-start gap-3">
             <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-coral">
               <Sparkles size={20} />
@@ -160,7 +160,7 @@ export function OpportunitySearchModal({ open, onClose, onSaved }: {
             <div>
               <p className="text-xs font-black uppercase tracking-[.18em] text-plum">Opportunity search</p>
               <h2 className="font-[var(--font-display)] text-2xl font-black">Find jobs from your skills</h2>
-              <p className="mt-1 text-sm leading-5 text-ink/55">
+              <p className="mt-1 text-sm leading-5 text-fg/55">
                 ChatGPT reviews your qualifications and skills, then hunts for roles you're genuinely qualified for. Sorted by fit. Already-seen roles are skipped.
               </p>
             </div>
@@ -168,7 +168,7 @@ export function OpportunitySearchModal({ open, onClose, onSaved }: {
           <button
             onClick={() => { void handleSkipAll(); }}
             disabled={saving || searching}
-            className="grid size-10 shrink-0 place-items-center rounded-2xl bg-cream hover:bg-coral/20 disabled:opacity-60"
+            className="grid size-10 shrink-0 place-items-center rounded-2xl bg-paper hover:bg-coral/20 disabled:opacity-60"
             aria-label="Close"
           >
             <X size={18} />
@@ -182,7 +182,7 @@ export function OpportunitySearchModal({ open, onClose, onSaved }: {
             <div className="flex flex-col items-center gap-3 py-16 text-center">
               <LoaderCircle size={34} className="animate-spin text-coral" />
               <p className="font-black">Matching your skills to open roles...</p>
-              <p className="text-sm text-ink/55">ChatGPT is reading your qualifications and hunting for jobs you're qualified for. This can take a few seconds.</p>
+              <p className="text-sm text-fg/55">ChatGPT is reading your qualifications and hunting for jobs you're qualified for. This can take a few seconds.</p>
             </div>
           )}
 
@@ -190,7 +190,7 @@ export function OpportunitySearchModal({ open, onClose, onSaved }: {
             <div className="py-16 text-center">
               <CheckCircle2 size={30} className="mx-auto text-mint" />
               <p className="mt-4 font-black">No fresh openings right now</p>
-              <p className="mx-auto mt-1 max-w-sm text-sm text-ink/55">
+              <p className="mx-auto mt-1 max-w-sm text-sm text-fg/55">
                 {skippedCount > 0
                   ? `${skippedCount} role${skippedCount === 1 ? " was" : "s were"} already in your tracker or previously dismissed. Try again in a few days for new listings.`
                   : "The job boards did not return anything new that matches right now. Try again in a little while, or widen your desired titles and skills in Settings."}
@@ -216,10 +216,10 @@ export function OpportunitySearchModal({ open, onClose, onSaved }: {
                   return (
                     <article
                       key={opportunity.id}
-                      className={`rounded-2xl border-2 p-4 transition-colors ${checked ? "border-ink bg-cream" : "border-ink/15 bg-white/60 opacity-70"}`}
+                      className={`rounded-2xl border-2 p-4 transition-colors ${checked ? "border-fg bg-paper" : "border-edge/15 bg-panel/60 opacity-70"}`}
                     >
                       <div className="flex items-start gap-3">
-                        <label className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-xl border-2 border-ink bg-white">
+                        <label className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-xl border-2 border-fg bg-panel">
                           <input
                             type="checkbox"
                             checked={checked}
@@ -235,17 +235,17 @@ export function OpportunitySearchModal({ open, onClose, onSaved }: {
                                 <span className="rounded-full bg-plum px-2.5 py-0.5 text-[10px] font-black text-white">{index + 1}</span>
                                 <h3 className="truncate font-[var(--font-display)] text-lg font-black">{opportunity.title}</h3>
                               </div>
-                              <p className="text-sm font-bold text-ink/55">{opportunity.company}</p>
+                              <p className="text-sm font-bold text-fg/55">{opportunity.company}</p>
                             </div>
                             <div className="shrink-0 text-right">
-                              <p className={`grid size-12 place-items-center rounded-2xl border-2 border-ink text-base font-black ${fitColor(opportunity.fit)}`}>
+                              <p className={`grid size-12 place-items-center rounded-2xl border-2 border-fg text-base font-black ${fitColor(opportunity.fit)}`}>
                                 {opportunity.fit}
                               </p>
-                              <p className="mt-0.5 text-[10px] font-black uppercase tracking-[.14em] text-ink/55">fit</p>
+                              <p className="mt-0.5 text-[10px] font-black uppercase tracking-[.14em] text-fg/55">fit</p>
                             </div>
                           </div>
 
-                          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-bold text-ink/60">
+                          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-bold text-fg/60">
                             <span className="font-black text-plum">{formatSalary(opportunity)}</span>
                             {opportunity.location && (
                               <span className="flex items-center gap-1"><MapPin size={13} /> {opportunity.location}</span>
@@ -253,10 +253,10 @@ export function OpportunitySearchModal({ open, onClose, onSaved }: {
                             {opportunity.workMode && opportunity.workMode !== "unknown" && (
                               <span className="capitalize">{opportunity.workMode}</span>
                             )}
-                            {opportunity.source && <span className="text-ink/40">{opportunity.source}</span>}
+                            {opportunity.source && <span className="text-fg/40">{opportunity.source}</span>}
                           </div>
 
-                          <p className="mt-2 text-sm leading-5 text-ink/70">{trimSummary(opportunity.summary)}</p>
+                          <p className="mt-2 text-sm leading-5 text-fg/70">{trimSummary(opportunity.summary)}</p>
                           {opportunity.reason && (
                             <p className="mt-1.5 text-xs font-bold text-plum">Why it fits: {opportunity.reason}</p>
                           )}
@@ -281,18 +281,18 @@ export function OpportunitySearchModal({ open, onClose, onSaved }: {
         </div>
 
         {!searching && opportunities.length > 0 && (
-          <div className="flex items-center justify-between gap-3 border-t-2 border-ink/10 p-5">
+          <div className="flex items-center justify-between gap-3 border-t-2 border-edge/10 p-5">
             <button
               onClick={() => { void handleSkipAll(); }}
               disabled={saving}
-              className="rounded-2xl border-2 border-ink bg-white px-4 py-3 text-sm font-black disabled:opacity-60"
+              className="rounded-2xl border-2 border-fg bg-panel px-4 py-3 text-sm font-black disabled:opacity-60"
             >
               Skip all
             </button>
             <button
               onClick={() => { void handleAdd(); }}
               disabled={saving || selected.size === 0}
-              className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-mint px-5 py-3 text-sm font-black shadow-[0_3px_0_#26312c] disabled:opacity-60"
+              className="flex items-center gap-2 rounded-2xl border-2 border-fg bg-mint px-5 py-3 text-sm font-black shadow-[0_3px_0_#26312c] disabled:opacity-60"
             >
               {saving ? <LoaderCircle size={17} className="animate-spin" /> : <Plus size={17} />}
               {saving ? "Adding..." : `Add ${selected.size} to pipeline`}

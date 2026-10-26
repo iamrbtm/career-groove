@@ -18,6 +18,7 @@ import {
   missingWorkArrangementBody,
   nullSalaryBody,
   proseTrapBody,
+  snakeCaseNestedDescriptionBody,
   unsupportedVersionBody,
 } from "./fixtures";
 
@@ -69,6 +70,15 @@ test("normalizes invalid work arrangements to remote", () => {
 test("normalizes a missing work arrangement to remote", () => {
   const payload = parseJobEmailPayload(extractJobJson(missingWorkArrangementBody));
   assert.equal(payload.jobs[0].work_mode, "remote");
+});
+
+test("accepts snake_case nested job description and raw source fields", () => {
+  const payload = parseJobEmailPayload(extractJobJson(snakeCaseNestedDescriptionBody));
+  assert.deepEqual(payload.jobs[0].job_description.requiredQualifications, ["Bachelor's degree"]);
+  assert.deepEqual(payload.jobs[0].job_description.preferredQualifications, ["Spring Boot experience"]);
+  assert.equal(payload.jobs[0].job_description.sourceUrl, "https://example.com/job");
+  assert.equal(payload.jobs[0].raw_description_source.atsProvider, "greenhouse");
+  assert.equal(payload.jobs[0].raw_description_source.fullTextFetchRequired, true);
 });
 
 test("bulk import derives selected jobs from the validated email JSON", async () => {

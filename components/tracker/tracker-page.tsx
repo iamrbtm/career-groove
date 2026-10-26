@@ -18,6 +18,7 @@ import { InterviewStep } from "./steps/interview-step";
 import { DecisionStep } from "./steps/decision-step";
 import { ClosedStep } from "./steps/closed-step";
 import { PipelineSignals } from "./pipeline-signals";
+import { fireSaveConfetti } from "@/lib/confetti";
 import { CaptureModal } from "./capture-modal";
 import { EmailImportModal } from "./email-import-modal";
 import { OpportunitySearchModal } from "./opportunity-search-modal";
@@ -81,6 +82,7 @@ export function TrackerPage() {
   const [deleteTarget, setDeleteTarget] = useState<Application | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [activeStep, setActiveStepState] = useState<number | null>(null);
+  const [justSavedId, setJustSavedId] = useState<string | null>(null);
 
   const selected = useMemo(() => applications.find((a) => a.id === selectedId), [applications, selectedId]);
   const currentStep = useMemo(() => {
@@ -156,8 +158,14 @@ export function TrackerPage() {
     router.replace(`/applications?applicationId=${id}`);
   }
 
-  function handleSaved() {
-    void refreshAll();
+  function handleSaved(application?: unknown) {
+    const id = (application as { id?: string } | undefined)?.id;
+    void refreshAll(id);
+    fireSaveConfetti();
+    if (id) {
+      setJustSavedId(id);
+      window.setTimeout(() => setJustSavedId((current) => current === id ? null : current), 1500);
+    }
   }
 
   function toggleStep(step: number) {
@@ -218,19 +226,19 @@ export function TrackerPage() {
         <div className="flex shrink-0 items-center gap-3">
           <MotionButton
             onClick={() => setSearchOpen(true)}
-            className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-sun px-4 py-3 text-sm font-black shadow-pop"
+            className="flex items-center gap-2 rounded-2xl border-2 border-fg bg-sun px-4 py-3 text-sm font-black shadow-pop"
           >
             <Sparkles size={18} /> Find Opportunities
           </MotionButton>
           <MotionButton
             onClick={() => setEmailImportOpen(true)}
-            className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-sky px-4 py-3 text-sm font-black shadow-pop"
+            className="flex items-center gap-2 rounded-2xl border-2 border-fg bg-sky px-4 py-3 text-sm font-black shadow-pop"
           >
             <Mail size={18} /> Paste Email
           </MotionButton>
           <MotionButton
             onClick={() => setCaptureOpen(true)}
-            className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-coral px-4 py-3 text-sm font-black shadow-pop"
+            className="flex items-center gap-2 rounded-2xl border-2 border-fg bg-coral px-4 py-3 text-sm font-black shadow-pop"
           >
             <Plus size={18} /> Capture Role
           </MotionButton>
@@ -248,6 +256,7 @@ export function TrackerPage() {
             onRefresh={() => refreshAll(selected?.id)}
             loading={loading}
             trackerReadiness={trackerReadiness}
+            justSavedId={justSavedId}
           />
         }
         canvas={
@@ -359,29 +368,29 @@ export function TrackerPage() {
 
       {deleteTarget && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-ink/60 p-4">
-          <div className="w-full max-w-md rounded-3xl border-2 border-ink bg-white p-6 shadow-soft">
+          <div className="w-full max-w-md rounded-3xl border-2 border-fg bg-panel p-6 shadow-soft">
             <div className="flex items-center justify-between gap-3">
               <h2 className="font-[var(--font-display)] text-2xl font-black">Delete this role?</h2>
-              <button onClick={() => setDeleteTarget(null)} className="grid size-10 place-items-center rounded-2xl bg-cream hover:bg-coral/20">
+              <button onClick={() => setDeleteTarget(null)} className="grid size-10 place-items-center rounded-2xl bg-paper hover:bg-coral/20">
                 <X size={18} />
               </button>
             </div>
-            <p className="mt-3 text-sm leading-6 text-ink/60">
-              This permanently removes <span className="font-black text-ink">{deleteTarget.title}</span> at{" "}
-              <span className="font-black text-ink">{deleteTarget.company}</span> and everything attached to it — research,
+            <p className="mt-3 text-sm leading-6 text-fg/60">
+              This permanently removes <span className="font-black text-fg">{deleteTarget.title}</span> at{" "}
+              <span className="font-black text-fg">{deleteTarget.company}</span> and everything attached to it — research,
               cover letters, resumes, follow-ups, interviews, and outcomes. This cannot be undone.
             </p>
             <div className="mt-5 flex gap-3">
               <button
                 onClick={() => setDeleteTarget(null)}
-                className="flex-1 rounded-2xl border-2 border-ink bg-white px-4 py-2.5 text-sm font-black"
+                className="flex-1 rounded-2xl border-2 border-fg bg-panel px-4 py-2.5 text-sm font-black"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
                 disabled={deleting}
-                className="flex flex-1 items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-coral px-4 py-2.5 text-sm font-black disabled:opacity-60"
+                className="flex flex-1 items-center justify-center gap-2 rounded-2xl border-2 border-fg bg-coral px-4 py-2.5 text-sm font-black disabled:opacity-60"
               >
                 {deleting ? <LoaderCircle size={16} className="animate-spin" /> : <Trash2 size={16} />}
                 {deleting ? "Deleting..." : "Delete permanently"}

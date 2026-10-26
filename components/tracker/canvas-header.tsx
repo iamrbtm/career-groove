@@ -15,7 +15,7 @@ const labelDisplay: Record<string, { label: string; bg: string }> = {
   network_first: { label: "Network first", bg: "bg-sky/30" },
   stretch_role: { label: "Stretch role", bg: "bg-coral/20" },
   low_signal_lead: { label: "Low-signal lead", bg: "bg-coral/20" },
-  probably_skip: { label: "Probably skip", bg: "bg-ink/10" },
+  probably_skip: { label: "Probably skip", bg: "bg-edge/10" },
   follow_up_now: { label: "Follow up now", bg: "bg-mint" },
   prep_mode: { label: "Prep mode", bg: "bg-sky/30" },
 };
@@ -36,7 +36,7 @@ function HoverTip({ tip, children }: { tip: string; children: React.ReactNode })
     <span className="relative inline-block" onMouseEnter={() => { timer.current = setTimeout(() => setShow(true), 1000); }} onMouseLeave={() => { if (timer.current) clearTimeout(timer.current); setShow(false); }}>
       {children}
       {show && (
-        <span className="pointer-events-none absolute -top-1 left-1/2 z-10 mb-1 w-44 -translate-x-1/2 -translate-y-full rounded-xl border-2 border-ink bg-white px-2.5 py-1.5 text-xs font-bold shadow-soft">
+        <span className="pointer-events-none absolute -top-1 left-1/2 z-10 mb-1 w-44 -translate-x-1/2 -translate-y-full rounded-xl border-2 border-fg bg-panel px-2.5 py-1.5 text-xs font-bold shadow-soft">
           {tip}
         </span>
       )}
@@ -48,12 +48,12 @@ function ScoreChip({ name, value }: { name: string; value: number }) {
   const barColor = value >= 70 ? "bg-mint" : value >= 45 ? "bg-sun" : "bg-coral";
   return (
     <HoverTip tip={scoreDescriptions[name] || ""}>
-      <div className="rounded-xl bg-cream px-2.5 py-1.5">
+      <div className="rounded-xl bg-paper px-2.5 py-1.5">
         <div className="flex items-center gap-1.5 text-xs font-black">
           <span>{name}</span>
-          <span className="text-ink/55">{value}</span>
+          <span className="text-fg/55">{value}</span>
         </div>
-        <div className="mt-0.5 h-1.5 w-16 overflow-hidden rounded-full bg-ink/10">
+        <div className="mt-0.5 h-1.5 w-16 overflow-hidden rounded-full bg-edge/10">
           <div className={`h-full rounded-full ${barColor} transition-all`} style={{ width: `${value}%` }} />
         </div>
       </div>
@@ -70,14 +70,14 @@ export function CanvasHeader({
   appliedAt?: string | null; onDelete?: () => void;
 }) {
   return (
-    <div className="rounded-3xl border-2 border-ink bg-white p-5 shadow-[0_5px_0_#26312c]">
+    <div className="rounded-3xl border-2 border-fg bg-panel p-5 shadow-[0_5px_0_#26312c]">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-[10px] font-black uppercase tracking-[.18em] text-plum">
             Step {currentStep}: {stepNames[currentStep] || "Review"}
           </p>
           <h2 className="mt-1 break-words font-[var(--font-display)] text-3xl font-black">{title}</h2>
-          <p className="mt-1 text-sm font-bold text-ink/55">{company}</p>
+          <p className="mt-1 text-sm font-bold text-fg/55">{company}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {appliedAt && (
@@ -108,7 +108,7 @@ export function CanvasHeader({
 
       {latestScore && (
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${labelDisplay[latestScore.label]?.bg || "bg-ink/10"}`}>
+          <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${labelDisplay[latestScore.label]?.bg || "bg-edge/10"}`}>
             {labelDisplay[latestScore.label]?.label || latestScore.label}
           </span>
           <div className="flex flex-wrap gap-1.5">
@@ -126,7 +126,7 @@ export function CanvasHeader({
         <span className="text-xs font-black uppercase tracking-[.18em] text-plum">
           Step {currentStep} of {totalSteps}
         </span>
-        <div className="h-2 flex-1 overflow-hidden rounded-full bg-cream">
+        <div className="h-2 flex-1 overflow-hidden rounded-full bg-paper">
           <div className="h-full rounded-full bg-plum transition-all" style={{ width: `${(currentStep / totalSteps) * 100}%` }} />
         </div>
       </div>

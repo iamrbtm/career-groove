@@ -89,7 +89,7 @@ export function DocumentsStep({
 
   return (
     <div className="space-y-4">
-      <p className="text-sm leading-6 text-ink/60">
+      <p className="text-sm leading-6 text-fg/60">
         Tailor your resume and cover letter for this role.
       </p>
 
@@ -101,10 +101,10 @@ export function DocumentsStep({
         </div>
       )}
 
-      <div className="rounded-2xl bg-cream p-4">
+      <div className="rounded-2xl bg-paper p-4">
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs font-black uppercase tracking-[.18em] text-plum">Documents</p>
-          <button onClick={refreshRemix} className="rounded-full bg-white px-3 py-1.5 text-xs font-black">
+          <button onClick={refreshRemix} className="rounded-full bg-panel px-3 py-1.5 text-xs font-black">
             Refresh summary
           </button>
         </div>
@@ -114,7 +114,7 @@ export function DocumentsStep({
               key={kind}
               disabled={Boolean(generating)}
               onClick={() => generateDoc(kind)}
-              className="flex items-center gap-1 rounded-2xl border-2 border-ink bg-sun px-3 py-2 text-xs font-black disabled:opacity-60"
+              className="flex items-center gap-1 rounded-2xl border-2 border-fg bg-sun px-3 py-2 text-xs font-black disabled:opacity-60"
             >
               {generating === kind ? <LoaderCircle size={14} className="animate-spin" /> : <Sparkles size={14} />}
               Generate {kind.replace("_", " ")}
@@ -128,17 +128,17 @@ export function DocumentsStep({
                 key={doc.id}
                 onMouseEnter={() => setPreviewId(doc.id)}
                 onMouseLeave={() => setPreviewId((current) => current === doc.id ? "" : current)}
-                className="rounded-2xl border border-ink/10 bg-white/85 p-3"
+                className="rounded-2xl border border-edge/10 bg-panel/85 p-3"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[10px] font-black uppercase tracking-[.18em] text-plum">{documentLabel(doc.kind)}</p>
-                    <p className="mt-1 flex items-center gap-2 text-sm font-black text-ink">
+                    <p className="mt-1 flex items-center gap-2 text-sm font-black text-fg">
                       <FileText size={14} />
                       <span className="truncate">{doc.title || documentLabel(doc.kind)}</span>
                     </p>
                     {(doc.targetJob?.company || doc.targetJob?.title) && (
-                      <p className="mt-1 text-xs font-bold text-ink/55">
+                      <p className="mt-1 text-xs font-bold text-fg/55">
                         {[doc.targetJob?.company, doc.targetJob?.title].filter(Boolean).join(" · ")}
                       </p>
                     )}
@@ -151,7 +151,7 @@ export function DocumentsStep({
                     <button
                       type="button"
                       onClick={() => setPreviewId((current) => current === doc.id ? "" : doc.id)}
-                      className="rounded-xl bg-ink/5 p-2 text-ink md:hidden"
+                      className="rounded-xl bg-ink/5 p-2 text-fg md:hidden"
                       aria-label={`Preview ${documentLabel(doc.kind)}`}
                     >
                       {previewId === doc.id ? <X size={16} /> : <Eye size={16} />}
@@ -160,7 +160,7 @@ export function DocumentsStep({
                       type="button"
                       disabled={downloadingId === doc.id}
                       onClick={() => void downloadDocument(doc)}
-                      className="rounded-xl bg-sun p-2 text-ink disabled:opacity-60"
+                      className="rounded-xl bg-sun p-2 text-fg disabled:opacity-60"
                       aria-label={`Download ${documentLabel(doc.kind)} PDF`}
                     >
                       {downloadingId === doc.id ? <LoaderCircle size={16} className="animate-spin" /> : <FileDown size={16} />}
@@ -169,14 +169,14 @@ export function DocumentsStep({
                 </div>
 
                 {previewId === doc.id && (
-                  <div className="mt-3 rounded-2xl bg-cream p-3 md:hidden">
+                  <div className="mt-3 rounded-2xl bg-paper p-3 md:hidden">
                     <p className="text-[10px] font-black uppercase tracking-[.18em] text-plum">Preview</p>
                     <StyledPreview document={doc} />
                   </div>
                 )}
 
                 {previewId === doc.id && (
-                  <div className="mt-3 hidden rounded-2xl bg-cream p-3 md:block">
+                  <div className="mt-3 hidden rounded-2xl bg-paper p-3 md:block">
                     <p className="text-[10px] font-black uppercase tracking-[.18em] text-plum">Hover preview</p>
                     <StyledPreview document={doc} />
                   </div>
@@ -189,7 +189,7 @@ export function DocumentsStep({
           <div className="mt-3 space-y-1">
             <p className="text-[10px] font-black uppercase tracking-[.18em] text-plum">Recent drafts</p>
             {documentJobs.slice(0, 3).map((job) => (
-              <p key={job.id} className="text-sm font-bold text-ink/55">
+              <p key={job.id} className="text-sm font-bold text-fg/55">
                 {job.kind.replace("_", " ")} · {formatDate(job.createdAt)} · {job.status}
               </p>
             ))}
@@ -197,11 +197,11 @@ export function DocumentsStep({
         )}
       </div>
 
-      <button onClick={onAdvance} className="rounded-2xl border-2 border-ink bg-mint px-4 py-2.5 text-sm font-black">
+      <button onClick={onAdvance} className="rounded-2xl border-2 border-fg bg-mint px-4 py-2.5 text-sm font-black">
         Mark documents ready
       </button>
 
-      {notice && <p className="text-sm font-bold text-ink/65">{notice}</p>}
+      {notice && <p className="text-sm font-bold text-fg/65">{notice}</p>}
     </div>
   );
 }
@@ -218,23 +218,23 @@ function cleanFileName(value: string) {
 
 function StyledPreview({ document }: { document: Document }) {
   if (!document.text?.trim()) {
-    return <p className="mt-2 text-sm leading-6 text-ink/75">Preview unavailable for this document.</p>;
+    return <p className="mt-2 text-sm leading-6 text-fg/75">Preview unavailable for this document.</p>;
   }
 
   if (document.kind === "cover_letter") {
     const preview = parseCoverLetterPreview(document.text);
     return (
-      <div className="mt-2 max-h-80 overflow-y-auto rounded-2xl border border-ink/10 bg-white p-4 text-ink shadow-[0_2px_0_rgba(38,49,44,0.08)]">
-        <div className="border-b border-ink/10 pb-3">
+      <div className="mt-2 max-h-80 overflow-y-auto rounded-2xl border border-edge/10 bg-panel p-4 text-fg shadow-[0_2px_0_rgba(38,49,44,0.08)]">
+        <div className="border-b border-edge/10 pb-3">
           <div className="mb-2 flex gap-1.5">
             <span className="block h-2.5 w-2.5 rounded-sm bg-sun" />
             <span className="block h-2.5 w-2.5 rounded-sm bg-coral" />
             <span className="block h-2.5 w-2.5 rounded-sm bg-sky" />
           </div>
           <p className="text-sm font-black">Cover Letter</p>
-          <p className="mt-1 text-xs font-bold text-ink/55">{new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" }).format(new Date())}</p>
+          <p className="mt-1 text-xs font-bold text-fg/55">{new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" }).format(new Date())}</p>
           {(document.targetJob?.company || document.targetJob?.title) && (
-            <p className="mt-1 text-xs font-bold text-ink/55">{[document.targetJob?.company, document.targetJob?.title].filter(Boolean).join(" · ")}</p>
+            <p className="mt-1 text-xs font-bold text-fg/55">{[document.targetJob?.company, document.targetJob?.title].filter(Boolean).join(" · ")}</p>
           )}
         </div>
         <div className="space-y-3 pt-3 text-sm leading-6">
@@ -254,8 +254,8 @@ function StyledPreview({ document }: { document: Document }) {
 
   const lines = document.text.split("\n").map((line) => line.trimEnd()).filter((line, index, all) => line || (index > 0 && all[index - 1]));
   return (
-    <div className="mt-2 max-h-80 overflow-y-auto rounded-2xl border border-ink/10 bg-white p-4 text-ink shadow-[0_2px_0_rgba(38,49,44,0.08)]">
-      <div className="border-b border-ink/10 pb-3">
+    <div className="mt-2 max-h-80 overflow-y-auto rounded-2xl border border-edge/10 bg-panel p-4 text-fg shadow-[0_2px_0_rgba(38,49,44,0.08)]">
+      <div className="border-b border-edge/10 pb-3">
         <div className="mb-2 flex gap-1.5">
           <span className="block h-2.5 w-2.5 rounded-sm bg-sun" />
           <span className="block h-2.5 w-2.5 rounded-sm bg-coral" />
@@ -263,7 +263,7 @@ function StyledPreview({ document }: { document: Document }) {
         </div>
         <p className="text-sm font-black">Resume</p>
       </div>
-      <div className="pt-3 font-mono text-[12px] leading-5 text-ink/80">
+      <div className="pt-3 font-mono text-[12px] leading-5 text-fg/80">
         {lines.map((line, index) => (
           <p key={index} className={/^[A-Z][A-Z\s]+$/.test(line) ? "mt-2 font-sans text-[11px] font-black uppercase tracking-[.16em] text-plum" : ""}>
             {line || "\u00A0"}
@@ -297,7 +297,7 @@ function parseCoverLetterPreview(text: string) {
 
 function ScorePill({ label, value }: { label: string; value?: number }) {
   return (
-    <div className="rounded-2xl border-2 border-ink/10 bg-white px-4 py-3">
+    <div className="rounded-2xl border-2 border-edge/10 bg-panel px-4 py-3">
       <p className="text-[10px] font-black uppercase tracking-[.18em] text-plum">{label}</p>
       <p className="mt-1 font-black">{typeof value === "number" ? `${value}/100` : "Not scored"}</p>
     </div>

@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { CheckCircle2, KeyRound, LoaderCircle, RefreshCw, Unplug } from "lucide-react";
 
-type Provider = "openai" | "anthropic" | "google" | "ollama";
+type Provider = "openai" | "anthropic" | "google" | "ollama" | "kilo";
 type Model = { id: string; name: string };
 type Connection = {
   provider: Provider;
@@ -21,6 +21,7 @@ const providers: { id: Provider; name: string; copy: string; key: boolean }[] = 
   { id: "anthropic", name: "Claude", copy: "Claude models enabled for your Anthropic workspace.", key: true },
   { id: "google", name: "Gemini", copy: "Gemini models supporting generateContent.", key: true },
   { id: "ollama", name: "Ollama", copy: "Models installed on your configured Ollama server.", key: false },
+  { id: "kilo", name: "Kilo", copy: "Kilo AI Gateway — one key for 500+ models via an OpenAI-compatible endpoint. Only the no-cost free models are shown.", key: true },
 ];
 
 export function ProviderConnections({ onConnectionsChanged }: { onConnectionsChanged?: () => void }) {
@@ -128,12 +129,12 @@ export function ProviderConnections({ onConnectionsChanged }: { onConnectionsCha
   }
 
   return (
-    <section className="lg:col-span-2 rounded-3xl border-2 border-ink bg-white p-6 shadow-[0_5px_0_#26312c]">
+    <section className="lg:col-span-2 rounded-3xl border-2 border-fg bg-panel p-6 shadow-[0_5px_0_#26312c]">
       <div className="flex items-start gap-3">
         <div className="grid size-11 place-items-center rounded-2xl bg-coral"><KeyRound /></div>
         <div>
           <h2 className="font-[var(--font-display)] text-xl font-black">AI provider connections</h2>
-          <p className="mt-1 text-sm text-ink/55">Keys are encrypted before storage. Connecting verifies the key and asks the provider for models currently available to it.</p>
+          <p className="mt-1 text-sm text-fg/55">Keys are encrypted before storage. Connecting verifies the key and asks the provider for models currently available to it.</p>
         </div>
       </div>
       {notice && <p role="status" className="mt-4 rounded-2xl bg-mint/25 px-4 py-3 text-sm font-bold">{notice}</p>}
@@ -143,18 +144,18 @@ export function ProviderConnections({ onConnectionsChanged }: { onConnectionsCha
           const isBusy = busy?.provider === provider.id;
           const isDiscovering = isBusy && (busy.action === "connect" || busy.action === "refresh");
           return (
-            <article key={provider.id} className={`rounded-3xl border-2 p-5 ${connection ? "border-mint bg-mint/10" : "border-ink/15 bg-cream/35"}`}>
+            <article key={provider.id} className={`rounded-3xl border-2 p-5 ${connection ? "border-mint bg-mint/10" : "border-edge/15 bg-paper/35"}`}>
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="font-black">{provider.name}</h3>
                     {connection && <span className="flex items-center gap-1 rounded-full bg-mint px-2 py-1 text-[10px] font-black uppercase"><CheckCircle2 size={12} />Active</span>}
                   </div>
-                  <p className="mt-1 text-xs leading-5 text-ink/50">{provider.copy}</p>
+                  <p className="mt-1 text-xs leading-5 text-fg/50">{provider.copy}</p>
                 </div>
                 {connection && (
                   <button onClick={() => void disconnect(provider.id)} disabled={isBusy} title="Disconnect" aria-label={`Disconnect ${provider.name}`}>
-                    {isBusy && busy.action === "disconnect" ? <LoaderCircle size={17} className="animate-spin text-ink/35" /> : <Unplug size={17} className="text-ink/35 hover:text-coral" />}
+                    {isBusy && busy.action === "disconnect" ? <LoaderCircle size={17} className="animate-spin text-fg/35" /> : <Unplug size={17} className="text-fg/35 hover:text-coral" />}
                   </button>
                 )}
               </div>
@@ -163,21 +164,21 @@ export function ProviderConnections({ onConnectionsChanged }: { onConnectionsCha
                   <div className="flex items-end gap-2">
                     <label className="min-w-0 flex-1 text-[10px] font-black uppercase tracking-wider text-plum">
                       Model
-                      <select value={connection.selectedModel} onChange={(event) => void select(provider.id, event.target.value)} disabled={isBusy} className="mt-1 w-full rounded-xl border-2 border-ink/15 bg-white px-3 py-2.5 text-sm font-bold normal-case">
+                      <select value={connection.selectedModel} onChange={(event) => void select(provider.id, event.target.value)} disabled={isBusy} className="mt-1 w-full rounded-xl border-2 border-edge/15 bg-panel px-3 py-2.5 text-sm font-bold normal-case">
                         <option value="" disabled>Select a model</option>
                         {connection.models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
                       </select>
                     </label>
-                    <button onClick={() => void refresh(provider.id)} disabled={isBusy} className="grid size-10 place-items-center rounded-xl border-2 border-ink/15 bg-white" title="Refresh models" aria-label={`Refresh ${provider.name} models`}>
+                    <button onClick={() => void refresh(provider.id)} disabled={isBusy} className="grid size-10 place-items-center rounded-xl border-2 border-edge/15 bg-panel" title="Refresh models" aria-label={`Refresh ${provider.name} models`}>
                       {isDiscovering ? <LoaderCircle className="animate-spin" size={16} /> : <RefreshCw size={16} />}
                     </button>
                   </div>
-                  <p className="mt-2 text-xs text-ink/40">{connection.keyHint} · {connection.models.length} models discovered</p>
+                  <p className="mt-2 text-xs text-fg/40">{connection.keyHint} · {connection.models.length} models discovered</p>
                 </div>
               ) : (
                 <form onSubmit={(event) => void connect(event, provider.id)} className="mt-4">
-                  {provider.key && <input name="apiKey" type="password" required autoComplete="off" placeholder={`${provider.name} API key`} className="w-full rounded-xl border-2 border-ink/15 bg-white px-3 py-2.5 text-sm outline-none focus:border-coral" />}
-                  <button disabled={isBusy} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-ink bg-sun py-2.5 text-sm font-black shadow-[0_3px_0_#26312c]">
+                  {provider.key && <input name="apiKey" type="password" required autoComplete="off" placeholder={`${provider.name} API key`} className="w-full rounded-xl border-2 border-edge/15 bg-panel px-3 py-2.5 text-sm outline-none focus:border-coral" />}
+                  <button disabled={isBusy} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-fg bg-sun py-2.5 text-sm font-black shadow-[0_3px_0_#26312c]">
                     {isDiscovering ? <LoaderCircle className="animate-spin" size={16} /> : <KeyRound size={16} />}
                     {isDiscovering ? "Connecting & discovering…" : "Connect & discover models"}
                   </button>

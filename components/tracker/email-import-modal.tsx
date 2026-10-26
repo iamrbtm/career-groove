@@ -256,7 +256,7 @@ export function EmailImportModal({ open, onClose, onSaved }: {
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-ink/60 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border-2 border-ink bg-white p-6 shadow-soft">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border-2 border-fg bg-panel p-6 shadow-soft">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="grid size-10 place-items-center rounded-2xl bg-coral/20">
@@ -264,13 +264,13 @@ export function EmailImportModal({ open, onClose, onSaved }: {
             </div>
             <h2 className="font-[var(--font-display)] text-2xl font-black">Paste job email</h2>
           </div>
-          <button onClick={handleClose} className="grid size-10 place-items-center rounded-2xl bg-cream hover:bg-coral/20">
+          <button onClick={handleClose} className="grid size-10 place-items-center rounded-2xl bg-paper hover:bg-coral/20">
             <X size={18} />
           </button>
         </div>
 
         {error && <p className="mt-4 rounded-2xl border-2 border-coral bg-coral/15 p-3 text-sm font-black">{error}</p>}
-        {notice && <p className="mt-4 rounded-2xl bg-mint/20 p-3 text-sm font-bold text-ink/70">{notice}</p>}
+        {notice && <p className="mt-4 rounded-2xl bg-mint/20 p-3 text-sm font-bold text-fg/70">{notice}</p>}
 
         {step === "paste" && (
           <div className="mt-5 space-y-3">
@@ -278,13 +278,13 @@ export function EmailImportModal({ open, onClose, onSaved }: {
               value={emailText}
               onChange={(e) => setEmailText(e.target.value)}
               placeholder="Paste your Daily Job Matches email here..."
-              className="min-h-48 w-full resize-y rounded-2xl bg-cream px-4 py-3 text-sm font-bold outline-none"
+              className="min-h-48 w-full resize-y rounded-2xl bg-paper px-4 py-3 text-sm font-bold outline-none"
             />
             <button
               type="button"
               onClick={handleParse}
               disabled={parsing || emailText.trim().length < 50}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-coral px-4 py-3 text-sm font-black shadow-[0_3px_0_#26312c] disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-fg bg-coral px-4 py-3 text-sm font-black shadow-[0_3px_0_#26312c] disabled:opacity-60"
             >
               {parsing ? <LoaderCircle size={17} className="animate-spin" /> : <Mail size={17} />}
               {parsing ? "Parsing..." : "Parse email"}
@@ -302,7 +302,7 @@ export function EmailImportModal({ open, onClose, onSaved }: {
                 {parsedResult.warnings.length > 0 && (
                   <ul className="mt-2 space-y-1">
                     {parsedResult.warnings.map((w, i) => (
-                      <li key={i} className="text-xs font-bold text-ink/60">{w}</li>
+                      <li key={i} className="text-xs font-bold text-fg/60">{w}</li>
                     ))}
                   </ul>
                 )}
@@ -319,7 +319,7 @@ export function EmailImportModal({ open, onClose, onSaved }: {
                   {showHeader ? "Hide" : "Show"} email header
                 </button>
                 {showHeader && (
-                  <p className="mt-2 rounded-2xl bg-cream p-3 text-xs font-bold text-ink/60 whitespace-pre-wrap">
+                  <p className="mt-2 rounded-2xl bg-paper p-3 text-xs font-bold text-fg/60 whitespace-pre-wrap">
                     {parsedResult.header}
                   </p>
                 )}
@@ -334,11 +334,11 @@ export function EmailImportModal({ open, onClose, onSaved }: {
               const score = scores.get(index);
               const fitColor = score ? (score.fit >= 70 ? "bg-mint" : score.fit >= 45 ? "bg-sun" : "bg-coral") : "bg-ink/10";
               return (
-                <div key={index} className="rounded-2xl border-2 border-ink/10 bg-cream p-4">
+                <div key={index} className="rounded-2xl border-2 border-edge/10 bg-paper p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="rounded-xl bg-white px-3 py-2 text-sm font-black">{job.title}</p>
-                      <p className="mt-1 rounded-xl bg-white px-3 py-1.5 text-sm font-bold text-ink/70">{job.company}</p>
+                      <p className="rounded-xl bg-panel px-3 py-2 text-sm font-black">{job.title}</p>
+                      <p className="mt-1 rounded-xl bg-panel px-3 py-1.5 text-sm font-bold text-fg/70">{job.company}</p>
                     </div>
                     <button
                       type="button"
@@ -350,14 +350,14 @@ export function EmailImportModal({ open, onClose, onSaved }: {
                   </div>
 
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    <p className="rounded-xl bg-white px-3 py-1.5 text-xs font-bold">{job.location}</p>
-                    <p className="rounded-xl bg-white px-3 py-1.5 text-xs font-bold capitalize">{job.workArrangement}</p>
+                    <p className="rounded-xl bg-panel px-3 py-1.5 text-xs font-bold">{job.location}</p>
+                    <p className="rounded-xl bg-panel px-3 py-1.5 text-xs font-bold capitalize">{job.workArrangement}</p>
                   </div>
 
                   {score && (
-                    <div className="mt-3 rounded-xl bg-white p-3">
+                    <div className="mt-3 rounded-xl bg-panel p-3">
                       <div className="flex items-center gap-3">
-                        <div className={`grid size-12 shrink-0 place-items-center rounded-xl border-2 border-ink text-sm font-black ${fitColor}`}>
+                        <div className={`grid size-12 shrink-0 place-items-center rounded-xl border-2 border-fg text-sm font-black ${fitColor}`}>
                           {score.fit}
                         </div>
                         <div className="min-w-0 flex-1">
@@ -373,7 +373,7 @@ export function EmailImportModal({ open, onClose, onSaved }: {
                                   <div className="h-1 overflow-hidden rounded-full bg-ink/10">
                                     <div className={`h-full rounded-full ${color}`} style={{ width: `${value}%` }} />
                                   </div>
-                                  <p className="mt-0.5 text-center text-[8px] font-black uppercase tracking-wider text-ink/40">{key.slice(0, 3)}</p>
+                                  <p className="mt-0.5 text-center text-[8px] font-black uppercase tracking-wider text-fg/40">{key.slice(0, 3)}</p>
                                 </div>
                               );
                             })}
@@ -381,7 +381,7 @@ export function EmailImportModal({ open, onClose, onSaved }: {
                         </div>
                       </div>
                       {score.reasons.length > 0 && (
-                        <p className="mt-2 text-[10px] font-bold text-ink/60">
+                        <p className="mt-2 text-[10px] font-bold text-fg/60">
                           {score.reasons[0]}
                         </p>
                       )}
@@ -390,12 +390,12 @@ export function EmailImportModal({ open, onClose, onSaved }: {
 
                   <div className="mt-2 space-y-1">
                     {job.whyMatch && (
-                      <p className="text-[11px] font-bold leading-4 text-ink/60">
+                      <p className="text-[11px] font-bold leading-4 text-fg/60">
                         <span className="font-black text-plum">Matches:</span> {job.whyMatch.slice(0, 150)}{job.whyMatch.length > 150 ? "..." : ""}
                       </p>
                     )}
                     {job.notableGaps && (
-                      <p className="text-[11px] font-bold leading-4 text-ink/60">
+                      <p className="text-[11px] font-bold leading-4 text-fg/60">
                         <span className="font-black text-coral">Gaps:</span> {job.notableGaps.slice(0, 150)}{job.notableGaps.length > 150 ? "..." : ""}
                       </p>
                     )}
@@ -419,7 +419,7 @@ export function EmailImportModal({ open, onClose, onSaved }: {
               type="button"
               onClick={handleCreate}
               disabled={jobs.length === 0 || creating}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-mint px-4 py-3 text-sm font-black shadow-[0_3px_0_#26312c] disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-fg bg-mint px-4 py-3 text-sm font-black shadow-[0_3px_0_#26312c] disabled:opacity-60"
             >
               {scoring ? <LoaderCircle size={17} className="animate-spin" /> : <Send size={17} />}
               {scoring ? "Computing scores..." : `Create ${jobs.length} application${jobs.length !== 1 ? "s" : ""}`}
@@ -431,7 +431,7 @@ export function EmailImportModal({ open, onClose, onSaved }: {
           <div className="mt-5 flex flex-col items-center gap-3 py-8">
             <LoaderCircle size={32} className="animate-spin text-coral" />
             <p className="text-sm font-black">Creating applications...</p>
-            <p className="text-xs font-bold text-ink/55">This may take a moment while we save each role.</p>
+            <p className="text-xs font-bold text-fg/55">This may take a moment while we save each role.</p>
           </div>
         )}
 
@@ -442,7 +442,7 @@ export function EmailImportModal({ open, onClose, onSaved }: {
               <p className="mt-2 font-[var(--font-display)] text-xl font-black">
                 {created.length} application{created.length !== 1 ? "s" : ""} created!
               </p>
-              <p className="mt-1 text-sm font-bold text-ink/60">
+              <p className="mt-1 text-sm font-bold text-fg/60">
                 {created.length > 1 ? "They're" : "It's"} now in your Tracker Studio.
               </p>
             </div>
@@ -450,13 +450,13 @@ export function EmailImportModal({ open, onClose, onSaved }: {
             {created.length > 0 && (
               <div className="space-y-2">
                 {created.map((app) => (
-                  <div key={app.jobId} className="flex items-center justify-between rounded-xl bg-cream p-3">
+                  <div key={app.jobId} className="flex items-center justify-between rounded-xl bg-paper p-3">
                     <div>
                       <p className="text-sm font-black">{app.title}</p>
-                      <p className="text-xs font-bold text-ink/55">{app.company}</p>
+                      <p className="text-xs font-bold text-fg/55">{app.company}</p>
                     </div>
                     {app.latestScore && (
-                      <div className={`grid size-10 place-items-center rounded-xl border-2 border-ink text-xs font-black ${app.latestScore.fit >= 70 ? "bg-mint" : app.latestScore.fit >= 45 ? "bg-sun" : "bg-coral"}`}>
+                      <div className={`grid size-10 place-items-center rounded-xl border-2 border-fg text-xs font-black ${app.latestScore.fit >= 70 ? "bg-mint" : app.latestScore.fit >= 45 ? "bg-sun" : "bg-coral"}`}>
                         {app.latestScore.fit}
                       </div>
                     )}
@@ -466,7 +466,7 @@ export function EmailImportModal({ open, onClose, onSaved }: {
             )}
 
             {duplicatesSkipped > 0 && (
-              <p className="rounded-2xl border-2 border-sun bg-sun/10 p-3 text-center text-xs font-black text-ink/70">
+              <p className="rounded-2xl border-2 border-sun bg-sun/10 p-3 text-center text-xs font-black text-fg/70">
                 {duplicatesSkipped} duplicate role{duplicatesSkipped !== 1 ? "s were" : " was"} already in your Tracker Studio.
               </p>
             )}
@@ -478,7 +478,7 @@ export function EmailImportModal({ open, onClose, onSaved }: {
                 </p>
                 <ul className="mt-2 space-y-1">
                   {failed.map((f, i) => (
-                    <li key={i} className="text-xs font-bold text-ink/60">
+                    <li key={i} className="text-xs font-bold text-fg/60">
                       {jobs.find((job) => job.jobId === f.jobId)?.title || f.jobId}: {f.reason}
                     </li>
                   ))}
@@ -489,7 +489,7 @@ export function EmailImportModal({ open, onClose, onSaved }: {
             <button
               type="button"
               onClick={handleClose}
-              className="w-full rounded-2xl border-2 border-ink bg-sun px-4 py-3 text-sm font-black"
+              className="w-full rounded-2xl border-2 border-fg bg-sun px-4 py-3 text-sm font-black"
             >
               Done
             </button>

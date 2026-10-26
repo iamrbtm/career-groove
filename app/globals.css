@@ -4,12 +4,24 @@
 
 :root {
   color-scheme: light;
-  --font-body: "Avenir Next", Avenir, "Segoe UI", sans-serif;
-  --font-display: "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
+  --font-body: var(--font-body-loaded), "Segoe UI", sans-serif;
+  --font-display: var(--font-display-loaded), "Trebuchet MS", sans-serif;
+  --paper: 246 240 229;
+  --panel: 255 255 255;
+  --fg: 38 49 44;
+  --edge: 38 49 44;
+}
+.dark {
+  color-scheme: dark;
+  --paper: 24 29 26;
+  --panel: 36 43 38;
+  --fg: 236 231 221;
+  --edge: 255 255 255;
 }
 * { box-sizing: border-box; }
-body { margin: 0; color: #26312c; background: #f6f0e5; }
+body { margin: 0; color: rgb(var(--fg)); background: rgb(var(--paper)); transition: background-color .2s ease, color .2s ease; }
 body::before { content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .28; background-image: radial-gradient(#725a7a 0.6px, transparent 0.6px); background-size: 18px 18px; }
+.dark body::before { opacity: .12; }
 button, a { -webkit-tap-highlight-color: transparent; }
 html { scroll-behavior: smooth; }
 ::selection { color: #26312c; background: #ffc857; }

@@ -38,23 +38,23 @@ export function MarkdownMessage({ content }: { content: string }) {
           </a>
         ),
         blockquote: ({ children }) => (
-          <blockquote className="my-2 border-l-4 border-sun pl-3 text-ink/80">{children}</blockquote>
+          <blockquote className="my-2 border-l-4 border-sun pl-3 text-fg/80">{children}</blockquote>
         ),
-        hr: () => <hr className="my-2 border-ink/10" />,
+        hr: () => <hr className="my-2 border-edge/10" />,
         table: ({ children }) => (
           <div className="my-2 overflow-x-auto">
             <table className="w-full border-collapse text-xs">{children}</table>
           </div>
         ),
         th: ({ children }) => (
-          <th className="border border-ink/10 bg-ink/5 px-2 py-1 font-black text-left">{children}</th>
+          <th className="border border-edge/10 bg-ink/5 px-2 py-1 font-black text-left">{children}</th>
         ),
-        td: ({ children }) => <td className="border border-ink/10 px-2 py-1">{children}</td>,
+        td: ({ children }) => <td className="border border-edge/10 px-2 py-1">{children}</td>,
         input: (props) => (
           <input
             {...props}
             disabled
-            className="mr-1.5 inline-block h-3.5 w-3.5 rounded-sm border border-ink/30 align-middle accent-mint"
+            className="mr-1.5 inline-block h-3.5 w-3.5 rounded-sm border border-edge/30 align-middle accent-mint"
           />
         ),
       }}

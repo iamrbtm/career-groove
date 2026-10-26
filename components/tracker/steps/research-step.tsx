@@ -79,10 +79,10 @@ export function ResearchStep({
       {autoStatus === "failed" && (
         <div className="rounded-2xl border-2 border-sun/60 bg-sun/15 p-4">
           <div className="flex items-start gap-3">
-            <SearchX size={20} className="mt-0.5 shrink-0 text-ink/60" />
+            <SearchX size={20} className="mt-0.5 shrink-0 text-fg/60" />
             <div>
               <p className="font-black text-sm">This one needs a human touch</p>
-              <p className="mt-1 text-sm font-bold text-ink/60">
+              <p className="mt-1 text-sm font-bold text-fg/60">
                 We couldn&apos;t find enough about this company online to pre-fill the research.
                 The fields below are ready for what you know or discover — every signal helps.
               </p>
@@ -94,10 +94,10 @@ export function ResearchStep({
       {autoStatus === "unsupported" && (
         <div className="rounded-2xl border-2 border-sun/60 bg-sun/15 p-4">
           <div className="flex items-start gap-3">
-            <SearchX size={20} className="mt-0.5 shrink-0 text-ink/60" />
+            <SearchX size={20} className="mt-0.5 shrink-0 text-fg/60" />
             <div>
               <p className="font-black text-sm">No link or company to research</p>
-              <p className="mt-1 text-sm font-bold text-ink/60">
+              <p className="mt-1 text-sm font-bold text-fg/60">
                 Without a posting URL or company name, we can&apos;t auto-research this one.
                 Fill in what you know below — it will help with tailoring later.
               </p>
@@ -109,16 +109,16 @@ export function ResearchStep({
       {hasAutoData && (
         <div className="rounded-2xl border-2 border-mint/60 bg-mint/15 p-4">
           <div className="flex items-start gap-3">
-            <Sparkles size={20} className="mt-0.5 shrink-0 text-ink/60" />
+            <Sparkles size={20} className="mt-0.5 shrink-0 text-fg/60" />
             <div>
               <p className="font-black text-sm">Auto-researched from the posting</p>
-              <p className="mt-1 text-sm font-bold text-ink/60">
+              <p className="mt-1 text-sm font-bold text-fg/60">
                 We looked up the company and pre-filled what we found. Tweak anything that feels off.
               </p>
               {autoSources.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {autoSources.slice(0, 3).map((s) => (
-                    <span key={s} className="rounded-full bg-white/60 px-2 py-0.5 text-[10px] font-bold text-ink/50">{s}</span>
+                    <span key={s} className="rounded-full bg-panel/60 px-2 py-0.5 text-[10px] font-bold text-fg/50">{s}</span>
                   ))}
                 </div>
               )}
@@ -127,11 +127,11 @@ export function ResearchStep({
         </div>
       )}
 
-      <p className="text-sm leading-6 text-ink/60">
+      <p className="text-sm leading-6 text-fg/60">
         Capture signal you can use in interviews, outreach, and document tailoring.
       </p>
       {sourceUrl && (
-        <a href={sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full bg-cream px-3 py-2 text-xs font-black">
+        <a href={sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full bg-paper px-3 py-2 text-xs font-black">
           Open posting <ExternalLink size={14} />
         </a>
       )}
@@ -143,18 +143,18 @@ export function ResearchStep({
       </div>
       <label className="block text-xs font-black uppercase tracking-[.18em] text-plum">
         Questions to ask
-        <textarea value={form.questions} onChange={(e) => setForm({ ...form, questions: e.target.value })} className="mt-2 min-h-24 w-full rounded-2xl bg-cream px-4 py-3 text-sm font-bold normal-case outline-none" />
+        <textarea value={form.questions} onChange={(e) => setForm({ ...form, questions: e.target.value })} className="mt-2 min-h-24 w-full rounded-2xl bg-paper px-4 py-3 text-sm font-bold normal-case outline-none" />
       </label>
       <div className="flex flex-wrap gap-2">
-        <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-mint px-4 py-2.5 text-sm font-black disabled:opacity-60">
+        <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 rounded-2xl border-2 border-fg bg-mint px-4 py-2.5 text-sm font-black disabled:opacity-60">
           {saving ? <LoaderCircle size={16} className="animate-spin" /> : <Save size={16} />}
           Save research
         </button>
-        <button onClick={onAdvance} className="rounded-2xl border-2 border-ink bg-white px-4 py-2.5 text-sm font-black">
+        <button onClick={onAdvance} className="rounded-2xl border-2 border-fg bg-panel px-4 py-2.5 text-sm font-black">
           Skip to Documents
         </button>
       </div>
-      {notice && <p className="text-sm font-bold text-ink/65">{notice}</p>}
+      {notice && <p className="text-sm font-bold text-fg/65">{notice}</p>}
     </div>
   );
 }
@@ -163,7 +163,7 @@ function ResearchField({ label, value, onChange }: { label: string; value: strin
   return (
     <label className="block text-xs font-black uppercase tracking-[.18em] text-plum">
       {label}
-      <input value={value} onChange={(e) => onChange(e.target.value)} className="mt-2 w-full rounded-2xl bg-cream px-4 py-3 text-sm font-bold normal-case outline-none" />
+      <input value={value} onChange={(e) => onChange(e.target.value)} className="mt-2 w-full rounded-2xl bg-paper px-4 py-3 text-sm font-bold normal-case outline-none" />
     </label>
   );
 }

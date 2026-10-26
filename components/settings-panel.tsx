@@ -262,7 +262,7 @@ export function SettingsPanel() {
         </>}
         <form
           onSubmit={save}
-          className="h-fit rounded-3xl border-2 border-ink bg-white p-6 shadow-[0_5px_0_#26312c]"
+          className="h-fit rounded-3xl border-2 border-fg bg-panel p-6 shadow-[0_5px_0_#26312c]"
         >
           <h2 className="flex items-center gap-2 font-[var(--font-display)] text-xl font-black">
             <Headphones /> Atmosphere
@@ -274,14 +274,14 @@ export function SettingsPanel() {
               onChange={(event) =>
                 setSettings({ ...settings, musicStation: event.target.value })
               }
-              className="mt-1 w-full rounded-2xl border-2 border-ink/15 px-3 py-3 text-sm normal-case"
+              className="mt-1 w-full rounded-2xl border-2 border-edge/15 px-3 py-3 text-sm normal-case"
             >
               {["Lo-Fi", "Ambient", "Classical", "Brain Waves"].map((station) => (
                 <option key={station}>{station}</option>
               ))}
             </select>
           </label>
-          <label className="mt-4 flex gap-3 rounded-2xl bg-cream p-3 text-sm font-bold">
+          <label className="mt-4 flex gap-3 rounded-2xl bg-paper p-3 text-sm font-bold">
             <input
               type="checkbox"
               checked={settings.reducedMotion}
@@ -292,15 +292,15 @@ export function SettingsPanel() {
             />
             Prefer gentler motion
           </label>
-          <button className="mt-5 flex w-full justify-center gap-2 rounded-2xl border-2 border-ink bg-mint py-3 font-black shadow-[0_4px_0_#26312c]">
+          <button className="mt-5 flex w-full justify-center gap-2 rounded-2xl border-2 border-fg bg-mint py-3 font-black shadow-[0_4px_0_#26312c]">
             <CheckCircle2 /> Save preferences
           </button>
         </form>
-        <form onSubmit={savePreferences} className="rounded-3xl border-2 border-ink bg-white p-6 shadow-[0_5px_0_#26312c]">
+        <form onSubmit={savePreferences} className="rounded-3xl border-2 border-fg bg-panel p-6 shadow-[0_5px_0_#26312c]">
           <h2 className="font-[var(--font-display)] text-xl font-black">Tracker preferences</h2>
-          <p className="mt-2 text-sm text-ink/55">These guide Career DJ, follow-up timing, and offer comparisons.</p>
+          <p className="mt-2 text-sm text-fg/55">These guide Career DJ, follow-up timing, and offer comparisons.</p>
           <div className="mt-4 flex items-center justify-between gap-3">
-            <p className="text-xs font-black uppercase tracking-wider text-ink/55">
+            <p className="text-xs font-black uppercase tracking-wider text-fg/55">
               {tagEditing ? "Separate each value with a comma" : "Tag lists"}
             </p>
             {!tagEditing ? (
@@ -344,7 +344,7 @@ export function SettingsPanel() {
           <label className="mt-4 block text-xs font-black uppercase tracking-wider text-plum">
             Work modes
             <div className="mt-2 flex flex-wrap gap-2">
-              {["remote", "hybrid", "onsite", "flexible"].map((mode) => <button type="button" key={mode} onClick={() => setPreferences((current) => ({ ...current, workModes: current.workModes.includes(mode) ? current.workModes.filter((item) => item !== mode) : [...current.workModes, mode] }))} className={`rounded-full px-3 py-1.5 text-xs font-black ${preferences.workModes.includes(mode) ? "bg-sun" : "bg-cream"}`}>{mode}</button>)}
+              {["remote", "hybrid", "onsite", "flexible"].map((mode) => <button type="button" key={mode} onClick={() => setPreferences((current) => ({ ...current, workModes: current.workModes.includes(mode) ? current.workModes.filter((item) => item !== mode) : [...current.workModes, mode] }))} className={`rounded-full px-3 py-1.5 text-xs font-black ${preferences.workModes.includes(mode) ? "bg-sun" : "bg-paper"}`}>{mode}</button>)}
             </div>
           </label>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -355,34 +355,34 @@ export function SettingsPanel() {
             <Input label="Weekly pace" value={preferences.weeklyPace} onChange={(weeklyPace) => setPreferences({ ...preferences, weeklyPace })} />
             <Input label="Default follow-up days" value={preferences.defaultFollowUpDays} onChange={(defaultFollowUpDays) => setPreferences({ ...preferences, defaultFollowUpDays })} />
           </div>
-          <button className="mt-5 flex w-full justify-center gap-2 rounded-2xl border-2 border-ink bg-sun py-3 font-black shadow-[0_4px_0_#26312c]">
+          <button className="mt-5 flex w-full justify-center gap-2 rounded-2xl border-2 border-fg bg-sun py-3 font-black shadow-[0_4px_0_#26312c]">
             <CheckCircle2 /> Save tracker preferences
           </button>
         </form>
         <div className="space-y-6">
-          <form onSubmit={feedback} className="rounded-3xl border-2 border-ink bg-sun/30 p-6">
+          <form onSubmit={feedback} className="rounded-3xl border-2 border-fg bg-sun/30 p-6">
             <h2 className="flex items-center gap-2 font-[var(--font-display)] text-xl font-black">
               <Github /> Shape CareerGroove
             </h2>
-            <p className="mt-2 text-sm text-ink/55">
+            <p className="mt-2 text-sm text-fg/55">
               Send feedback directly into the connected GitHub project.
             </p>
             <label className="mt-4 block text-xs font-black uppercase tracking-wider text-plum">
               Title
-              <input name="title" required minLength={3} className="mt-1 w-full rounded-2xl border-2 border-ink/15 px-3 py-3 text-sm font-bold normal-case" />
+              <input name="title" required minLength={3} className="mt-1 w-full rounded-2xl border-2 border-edge/15 px-3 py-3 text-sm font-bold normal-case" />
             </label>
             <label className="mt-4 block text-xs font-black uppercase tracking-wider text-plum">
               Details
-              <textarea name="body" required minLength={3} className="mt-1 min-h-32 w-full rounded-2xl border-2 border-ink/15 p-3 text-sm font-normal normal-case" />
+              <textarea name="body" required minLength={3} className="mt-1 min-h-32 w-full rounded-2xl border-2 border-edge/15 p-3 text-sm font-normal normal-case" />
             </label>
-            <button className="mt-4 flex w-full justify-center gap-2 rounded-2xl border-2 border-ink bg-coral py-3 font-black shadow-[0_4px_0_#26312c]">
+            <button className="mt-4 flex w-full justify-center gap-2 rounded-2xl border-2 border-fg bg-coral py-3 font-black shadow-[0_4px_0_#26312c]">
               <Send /> Send feedback
             </button>
           </form>
-          <div className="rounded-3xl border-2 border-ink/15 bg-white/60 p-5">
+          <div className="rounded-3xl border-2 border-edge/15 bg-panel/60 p-5">
             <ShieldCheck />
             <h3 className="mt-3 font-black">Your keys stay private</h3>
-            <p className="mt-1 text-sm text-ink/55">
+            <p className="mt-1 text-sm text-fg/55">
               API keys are encrypted with AES-256-GCM before storage and are only decrypted server-side when calling the selected provider.
             </p>
           </div>
@@ -412,7 +412,7 @@ function parseCommaList(text: string) {
 function Input({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return <label className="block text-xs font-black uppercase tracking-wider text-plum">
     {label}
-    <input value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 w-full rounded-2xl border-2 border-ink/15 px-3 py-3 text-sm font-bold normal-case" />
+    <input value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 w-full rounded-2xl border-2 border-edge/15 px-3 py-3 text-sm font-bold normal-case" />
   </label>;
 }
 
@@ -428,7 +428,7 @@ function TagField({ label, editing, draft, values, onChange }: {
           onChange={(event) => onChange(event.target.value)}
           rows={Math.max(2, Math.min(5, draft.split(",").length + 1))}
           placeholder="Separate with commas, e.g. React, TypeScript, Node"
-          className="mt-1 min-h-16 w-full resize-y rounded-2xl border-2 border-ink/15 px-3 py-3 text-sm font-bold normal-case"
+          className="mt-1 min-h-16 w-full resize-y rounded-2xl border-2 border-edge/15 px-3 py-3 text-sm font-bold normal-case"
         />
       </label>
     );
@@ -440,11 +440,11 @@ function TagField({ label, editing, draft, values, onChange }: {
       {tags.length ? (
         <div className="mt-2 flex flex-wrap gap-2">
           {tags.map((tag) => (
-            <span key={tag} className="rounded-full bg-cream px-3 py-1.5 text-xs font-black">{tag}</span>
+            <span key={tag} className="rounded-full bg-paper px-3 py-1.5 text-xs font-black">{tag}</span>
           ))}
         </div>
       ) : (
-        <p className="mt-2 rounded-2xl border-2 border-dashed border-ink/15 bg-white/60 px-3 py-3 text-sm font-bold text-ink/45">Nothing set yet.</p>
+        <p className="mt-2 rounded-2xl border-2 border-dashed border-edge/15 bg-panel/60 px-3 py-3 text-sm font-bold text-fg/45">Nothing set yet.</p>
       )}
     </div>
   );
@@ -484,15 +484,15 @@ function EmailSettingsCard({
     <div className="mt-6">
       <form
         onSubmit={onSubmit}
-        className="rounded-3xl border-2 border-ink bg-white p-6 shadow-[0_5px_0_#26312c] lg:max-w-xl"
+        className="rounded-3xl border-2 border-fg bg-panel p-6 shadow-[0_5px_0_#26312c] lg:max-w-xl"
       >
         <h2 className="flex items-center gap-2 font-[var(--font-display)] text-xl font-black">
           <Mail /> Email settings
         </h2>
-        <p className="mt-1 text-sm text-ink/55">
+        <p className="mt-1 text-sm text-fg/55">
           Used to send follow-up emails directly from CareerGroove.
           {activeProvider && (
-            <span className="ml-2 rounded-full bg-mint/30 px-2 py-0.5 text-xs font-black capitalize text-ink">
+            <span className="ml-2 rounded-full bg-mint/30 px-2 py-0.5 text-xs font-black capitalize text-fg">
               {activeProvider} connected
             </span>
           )}
@@ -503,7 +503,7 @@ function EmailSettingsCard({
           <select
             value={form.provider}
             onChange={(e) => handleProviderChange(e.target.value as EmailProvider)}
-            className="mt-1 w-full rounded-2xl border-2 border-ink/15 px-3 py-3 text-sm normal-case"
+            className="mt-1 w-full rounded-2xl border-2 border-edge/15 px-3 py-3 text-sm normal-case"
             required
           >
             <option value="">— Select a provider —</option>
@@ -516,8 +516,8 @@ function EmailSettingsCard({
         </label>
 
         {preset && (
-          <div className="mt-3 rounded-2xl bg-cream p-4 text-xs leading-5 text-ink/70">
-            <p className="font-black text-ink">How to get your app password</p>
+          <div className="mt-3 rounded-2xl bg-paper p-4 text-xs leading-5 text-fg/70">
+            <p className="font-black text-fg">How to get your app password</p>
             <p className="mt-1">{preset.note}</p>
           </div>
         )}
@@ -528,7 +528,7 @@ function EmailSettingsCard({
             value={form.senderName}
             onChange={(e) => onChange({ ...form, senderName: e.target.value })}
             placeholder="Jane Smith"
-            className="mt-1 w-full rounded-2xl border-2 border-ink/15 px-3 py-3 text-sm font-bold normal-case"
+            className="mt-1 w-full rounded-2xl border-2 border-edge/15 px-3 py-3 text-sm font-bold normal-case"
           />
         </label>
 
@@ -540,7 +540,7 @@ function EmailSettingsCard({
             value={form.email}
             onChange={(e) => onChange({ ...form, email: e.target.value })}
             placeholder="you@example.com"
-            className="mt-1 w-full rounded-2xl border-2 border-ink/15 px-3 py-3 text-sm font-bold normal-case"
+            className="mt-1 w-full rounded-2xl border-2 border-edge/15 px-3 py-3 text-sm font-bold normal-case"
           />
         </label>
 
@@ -552,7 +552,7 @@ function EmailSettingsCard({
                 value={form.smtpHost}
                 onChange={(e) => onChange({ ...form, smtpHost: e.target.value })}
                 placeholder="smtp.example.com"
-                className="mt-1 w-full rounded-2xl border-2 border-ink/15 px-3 py-3 text-sm font-bold normal-case"
+                className="mt-1 w-full rounded-2xl border-2 border-edge/15 px-3 py-3 text-sm font-bold normal-case"
               />
             </label>
             <label className="block text-xs font-black uppercase tracking-wider text-plum">
@@ -562,7 +562,7 @@ function EmailSettingsCard({
                 value={form.smtpPort}
                 onChange={(e) => onChange({ ...form, smtpPort: e.target.value })}
                 placeholder="587"
-                className="mt-1 w-full rounded-2xl border-2 border-ink/15 px-3 py-3 text-sm font-bold normal-case"
+                className="mt-1 w-full rounded-2xl border-2 border-edge/15 px-3 py-3 text-sm font-bold normal-case"
               />
             </label>
           </div>
@@ -575,14 +575,14 @@ function EmailSettingsCard({
             value={form.smtpPassword}
             onChange={(e) => onChange({ ...form, smtpPassword: e.target.value })}
             placeholder={activeProvider ? "Leave blank to keep existing password" : ""}
-            className="mt-1 w-full rounded-2xl border-2 border-ink/15 px-3 py-3 text-sm font-bold normal-case"
+            className="mt-1 w-full rounded-2xl border-2 border-edge/15 px-3 py-3 text-sm font-bold normal-case"
           />
         </label>
 
         <button
           type="submit"
           disabled={saving}
-          className="mt-5 flex w-full justify-center gap-2 rounded-2xl border-2 border-ink bg-plum py-3 font-black text-white shadow-[0_4px_0_#26312c] disabled:opacity-60"
+          className="mt-5 flex w-full justify-center gap-2 rounded-2xl border-2 border-fg bg-plum py-3 font-black text-white shadow-[0_4px_0_#26312c] disabled:opacity-60"
         >
           <CheckCircle2 size={18} />
           {saving ? "Saving…" : "Save email settings"}

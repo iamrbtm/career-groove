@@ -127,3 +127,37 @@ export const unsupportedVersionBody =
   'BEGIN_JOB_JSON\n{"schema_version":"2.0","generated_at":null,"search_run_date":null,"jobs_found":0,"jobs":[]}\nEND_JOB_JSON';
 export const invalidWorkArrangementBody =
   'BEGIN_JOB_JSON\n{"schema_version":"1.0","generated_at":null,"search_run_date":"2026-08-09","jobs_found":1,"jobs":[{"job_id":"ripple","dedupe_key":"38481670bcadac7c953e4ae0e0225b6b064d41ac8bfa17636f757204b68f428b","title":"Implementation Specialist","company":"Rippling","location":"United States","work_arrangement":"not_specified","posting_date":null,"posting_date_text":null,"discovered_date":"2026-08-09","salary":{"min":null,"max":null,"currency":"USD","period":"unknown","raw":"Not listed"},"why_match":"Strong fit","notable_gaps":"None","apply_url":"https://example.com/job","canonical_url":null,"source_job_id":null}]}\nEND_JOB_JSON';
+
+export const snakeCaseNestedDescriptionBody = bodyWithPayload({
+  ...validPayload,
+  schema_version: "1.2",
+  jobs: [
+    {
+      ...validPayload.jobs[0],
+      job_description: {
+        summary: "Structured summary",
+        responsibilities: ["Build backend services"],
+        required_qualifications: ["Bachelor's degree"],
+        preferred_qualifications: ["Spring Boot experience"],
+        technologies: ["Java", "PostgreSQL"],
+        benefits: ["Remote work"],
+        employment_type: null,
+        schedule: null,
+        travel: null,
+        education: ["Bachelor's degree"],
+        experience: ["1 year of software development experience"],
+        other_requirements: [],
+        source_url: "https://example.com/job",
+        fetched_at: "2026-08-15T08:02:59-07:00",
+      },
+      raw_description_source: {
+        source_url: "https://example.com/job",
+        fetched_at: "2026-08-15T08:02:59-07:00",
+        source_job_id: "12345",
+        ats_provider: "greenhouse",
+        description_excerpt: null,
+        full_text_fetch_required: true,
+      },
+    },
+  ],
+});

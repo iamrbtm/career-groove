@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser, unauthorized } from "@/lib/api-auth";
+import { encryptSecret } from "@/lib/secret-box";
 
 const createSchema = z.object({
   provider: z.enum(["gmail", "icloud", "yahoo", "outlook", "smtp"]),
@@ -32,21 +33,32 @@ export async function POST(request: Request) {
   if (!parsed.success) return Response.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const input = parsed.data;
+
+  // Secrets must be encrypted at rest; sendEmail()/sendVia*() decrypt them
+  // before use. Only re-encrypt when a new value is supplied so existing
+  // tokens are not wiped on a partial update.
+  const encAccessToken = input.accessToken ? encryptSecret(input.accessToken) : null;
+  const encRefreshToken = input.refreshToken ? encryptSecret(input.refreshToken) : null;
+  const encSmtpPassword = input.smtpPassword ? encryptSecret(input.smtpPassword) : null;
+
   const existing = await db.query(
     "SELECT id FROM email_connections WHERE user_id=$1 AND provider=$2",
     [user, input.provider],
   );
   if (existing.rowCount) {
     await db.query(
-      `UPDATE email_connections SET email=$3, encrypted_access_token=$4, encrypted_refresh_token=$5,
-       smtp_host=$6, smtp_port=$7, smtp_username=$8, encrypted_smtp_password=$9, sender_name=$10,
-       active=true, updated_at=now()
-       WHERE id=$1 AND user_id=$2`,
+      `UPDATE email_connections SET email=$3,
+        encrypted_access_token=COALESCE($4, encrypted_access_token),
+        encrypted_refresh_token=COALESCE($5, encrypted_refresh_token),
+        smtp_host=$6, smtp_port=$7, smtp_username=$8,
+        encrypted_smtp_password=COALESCE($9, encrypted_smtp_password),
+        sender_name=$10, active=true, updated_at=now()
+        WHERE id=$1 AND user_id=$2`,
       [
         existing.rows[0].id, user, input.email,
-        input.accessToken || null, input.refreshToken || null,
+        encAccessToken, encRefreshToken,
         input.smtpHost || null, input.smtpPort || null,
-        input.smtpUsername || null, input.smtpPassword || null,
+        input.smtpUsername || null, encSmtpPassword,
         input.senderName || null,
       ],
     );
@@ -70,9 +82,9 @@ export async function POST(request: Request) {
      RETURNING id, provider, email, sender_name AS "senderName", active`,
     [
       user, input.provider, input.email,
-      input.accessToken || null, input.refreshToken || null,
+      encAccessToken, encRefreshToken,
       input.smtpHost || null, input.smtpPort || null,
-      input.smtpUsername || null, input.smtpPassword || null,
+      input.smtpUsername || null, encSmtpPassword,
       input.senderName || null,
     ],
   );

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Bot, LoaderCircle } from "lucide-react";
 
-type Provider = "openai" | "anthropic" | "google" | "ollama" | "nvidia";
+type Provider = "openai" | "anthropic" | "google" | "ollama" | "nvidia" | "kilo";
 type Connection = { provider: Provider; selectedModel: string; active: boolean };
 
 const names: Record<Provider, string> = {
@@ -12,6 +12,7 @@ const names: Record<Provider, string> = {
   google: "Gemini",
   ollama: "Ollama",
   nvidia: "NVIDIA",
+  kilo: "Kilo",
 };
 
 export function DefaultAISelector({ refreshKey = 0 }: { refreshKey?: number }) {
@@ -56,11 +57,11 @@ export function DefaultAISelector({ refreshKey = 0 }: { refreshKey?: number }) {
   }
 
   return (
-    <section className="h-fit rounded-3xl border-2 border-ink bg-white p-6 shadow-[0_5px_0_#26312c]">
+    <section className="h-fit rounded-3xl border-2 border-fg bg-panel p-6 shadow-[0_5px_0_#26312c]">
       <h2 className="flex items-center gap-2 font-[var(--font-display)] text-xl font-black">
         <Bot /> Default AI
       </h2>
-      <p className="mt-2 text-sm leading-6 text-ink/55">
+      <p className="mt-2 text-sm leading-6 text-fg/55">
         This AI is tried first. If it fails, CareerGroove automatically tries
         every other active connection.
       </p>
@@ -70,7 +71,7 @@ export function DefaultAISelector({ refreshKey = 0 }: { refreshKey?: number }) {
           value={selected}
           onChange={(event) => void choose(event.target.value as Provider)}
           disabled={saving || !connections.length}
-          className="mt-1 w-full rounded-2xl border-2 border-ink/15 bg-white px-3 py-3 text-sm font-bold normal-case text-ink"
+          className="mt-1 w-full rounded-2xl border-2 border-edge/15 bg-panel px-3 py-3 text-sm font-bold normal-case text-fg"
         >
           <option value="" disabled>
             {connections.length ? "Select a default AI" : "Connect an AI first"}
@@ -87,7 +88,7 @@ export function DefaultAISelector({ refreshKey = 0 }: { refreshKey?: number }) {
           <LoaderCircle className="animate-spin" size={15} /> Saving default…
         </p>
       )}
-      {notice && <p className="mt-3 text-xs font-bold text-ink/60">{notice}</p>}
+      {notice && <p className="mt-3 text-xs font-bold text-fg/60">{notice}</p>}
     </section>
   );
 }

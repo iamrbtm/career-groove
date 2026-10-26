@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser, unauthorized } from "@/lib/api-auth";
-import { sendEmail } from "@/lib/email";
-import { getActiveEmailConnection } from "@/lib/email";
+import { sendEmail, getActiveEmailConnection, type EmailProvider } from "@/lib/email";
+import { recordEmailSend } from "@/lib/email-log";
 
 const idSchema = z.string().uuid();
 const bodySchema = z.object({
@@ -88,6 +88,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     subject,
     body: fu.message,
     attachments,
+  });
+
+  // Always record the attempt so a successful send is provable and failures
+  // are never silent.
+  await recordEmailSend({
+    userId: user,
+    followUpId: id.data,
+    applicationId: fu.applicationId,
+    emailConnectionId: connection.id,
+    provider: connection.provider as EmailProvider,
+    recipientEmail: parsed.data.recipientEmail,
+    subject,
+    body: fu.message,
+    status: result.ok ? "sent" : "failed",
+    error: result.ok ? null : (result.error ?? "Failed to send email."),
+    providerMessageId: result.messageId ?? null,
   });
 
   if (!result.ok) {

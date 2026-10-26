@@ -202,7 +202,7 @@ export function FollowUpDashboard() {
             {totalOverdue} overdue
           </span>
         )}
-        <MotionButton onClick={loadOverdue} className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-cream px-4 py-2 text-sm font-black">
+        <MotionButton onClick={loadOverdue} className="flex items-center gap-2 rounded-2xl border-2 border-fg bg-paper px-4 py-2 text-sm font-black">
           <RefreshCw size={16} /> Refresh
         </MotionButton>
       </div>
@@ -218,9 +218,9 @@ export function FollowUpDashboard() {
               <Mail size={20} /> Due now
             </h2>
             {dueNow.length === 0 && undrafted.length === 0 ? (
-              <div className="rounded-3xl border-2 border-dashed border-ink/20 bg-white/50 p-8 text-center">
+              <div className="rounded-3xl border-2 border-dashed border-edge/20 bg-panel/50 p-8 text-center">
                 <CheckCircle2 size={32} className="mx-auto text-mint" />
-                <p className="mt-3 font-bold text-ink/55">All caught up! No overdue follow-ups.</p>
+                <p className="mt-3 font-bold text-fg/55">All caught up! No overdue follow-ups.</p>
               </div>
             ) : (
               [...dueNow, ...undrafted].map((fu) => (
@@ -244,7 +244,7 @@ export function FollowUpDashboard() {
               <Calendar size={20} /> Coming this week
             </h2>
             {upcoming.length === 0 ? (
-              <p className="rounded-2xl bg-cream p-4 text-sm text-ink/55">No upcoming follow-ups this week.</p>
+              <p className="rounded-2xl bg-paper p-4 text-sm text-fg/55">No upcoming follow-ups this week.</p>
             ) : (
               upcoming.map((fu) => (
                 <FollowUpCard
@@ -263,26 +263,26 @@ export function FollowUpDashboard() {
             )}
           </div>
 
-          <div className="rounded-3xl border-2 border-ink bg-white p-6 shadow-[0_5px_0_#26312c]">
+          <div className="rounded-3xl border-2 border-fg bg-panel p-6 shadow-[0_5px_0_#26312c]">
             <h2 className="flex items-center gap-2 font-[var(--font-display)] text-xl font-black">
               <Sparkles size={20} className="text-coral" /> Quick tips
             </h2>
-            <ul className="mt-4 space-y-3 text-sm leading-6 text-ink/65">
-              <li className="flex gap-3 rounded-2xl bg-cream p-3">
+            <ul className="mt-4 space-y-3 text-sm leading-6 text-fg/65">
+              <li className="flex gap-3 rounded-2xl bg-paper p-3">
                 <span className="grid size-7 shrink-0 place-items-center rounded-full bg-mint text-xs font-black">1</span>
-                <span><strong className="text-ink">Follow up within 7 days</strong> of applying. Recruiters expect a polite nudge after a week of silence.</span>
+                <span><strong className="text-fg">Follow up within 7 days</strong> of applying. Recruiters expect a polite nudge after a week of silence.</span>
               </li>
-              <li className="flex gap-3 rounded-2xl bg-cream p-3">
+              <li className="flex gap-3 rounded-2xl bg-paper p-3">
                 <span className="grid size-7 shrink-0 place-items-center rounded-full bg-sun text-xs font-black">2</span>
-                <span><strong className="text-ink">Send a thank-you within 24 hours</strong> of any interview. Reference something specific from the conversation.</span>
+                <span><strong className="text-fg">Send a thank-you within 24 hours</strong> of any interview. Reference something specific from the conversation.</span>
               </li>
-              <li className="flex gap-3 rounded-2xl bg-cream p-3">
+              <li className="flex gap-3 rounded-2xl bg-paper p-3">
                 <span className="grid size-7 shrink-0 place-items-center rounded-full bg-coral text-xs font-black text-white">3</span>
-                <span><strong className="text-ink">Re-engage after 2 weeks</strong> of no response. A brief, friendly check-in shows persistence without being pushy.</span>
+                <span><strong className="text-fg">Re-engage after 2 weeks</strong> of no response. A brief, friendly check-in shows persistence without being pushy.</span>
               </li>
-              <li className="flex gap-3 rounded-2xl bg-cream p-3">
+              <li className="flex gap-3 rounded-2xl bg-paper p-3">
                 <span className="grid size-7 shrink-0 place-items-center rounded-full bg-plum text-xs font-black text-white">4</span>
-                <span><strong className="text-ink">Use the AI draft feature</strong> to generate personalized messages, then customize before sending.</span>
+                <span><strong className="text-fg">Use the AI draft feature</strong> to generate personalized messages, then customize before sending.</span>
               </li>
             </ul>
           </div>
@@ -309,7 +309,7 @@ function FollowUpCard({
   const isOverdue = followUp.scheduledFor && new Date(followUp.scheduledFor) <= new Date();
   const documentJobId = followUp.metadata?.documentGenerationJobId;
   return (
-    <div className={`rounded-3xl border-2 p-5 ${isOverdue ? "border-coral/40 bg-coral/5" : "border-ink/10 bg-white"}`}>
+    <div className={`rounded-3xl border-2 p-5 ${isOverdue ? "border-coral/40 bg-coral/5" : "border-edge/10 bg-panel"}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -320,10 +320,10 @@ function FollowUpCard({
           </div>
           <button onClick={onOpenApplication} className="mt-1 text-left">
             <p className="truncate font-black hover:text-coral">{followUp.applicationTitle}</p>
-            <p className="truncate text-sm text-ink/55">{followUp.applicationCompany}</p>
+            <p className="truncate text-sm text-fg/55">{followUp.applicationCompany}</p>
           </button>
           {followUp.scheduledFor && (
-            <p className="mt-1 flex items-center gap-1 text-xs text-ink/50">
+            <p className="mt-1 flex items-center gap-1 text-xs text-fg/50">
               <Calendar size={12} />
               {new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric" }).format(new Date(followUp.scheduledFor))}
             </p>
@@ -364,12 +364,12 @@ function FollowUpCard({
       </div>
 
       {followUp.message ? (
-        <div className="mt-3 rounded-xl bg-white p-3 text-xs leading-5 text-ink/80">
+        <div className="mt-3 rounded-xl bg-panel p-3 text-xs leading-5 text-fg/80">
           <p className="whitespace-pre-wrap">{followUp.message}</p>
         </div>
       ) : (
         <button onClick={onGenerateDraft} disabled={generating}
-          className="mt-3 flex items-center gap-2 rounded-xl border-2 border-ink/15 bg-white px-4 py-2 text-xs font-black disabled:opacity-60">
+          className="mt-3 flex items-center gap-2 rounded-xl border-2 border-edge/15 bg-panel px-4 py-2 text-xs font-black disabled:opacity-60">
           {generating ? <LoaderCircle size={14} className="animate-spin" /> : <Sparkles size={14} />}
           {generating ? "Generating..." : "Generate AI draft"}
         </button>
@@ -384,7 +384,7 @@ function FollowUpCard({
                 key={guess}
                 onClick={() => onSelectEmailGuess(guess)}
                 disabled={sending}
-                className="rounded-full border-2 border-plum/30 bg-white px-3 py-1 text-xs font-black text-plum hover:bg-plum hover:text-white disabled:opacity-60"
+                className="rounded-full border-2 border-plum/30 bg-panel px-3 py-1 text-xs font-black text-plum hover:bg-plum hover:text-white disabled:opacity-60"
               >
                 {guess}
               </button>
