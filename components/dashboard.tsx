@@ -132,7 +132,7 @@ export function Dashboard() {
         </div>
       </section>
 
-      <section className="mt-9"><div className="flex items-end justify-between"><div><p className="text-xs font-black uppercase tracking-[.2em] text-plum">Pick up the beat</p><h2 className="font-[var(--font-display)] text-2xl font-black">What are we working on?</h2></div><button className="hidden text-sm font-bold underline decoration-coral decoration-2 underline-offset-4 sm:block">See all tools</button></div>
+      <section className="mt-9"><div className="flex items-end justify-between"><div><p className="text-xs font-black uppercase tracking-[.2em] text-plum">Pick up the beat</p><h2 className="font-[var(--font-display)] text-2xl font-black">What are we working on?</h2></div></div>
         <div className="mt-5 grid gap-4 lg:grid-cols-5">{tools.map(({ icon: Icon, title, copy, color, tag, href }, i) => <motion.button onClick={() => href && router.push(href)} key={title} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .1 + i * .08 }} whileHover={{ y: -5, rotate: i - 1 }} whileTap={{ scale: .98 }} className="group rounded-3xl border-2 border-fg bg-panel p-5 text-left shadow-[0_5px_0_#26312c]">
           <div className={`grid size-12 place-items-center rounded-2xl border-2 border-fg ${color}`}><Icon size={23}/></div><p className="mt-5 text-[10px] font-black uppercase tracking-[.18em] text-plum">{tag}</p><h3 className="mt-1 font-[var(--font-display)] text-xl font-black">{title}</h3><p className="mt-2 text-sm leading-5 text-fg/60">{copy}</p><span className="mt-5 flex items-center gap-1 text-sm font-black group-hover:text-coral">Start a session <ArrowUpRight size={16}/></span>
         </motion.button>)}</div>

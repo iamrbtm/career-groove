@@ -29,12 +29,12 @@ const fitLabels: Record<string, { label: string; bg: string; copy: string }> = {
   apply_first: { label: "Apply first", bg: "bg-mint", copy: "Strong match and you're ready to move on it." },
   research_before_applying: { label: "Research first", bg: "bg-sun/60", copy: "Promising, but needs more signal before you commit." },
   remix_resume_first: { label: "Remix resume first", bg: "bg-sun/60", copy: "Good fit, but your materials need tailoring first." },
-  network_first: { label: "Network first", bg: "bg-sky/30", copy: "A referral or contact could open the door here." },
-  stretch_role: { label: "Stretch role", bg: "bg-sky/30", copy: "A real stretch — higher risk, possibly still worth it." },
+  network_first: { label: "Network first", bg: "bg-lilac/30", copy: "A referral or contact could open the door here." },
+  stretch_role: { label: "Stretch role", bg: "bg-coral/20", copy: "A real stretch — higher risk, possibly still worth it." },
   low_signal_lead: { label: "Low-signal lead", bg: "bg-coral/20", copy: "Thin posting or unclear match. Proceed with care." },
   probably_skip: { label: "Probably skip", bg: "bg-ink/10", copy: "The signals point to passing on this one." },
   follow_up_now: { label: "Follow up now", bg: "bg-mint", copy: "Already applied — time to follow up." },
-  prep_mode: { label: "Prep mode", bg: "bg-sky/30", copy: "Already active — focus on prep, not research." },
+  prep_mode: { label: "Prep mode", bg: "bg-lilac/30", copy: "Already active — focus on prep, not research." },
 };
 
 export function CaptureModal({ open, onClose, onSaved }: {

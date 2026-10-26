@@ -12,12 +12,12 @@ const labelDisplay: Record<string, { label: string; bg: string }> = {
   apply_first: { label: "Apply first", bg: "bg-mint" },
   research_before_applying: { label: "Research first", bg: "bg-sun/60" },
   remix_resume_first: { label: "Remix resume first", bg: "bg-sun/60" },
-  network_first: { label: "Network first", bg: "bg-sky/30" },
+  network_first: { label: "Network first", bg: "bg-lilac/30" },
   stretch_role: { label: "Stretch role", bg: "bg-coral/20" },
   low_signal_lead: { label: "Low-signal lead", bg: "bg-coral/20" },
   probably_skip: { label: "Probably skip", bg: "bg-edge/10" },
   follow_up_now: { label: "Follow up now", bg: "bg-mint" },
-  prep_mode: { label: "Prep mode", bg: "bg-sky/30" },
+  prep_mode: { label: "Prep mode", bg: "bg-lilac/30" },
 };
 
 const scoreDescriptions: Record<string, string> = {

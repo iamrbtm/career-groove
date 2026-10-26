@@ -230,7 +230,7 @@ function StyledPreview({ document }: { document: Document }) {
           <div className="mb-2 flex gap-1.5">
             <span className="block h-2.5 w-2.5 rounded-sm bg-sun" />
             <span className="block h-2.5 w-2.5 rounded-sm bg-coral" />
-            <span className="block h-2.5 w-2.5 rounded-sm bg-sky" />
+            <span className="block h-2.5 w-2.5 rounded-sm bg-lilac" />
           </div>
           <p className="text-sm font-black">Cover Letter</p>
           <p className="mt-1 text-xs font-bold text-fg/55">{new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" }).format(new Date())}</p>
@@ -260,7 +260,7 @@ function StyledPreview({ document }: { document: Document }) {
         <div className="mb-2 flex gap-1.5">
           <span className="block h-2.5 w-2.5 rounded-sm bg-sun" />
           <span className="block h-2.5 w-2.5 rounded-sm bg-coral" />
-          <span className="block h-2.5 w-2.5 rounded-sm bg-sky" />
+          <span className="block h-2.5 w-2.5 rounded-sm bg-lilac" />
         </div>
         <p className="text-sm font-black">Resume</p>
       </div>

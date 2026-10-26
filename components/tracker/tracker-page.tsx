@@ -269,7 +269,7 @@ export function TrackerPage() {
           </MotionButton>
           <MotionButton
             onClick={() => setEmailImportOpen(true)}
-            className="flex items-center gap-2 rounded-2xl border-2 border-fg bg-sky px-4 py-3 text-sm font-black shadow-pop"
+            className="flex items-center gap-2 rounded-2xl border-2 border-fg bg-lilac px-4 py-3 text-sm font-black shadow-pop"
           >
             <Mail size={18} /> Paste Email
           </MotionButton>
