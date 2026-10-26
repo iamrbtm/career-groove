@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, CheckCircle2, FileText, LoaderCircle, Mail, MessageCircleMore, RefreshCw, Send, Sparkles, Trash2 } from "lucide-react";
+import { motion } from "framer-motion";
+import { Calendar, CheckCircle2, FileText, LoaderCircle, Mail, RefreshCw, Search, Send, Sparkles, Trash2, X } from "lucide-react";
 import { AppShell, PageHeading } from "./app-shell";
 import { MotionButton } from "./motion-button";
 import { followUpTypeLabels, type FollowUpType } from "@/lib/follow-up";
@@ -25,6 +26,14 @@ type OverdueFollowUp = {
   recipientEmail?: string | null;
 };
 
+type SendDialogForm = {
+  fu: OverdueFollowUp;
+  subject: string;
+  message: string;
+  recipientEmail: string;
+  guesses?: string[];
+};
+
 export function FollowUpDashboard() {
   const router = useRouter();
   const { push } = useToast();
@@ -35,15 +44,27 @@ export function FollowUpDashboard() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState<string | null>(null);
   const [sending, setSending] = useState<string | null>(null);
-  const [notice, setNotice] = useState("");
-  // Maps follow-up id → list of email guesses needing user selection
-  const [emailGuesses, setEmailGuesses] = useState<Record<string, string[]>>({});
-  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [finding, setFinding] = useState(false);
+  const [dialog, setDialog] = useState<SendDialogForm | null>(null);
+  const messageRef = useRef<HTMLTextAreaElement>(null);
 
-  function flashNotice(msg: string) {
-    setNotice(msg);
-    if (noticeTimer.current) clearTimeout(noticeTimer.current);
-    noticeTimer.current = setTimeout(() => setNotice(""), 5000);
+  useEffect(() => {
+    if (!dialog) return;
+    messageRef.current?.focus();
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setDialog(null);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [dialog]);
+
+  function openSendDialog(fu: OverdueFollowUp) {
+    setDialog({
+      fu,
+      subject: fu.subject ?? `Following up on ${fu.applicationTitle} at ${fu.applicationCompany}`,
+      message: fu.message ?? "",
+      recipientEmail: fu.recipientEmail ?? "",
+    });
   }
 
   const loadOverdue = useCallback(async () => {
@@ -126,53 +147,70 @@ export function FollowUpDashboard() {
     return documentJobId;
   }
 
-  async function handleSendEmail(fu: OverdueFollowUp) {
-    setSending(fu.id);
-    setEmailGuesses((g) => { const next = { ...g }; delete next[fu.id]; return next; });
+  async function findRecipientEmail() {
+    if (!dialog) return;
+    setFinding(true);
     try {
-      // Step 1: discover or confirm recipient email
-      const discoverRes = await fetch(`/api/follow-ups/${fu.id}/discover-email`, { method: "POST" });
-      const discoverData = await discoverRes.json();
-
-      if (!discoverRes.ok) {
-        flashNotice(discoverData.error || "Could not discover recipient email.");
-        setSending(null);
+      const res = await fetch(`/api/follow-ups/${dialog.fu.id}/discover-email`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        push(data.error || "Could not discover recipient email.", "error");
         return;
       }
-
-      if (discoverData.guesses) {
-        // Show inline picker — user must choose
-        setEmailGuesses((g) => ({ ...g, [fu.id]: discoverData.guesses as string[] }));
-        setSending(null);
+      if (data.guesses) {
+        setDialog((f) => (f ? { ...f, guesses: data.guesses as string[] } : f));
         return;
       }
-
-      // We have a resolved email — send
-      await doSend(fu, discoverData.email as string);
+      setDialog((f) => (f ? { ...f, recipientEmail: data.email as string, guesses: undefined } : f));
     } catch (err) {
-      flashNotice(err instanceof Error ? err.message : "Send failed.");
-      setSending(null);
+      push(getApiError(err), "error");
+    } finally {
+      setFinding(false);
     }
   }
 
-  async function doSend(fu: OverdueFollowUp, recipientEmail: string) {
-    setSending(fu.id);
-    setEmailGuesses((g) => { const next = { ...g }; delete next[fu.id]; return next; });
+  async function sendFromDialog() {
+    if (!dialog) return;
+    const preview = dialog;
+    if (!preview.recipientEmail.trim()) {
+      push("Recipient email is required.", "error");
+      return;
+    }
+    if (!preview.subject.trim() || !preview.message.trim()) {
+      push("Subject and message are required.", "error");
+      return;
+    }
+    setSending(preview.fu.id);
     try {
-      const res = await fetch(`/api/follow-ups/${fu.id}/send-email`, {
+      const patchBody: Record<string, string> = {};
+      if (preview.subject !== (preview.fu.subject ?? `Following up on ${preview.fu.applicationTitle} at ${preview.fu.applicationCompany}`)) {
+        patchBody.subject = preview.subject;
+      }
+      if (preview.message !== (preview.fu.message ?? "")) {
+        patchBody.message = preview.message;
+      }
+      if (Object.keys(patchBody).length > 0) {
+        await apiFetch(`/api/follow-ups/${preview.fu.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patchBody),
+        });
+      }
+      const res = await fetch(`/api/follow-ups/${preview.fu.id}/send-email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipientEmail }),
+        body: JSON.stringify({ recipientEmail: preview.recipientEmail.trim() }),
       });
       const data = await res.json();
       if (!res.ok) {
-        flashNotice(data.error || "Failed to send email.");
-      } else {
-        flashNotice(`Email sent to ${recipientEmail}!`);
-        await loadOverdue();
+        push(data.error || "Failed to send email.", "error");
+        return;
       }
+      push(`Sent to ${preview.recipientEmail.trim()}.`);
+      setDialog(null);
+      await loadOverdue();
     } catch (err) {
-      flashNotice(err instanceof Error ? err.message : "Send failed.");
+      push(getApiError(err), "error");
     } finally {
       setSending(null);
     }
@@ -249,10 +287,8 @@ export function FollowUpDashboard() {
                   followUp={fu}
                   generating={generating === fu.id}
                   sending={sending === fu.id}
-                  emailGuesses={emailGuesses[fu.id]}
                   onGenerateDraft={() => generateDraft(fu)}
-                  onSendEmail={() => handleSendEmail(fu)}
-                  onSelectEmailGuess={(email) => doSend(fu, email)}
+                  onSendEmail={() => openSendDialog(fu)}
                   onMarkSent={() => markSent(fu.id)}
                   onSkip={() => skipFollowUp(fu.id)}
                   onOpenApplication={() => router.push(`/applications?applicationId=${fu.applicationId}`)}
@@ -273,8 +309,7 @@ export function FollowUpDashboard() {
                   generating={false}
                   sending={false}
                   onGenerateDraft={() => {}}
-                  onSendEmail={() => handleSendEmail(fu)}
-                  onSelectEmailGuess={(email) => doSend(fu, email)}
+                  onSendEmail={() => openSendDialog(fu)}
                   onMarkSent={() => markSent(fu.id)}
                   onSkip={() => skipFollowUp(fu.id)}
                   onOpenApplication={() => router.push(`/applications?applicationId=${fu.applicationId}`)}
@@ -309,21 +344,114 @@ export function FollowUpDashboard() {
         </div>
       )}
 
-      {notice && (
-        <div className="mt-5 rounded-2xl bg-mint/30 p-4 text-sm font-bold">{notice}</div>
+      {dialog && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={() => setDialog(null)}
+          className="fixed inset-0 z-50 grid place-items-center bg-ink/60 p-4"
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 24, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ type: "spring", stiffness: 320, damping: 24 }}
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border-2 border-fg bg-panel p-6 shadow-soft"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-[.18em] text-plum">Review &amp; send</p>
+                <h2 className="mt-1 truncate font-[var(--font-display)] text-2xl font-black">{dialog.fu.applicationTitle}</h2>
+                <p className="text-sm font-bold text-fg/55">{dialog.fu.applicationCompany}</p>
+              </div>
+              <button onClick={() => setDialog(null)} className="grid size-10 shrink-0 place-items-center rounded-2xl bg-paper hover:bg-coral/20">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              <input
+                value={dialog.subject}
+                onChange={(e) => setDialog({ ...dialog, subject: e.target.value })}
+                placeholder="Subject"
+                className="w-full rounded-2xl bg-paper px-4 py-3 text-sm font-bold outline-none"
+              />
+              <textarea
+                ref={messageRef}
+                value={dialog.message}
+                onChange={(e) => setDialog({ ...dialog, message: e.target.value })}
+                placeholder="Message"
+                className="min-h-44 w-full resize-y rounded-2xl bg-paper px-4 py-3 text-sm font-bold outline-none"
+              />
+              <div className="flex items-center gap-2">
+                <input
+                  type="email"
+                  value={dialog.recipientEmail}
+                  onChange={(e) => setDialog({ ...dialog, recipientEmail: e.target.value })}
+                  placeholder="Recipient email"
+                  className="w-full rounded-2xl bg-paper px-4 py-3 text-sm font-bold outline-none"
+                />
+                {!dialog.recipientEmail && (
+                  <button
+                    onClick={findRecipientEmail}
+                    disabled={finding}
+                    className="flex shrink-0 items-center gap-1.5 rounded-2xl border-2 border-fg bg-sun px-3 py-2.5 text-xs font-black shadow-[0_3px_0_#26312c] disabled:opacity-60"
+                    title="Find email"
+                  >
+                    {finding ? <LoaderCircle size={14} className="animate-spin" /> : <Search size={14} />}
+                    Find email
+                  </button>
+                )}
+              </div>
+              {dialog.guesses && dialog.guesses.length > 0 && (
+                <div className="rounded-2xl border-2 border-plum/20 bg-plum/5 p-3">
+                  <p className="text-xs font-black text-plum">Possible match — pick one:</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {dialog.guesses.map((guess) => (
+                      <button
+                        key={guess}
+                        onClick={() => setDialog({ ...dialog, recipientEmail: guess })}
+                        className="rounded-full border-2 border-plum/30 bg-panel px-3 py-1 text-xs font-black text-plum hover:bg-plum hover:text-white"
+                      >
+                        {guess}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={() => setDialog(null)}
+                disabled={sending === dialog.fu.id}
+                className="flex flex-1 items-center justify-center rounded-2xl border-2 border-edge/10 bg-panel px-4 py-3 text-sm font-black text-fg/60 hover:bg-paper disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={sendFromDialog}
+                disabled={sending === dialog.fu.id}
+                className="flex flex-1 items-center justify-center gap-2 rounded-2xl border-2 border-fg bg-coral px-4 py-3 text-sm font-black shadow-[0_3px_0_#26312c] disabled:opacity-60"
+              >
+                {sending === dialog.fu.id ? <LoaderCircle size={16} className="animate-spin" /> : <Send size={16} />}
+                Send
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
       )}
     </AppShell>
   );
 }
 
 function FollowUpCard({
-  followUp, generating, sending, emailGuesses, onGenerateDraft, onSendEmail, onSelectEmailGuess, onMarkSent, onSkip, onOpenApplication,
+  followUp, generating, sending, onGenerateDraft, onSendEmail, onMarkSent, onSkip, onOpenApplication,
 }: {
   followUp: OverdueFollowUp; generating: boolean; sending: boolean;
-  emailGuesses?: string[];
   onGenerateDraft: () => void;
   onSendEmail: () => void;
-  onSelectEmailGuess: (email: string) => void;
   onMarkSent: () => void; onSkip: () => void; onOpenApplication: () => void;
 }) {
   const isOverdue = followUp.scheduledFor && new Date(followUp.scheduledFor) <= new Date();
@@ -393,24 +521,6 @@ function FollowUpCard({
           {generating ? <LoaderCircle size={14} className="animate-spin" /> : <Sparkles size={14} />}
           {generating ? "Generating..." : "Generate AI draft"}
         </button>
-      )}
-
-      {emailGuesses && emailGuesses.length > 0 && (
-        <div className="mt-3 rounded-xl border-2 border-plum/20 bg-plum/5 p-3">
-          <p className="text-xs font-black text-plum">No email on file — pick a guess to send to:</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {emailGuesses.map((guess) => (
-              <button
-                key={guess}
-                onClick={() => onSelectEmailGuess(guess)}
-                disabled={sending}
-                className="rounded-full border-2 border-plum/30 bg-panel px-3 py-1 text-xs font-black text-plum hover:bg-plum hover:text-white disabled:opacity-60"
-              >
-                {guess}
-              </button>
-            ))}
-          </div>
-        </div>
       )}
     </div>
   );
