@@ -429,6 +429,7 @@ CREATE TABLE IF NOT EXISTS mobile_notification_deliveries (
 CREATE INDEX IF NOT EXISTS mobile_notification_deliveries_created_idx ON mobile_notification_deliveries(created_at);
 ALTER TABLE skills ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'other';
 ALTER TABLE document_generation_jobs ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
+ALTER TABLE document_generation_jobs ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}';
 DO $$
 BEGIN
   IF NOT EXISTS (
