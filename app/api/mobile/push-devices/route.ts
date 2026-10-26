@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { db, withTransaction } from "@/lib/db";
 import { requireUser, unauthorized } from "@/lib/api-auth";
 
 const categories = [
@@ -28,17 +28,35 @@ export async function PUT(request: Request) {
   const parsed = registerSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: parsed.error.flatten() }, { status: 400 });
   const input = parsed.data;
-  await db.query(
-    `INSERT INTO push_devices
-      (user_id,token_hash,device_token,environment,enabled_categories,app_version,locale)
-     VALUES($1,$2,$3,$4,$5::jsonb,$6,$7)
-     ON CONFLICT(token_hash) DO UPDATE SET
-       user_id=EXCLUDED.user_id,device_token=EXCLUDED.device_token,environment=EXCLUDED.environment,
-       enabled_categories=EXCLUDED.enabled_categories,app_version=EXCLUDED.app_version,
-       locale=EXCLUDED.locale,last_seen_at=now(),updated_at=now()`,
-    [userId, tokenHash(input.deviceToken), input.deviceToken.toLowerCase(), input.environment,
-      JSON.stringify(input.enabledCategories), input.appVersion ?? null, input.locale ?? null],
-  );
+  const conflict = await withTransaction(async (client) => {
+    const inserted = await client.query(
+      `INSERT INTO push_devices
+        (user_id,token_hash,device_token,environment,enabled_categories,app_version,locale)
+       VALUES($1,$2,$3,$4,$5::jsonb,$6,$7)
+       ON CONFLICT(token_hash) DO NOTHING`,
+      [userId, tokenHash(input.deviceToken), input.deviceToken.toLowerCase(), input.environment,
+        JSON.stringify(input.enabledCategories), input.appVersion ?? null, input.locale ?? null],
+    );
+    if (inserted.rowCount) return null;
+    const existing = await client.query(
+      "SELECT user_id FROM push_devices WHERE token_hash=$1",
+      [tokenHash(input.deviceToken)],
+    );
+    if (!existing.rows[0]) return null;
+    if (existing.rows[0].user_id !== userId) {
+      return Response.json({ error: "Device token is already bound." }, { status: 409 });
+    }
+    await client.query(
+      `UPDATE push_devices SET
+        device_token=$3,environment=$4,enabled_categories=$5::jsonb,app_version=$6,
+        locale=$7,last_seen_at=now(),updated_at=now()
+       WHERE token_hash=$2`,
+      [userId, tokenHash(input.deviceToken), input.deviceToken.toLowerCase(), input.environment,
+        JSON.stringify(input.enabledCategories), input.appVersion ?? null, input.locale ?? null],
+    );
+    return null;
+  });
+  if (conflict) return conflict;
   return new Response(null, { status: 204 });
 }
 
