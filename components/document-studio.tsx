@@ -20,7 +20,7 @@ type GenerationJob = {
   createdAt: string;
   archivedAt?: string | null;
 };
-type ApplicationOption = { id: string; title: string; company: string };
+type ApplicationOption = { id: string; title: string; company: string; description?: string | null };
 
 const kindLabels: Record<Kind, string> = { resume: "Resume", cover_letter: "Cover Letter", both: "Both" };
 const draftKindOrder = ["cover_letter", "resume", "both"] as const;
@@ -174,6 +174,16 @@ export function DocumentStudio() {
     } finally { setPendingActionId(undefined); }
   }
 
+  function pickLinkApplication(value: string) {
+    setLinkApplicationId(value);
+    if (!value) return;
+    const application = applications.find((item) => item.id === value);
+    if (!application) return;
+    setTargetTitle((current) => current || application.title);
+    setCompany((current) => current || application.company);
+    setDescription((current) => current || application.description || "");
+  }
+
   async function linkSelectedToApplication() {
     if (!selected || !linkApplicationId) return;
     setPendingActionId(selected.id);
@@ -253,7 +263,7 @@ export function DocumentStudio() {
         {selected && output && <div className="mt-4 rounded-2xl bg-paper p-4">
           <p className="text-xs font-black uppercase tracking-[.18em] text-plum">Link to application</p>
           <div className="mt-3 grid gap-3 md:grid-cols-[1fr_auto]">
-            <select value={linkApplicationId} onChange={(event) => setLinkApplicationId(event.target.value)} className="rounded-2xl bg-panel px-4 py-3 text-sm font-bold outline-none">
+            <select value={linkApplicationId} onChange={(event) => pickLinkApplication(event.target.value)} className="rounded-2xl bg-panel px-4 py-3 text-sm font-bold outline-none">
               <option value="">Choose application</option>
               {applications.map((application) => <option key={application.id} value={application.id}>{application.title} · {application.company}</option>)}
             </select>
