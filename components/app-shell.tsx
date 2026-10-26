@@ -7,7 +7,7 @@ import { MusicPlayer } from "./music-player";
 import { AccountMenu } from "./account-menu";
 import { ResearchChat } from "./research-chat";
 import { ThemeToggle } from "./theme-toggle";
-import { useEffect, useState } from "react";
+import { useTier } from "@/lib/hooks/use-tier";
 
 const proItems = [
   { href: "/interview", name: "Interview", icon: MessageCircleMore },
@@ -29,10 +29,7 @@ const allItems = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
-  const [tier, setTier] = useState<"free" | "pro">("free");
-  useEffect(() => {
-    fetch("/api/user/tier").then(r => r.ok ? r.json() : null).then(d => { if (d?.tier) setTier(d.tier); }).catch(() => {});
-  }, []);
+  const { tier } = useTier();
 
   const items = tier === "pro" ? allItems.concat(proItems) : allItems;
 

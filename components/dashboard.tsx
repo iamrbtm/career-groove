@@ -1,11 +1,10 @@
 "use client";
 import { motion } from "framer-motion";
-import { ArrowUpRight, BarChart3, BriefcaseBusiness, ClipboardList, FileText, Home, Mail, MessageCircleMore, Network, Palette, Plus, Settings2, Sparkles } from "lucide-react";
+import { ArrowUpRight, BarChart3, BriefcaseBusiness, ClipboardList, FileText, Mail, MessageCircleMore, Palette, Plus, Sparkles } from "lucide-react";
 import { MotionButton } from "./motion-button";
-import { MusicPlayer } from "./music-player";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AccountMenu } from "./account-menu";
+import { useTier } from "@/lib/hooks/use-tier";
 
 const allTools = [
   { icon: ClipboardList, title: "Run today's setlist", copy: "Pick one saved role, see the next move, and keep the search calm.", color: "bg-mint", tag: "Command Session", href: "/applications" },
@@ -17,31 +16,11 @@ const allTools = [
   { icon: BarChart3, title: "Read the signal", copy: "See source quality, follow-up health, and what to adjust next.", color: "bg-lilac/40", tag: "Analytics", href: "/analytics" },
 ];
 
-const proToolIndices = new Set([4, 5]); // mock-interview and documents
-
-const allNav = [
-  { icon: Home, name: "Home", href: "/dashboard" },
-  { icon: BriefcaseBusiness, name: "Journey", href: "/journey" },
-  { icon: ClipboardList, name: "Applications", href: "/applications" },
-  { icon: Mail, name: "Follow-ups", href: "/follow-ups" },
-  { icon: BarChart3, name: "Analytics", href: "/analytics" },
-  { icon: Network, name: "Network", href: "/network" },
-  { icon: FileText, name: "Documents", href: "/documents" },
-  { icon: Palette, name: "Brand", href: "/brand" },
-  { icon: Settings2, name: "Settings", href: "/settings" },
-];
-
-const proNavItems = [
-  { icon: MessageCircleMore, name: "Interview", href: "/interview" },
-  { icon: Sparkles, name: "Prep", href: "/mock-interview" },
-];
+const proToolIndices = new Set([4, 5]);
 
 export function Dashboard() {
   const router = useRouter();
-  const [tier, setTier] = useState<"free" | "pro">("free");
-  useEffect(() => {
-    fetch("/api/user/tier").then(r => r.ok ? r.json() : null).then(d => { if (d?.tier) setTier(d.tier); }).catch(() => {});
-  }, []);
+  const { tier } = useTier();
   const today = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric" }).format(new Date());
   const [recentJobs, setRecentJobs] = useState<Array<{id:string;title:string;company:string}>>([]);
   const [onboarding, setOnboarding] = useState<{complete:boolean}|null>(null);
@@ -51,17 +30,9 @@ export function Dashboard() {
   useEffect(()=>{fetch("/api/jobs").then(async r=>{if(r.ok)setRecentJobs((await r.json()).jobs.slice(0,2))}).catch(()=>undefined)},[]);
   useEffect(()=>{fetch("/api/user/onboarding").then(async r=>{if(r.ok)setOnboarding(await r.json())}).catch(()=>undefined)},[]);
   useEffect(()=>{fetch("/api/applications").then(async r=>{if(r.ok)setApplications((await r.json()).applications.slice(0,4))}).catch(()=>undefined); fetch("/api/command-sessions").then(async r=>{if(r.ok)setSession((await r.json()).session||null)}).catch(()=>undefined); fetch("/api/follow-ups/overdue").then(async r=>{if(r.ok)setOverdueCount((await r.json()).totalOverdue)}).catch(()=>undefined)},[]);
-  const tools = tier === "free" ? allTools.filter((_, i) => !proToolIndices.has(i)) : allTools;
-  const nav = tier === "pro" ? allNav.concat(proNavItems) : allNav;
-  return <div className="min-h-dvh pb-28 md:pb-8">
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-24 flex-col items-center border-r-2 border-ink/10 bg-ink py-7 text-cream md:flex">
-      <div className="grid size-12 place-items-center rounded-2xl bg-coral text-xl font-black shadow-[0_4px_0_#ffc857]">CG</div>
-      <nav className="mt-16 flex flex-1 flex-col gap-7">{nav.map(({ icon: Icon, name, href }, i) => <button onClick={()=>router.push(href)} key={name} aria-label={name} className={`grid size-12 place-items-center rounded-2xl ${i === 0 ? "bg-cream text-ink" : "text-cream/60 hover:text-cream"}`}><Icon size={21} /></button>)}</nav>
-      <AccountMenu />
-    </aside>
-
-    <main className="mx-auto max-w-7xl px-5 pt-6 md:pl-32 md:pr-10 md:pt-10">
-      <header className="flex items-center justify-between">
+  const tools = tier === "pro" ? allTools : allTools.filter((_, i) => !proToolIndices.has(i));
+  return <div className="pb-4">
+    <header className="flex items-center justify-between">
         <div><p className="text-xs font-black uppercase tracking-[.24em] text-plum">{today}</p><h1 className="mt-1 font-[var(--font-display)] text-2xl font-black md:text-3xl">Hey, you. <span className="inline-block origin-bottom -rotate-3">✦</span></h1></div>
         <MotionButton onClick={()=>router.push("/journey")} className="flex items-center gap-2 rounded-2xl border-2 border-fg bg-coral px-4 py-3 text-sm font-black shadow-pop"><Plus size={18} /> <span className="hidden sm:inline">Add a chapter</span></MotionButton>
       </header>
@@ -154,8 +125,5 @@ export function Dashboard() {
             <p className="mt-1 text-sm text-fg/60">Polish your LinkedIn, GitHub, and personal brand with AI.</p>
           </button>
         </div></section>
-    </main>
-    <MusicPlayer />
-    <nav className="fixed inset-x-3 bottom-3 z-30 flex justify-start gap-1 overflow-x-auto rounded-3xl border-2 border-ink bg-ink px-2 py-2 text-cream shadow-soft md:hidden">{nav.map(({ icon: Icon, name, href }, i) => <button onClick={()=>router.push(href)} key={name} className={`flex min-w-16 flex-col items-center gap-1 rounded-2xl py-2 text-[10px] font-bold ${i === 0 ? "bg-cream text-ink" : "text-cream/60"}`}><Icon size={19}/>{name}</button>)}<AccountMenu mobile/></nav>
   </div>;
 }
