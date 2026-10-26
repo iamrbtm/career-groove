@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
-import { requireUser, unauthorized } from "@/lib/api-auth";
+import { getUserTier, requireUser, unauthorized } from "@/lib/api-auth";
+import { normalizeCsvDate, normalizeStatus, normalizeWorkMode } from "@/lib/csv-import-normalize";
 
 function parseCsvLine(line: string) {
   const values: string[] = [];
@@ -23,13 +24,6 @@ function parseCsvLine(line: string) {
   }
   values.push(current);
   return values.map((value) => value.trim());
-}
-
-function normalizeStatus(raw: string) {
-  const value = raw.trim().toLowerCase().replace(/\s+/g, "_");
-  return ["saved","researching","ready_to_apply","applied","follow_up","interviewing","offer","rejected","withdrawn","archived"].includes(value)
-    ? value
-    : "saved";
 }
 
 export async function POST(request: Request) {
@@ -76,30 +70,51 @@ export async function POST(request: Request) {
 
   const client = await db.connect();
   try {
+    const tier = await getUserTier(user);
+    let remaining = Number.POSITIVE_INFINITY;
+    if (tier === "free") {
+      const count = await db.query(
+        `SELECT COUNT(*) FROM applications WHERE user_id=$1 AND archived_at IS NULL AND status <> 'archived'`,
+        [user],
+      );
+      const activeCount = parseInt(count.rows[0]?.count || "0", 10);
+      remaining = Math.max(0, 5 - activeCount);
+    }
     await client.query("BEGIN");
     let imported = 0;
+    let skipped = 0;
+    const applications: Array<{ id: string; title: string; company: string; status: string; workMode: string | null }> = [];
     for (const item of preview) {
       const row = item.row as Record<string, string>;
+      const status = normalizeStatus(row.status || "");
+      if (status !== "archived") {
+        if (remaining <= 0) {
+          skipped += 1;
+          continue;
+        }
+        remaining -= 1;
+      }
+      const workMode = normalizeWorkMode(row.workMode || "");
       const insert = await client.query(
         `INSERT INTO applications(user_id,title,company,location,work_mode,salary_min,salary_max,salary_currency,source,source_url,status,description,notes,follow_up_due_at,applied_at,metadata)
          VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb)
-         RETURNING id`,
+         RETURNING id,status,title,company,work_mode AS "workMode"`,
         [
           user,
           row.title,
           row.company,
           row.location || null,
-          row.workMode || null,
+          workMode,
           row.salaryMin ? (isNaN(Number(row.salaryMin)) ? null : Number(row.salaryMin)) : null,
           row.salaryMax ? (isNaN(Number(row.salaryMax)) ? null : Number(row.salaryMax)) : null,
           row.salaryCurrency || "USD",
           row.source || null,
           row.sourceUrl || null,
-          normalizeStatus(row.status || ""),
+          status,
           row.description || `${row.title} at ${row.company}`,
           row.notes || null,
-          row.followUpDueAt && /^\d{4}-\d{2}-\d{2}/.test(row.followUpDueAt) ? row.followUpDueAt : null,
-          row.appliedAt && /^\d{4}-\d{2}-\d{2}/.test(row.appliedAt) ? row.appliedAt : null,
+          row.followUpDueAt && /^\d{4}-\d{2}-\d{2}/.test(row.followUpDueAt) ? normalizeCsvDate(row.followUpDueAt) : null,
+          row.appliedAt && /^\d{4}-\d{2}-\d{2}/.test(row.appliedAt) ? normalizeCsvDate(row.appliedAt) : null,
           JSON.stringify({ importedAt: new Date().toISOString(), importSource: "csv" }),
         ],
       );
@@ -109,9 +124,10 @@ export async function POST(request: Request) {
         [user, insert.rows[0].id, `${row.title} at ${row.company}`, JSON.stringify({ source: "csv" })],
       );
       imported += 1;
+      applications.push(insert.rows[0]);
     }
     await client.query("COMMIT");
-    return Response.json({ imported, preview });
+    return Response.json({ imported, skipped, applications, preview });
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("CSV import failed", error);

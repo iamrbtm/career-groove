@@ -47,7 +47,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     );
     if (!result.rowCount) { await client.query("ROLLBACK"); return Response.json({ error: "Job not found" }, { status: 404 }); }
     if (inferredSkills) {
-      await client.query("DELETE FROM job_skills WHERE job_id=$1", [id.data]);
+      await client.query(
+        "DELETE FROM job_skills WHERE job_id=$1 AND EXISTS (SELECT 1 FROM jobs j WHERE j.id=$1 AND j.user_id=$2)",
+        [id.data, userId],
+      );
       const uniqueSkills = [...new Map(inferredSkills.map((skill) => [skill.name.trim().toLocaleLowerCase(), skill])).values()];
       for (const skillInput of uniqueSkills) {
         const skill = await client.query(

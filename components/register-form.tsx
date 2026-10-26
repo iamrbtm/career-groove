@@ -19,7 +19,7 @@ export function RegisterForm({ plan }: RegisterFormProps) {
         email: String(form.get("email")), password: String(form.get("password")), redirect: false,
       });
       if (result?.error) { router.push(`/signin?created=1${plan ? `&callbackUrl=${encodeURIComponent(`/api/stripe/checkout?plan=${plan}`)}` : ""}`); return; }
-      window.location.assign(plan ? `/api/stripe/checkout?plan=${plan}` : "/dashboard");
+      window.location.assign(plan ? `/api/stripe/checkout?plan=${plan}` : "/onboarding");
     }
     else { const body = await response.json(); setError(typeof body.error === "string" ? body.error : "Check your details and try again."); setLoading(false); }
   }

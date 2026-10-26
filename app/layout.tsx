@@ -3,6 +3,7 @@ import { Baloo_2, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { ServiceWorker } from "@/components/service-worker";
 import { ThemeProvider } from "@/components/theme-provider";
+import { ToastProvider } from "@/lib/ui/toast";
 
 const display = Baloo_2({ subsets: ["latin"], weight: ["600", "700", "800"], variable: "--font-display-loaded" });
 const body = Plus_Jakarta_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], variable: "--font-body-loaded" });
@@ -15,8 +16,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en" className={`${display.variable} ${body.variable}`} suppressHydrationWarning>
       <body className="font-[var(--font-body)] antialiased">
         <ThemeProvider>
-          {children}
-          <ServiceWorker />
+          <ToastProvider>
+            {children}
+            <ServiceWorker />
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>

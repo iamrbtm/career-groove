@@ -1,7 +1,9 @@
 import { generateText } from "ai";
 import { z } from "zod";
 import { getModel } from "@/lib/ai";
+import { resolveStoredSecret } from "@/lib/premium-ai";
 import { requireUser, unauthorized, getUserTier, getSetting, forbidden } from "@/lib/api-auth";
+import { limitRequest, limitMax } from "@/lib/rate-limit";
 import { db } from "@/lib/db";
 import { decryptSecret } from "@/lib/secret-box";
 import { providerSchema } from "@/lib/provider-models";
@@ -66,7 +68,7 @@ async function tryPremiumFallback(params: { purpose: string; messages: Array<{ r
   const provider = providerSchema.safeParse(config.provider);
   if (!provider.success) throw new Error("Invalid premium AI provider configuration.");
   const result = await generateText({
-    model: getModel(provider.data, (config.model as string) || undefined, (config.api_key as string) || undefined, (config.base_url as string) || undefined),
+    model: getModel(provider.data, (config.model as string) || undefined, resolveStoredSecret(config.api_key as string) || undefined, (config.base_url as string) || undefined),
     maxRetries: AI_MAX_RETRIES,
     system: `${prompts[params.purpose as keyof typeof prompts]}\nContext: ${JSON.stringify(params.context ?? {})}`,
     messages: params.messages as any,
@@ -80,6 +82,8 @@ async function tryPremiumFallback(params: { purpose: string; messages: Array<{ r
 export async function POST(request: Request) {
   const userId = await requireUser();
   if (!userId) return unauthorized();
+  if (!(await limitRequest(`ai:${userId}`, limitMax("RATE_LIMIT_AI_PER_HOUR", 60), 3600000)))
+    return Response.json({ error: "Slow down — try again in a bit." }, { status: 429 });
   const parsed = requestSchema.safeParse(await request.json());
   if (!parsed.success)
     return Response.json({ error: parsed.error.flatten() }, { status: 400 });

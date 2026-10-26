@@ -4,6 +4,7 @@ import type { PoolClient } from "pg";
 import { db } from "@/lib/db";
 import { getModel } from "@/lib/ai";
 import { decryptSecret } from "@/lib/secret-box";
+import { resolveStoredSecret } from "@/lib/premium-ai";
 import { getSetting, getUserTier } from "@/lib/api-auth";
 import { computeScore, loadTrackerContext, refreshApplicationScore, type ApplicationRow } from "@/lib/tracker-studio";
 import { fetchRealListings, type RealListing } from "@/lib/job-search";
@@ -87,7 +88,7 @@ async function getChatGptModel(userId: string): Promise<ReturnType<typeof getMod
   }
   const config = await getSetting("premium_ai_config");
   if (config && config.provider === "openai") {
-    return getModel("openai", (config.model as string) || undefined, (config.api_key as string) || undefined, (config.base_url as string) || undefined);
+    return getModel("openai", (config.model as string) || undefined, resolveStoredSecret(config.api_key as string) || undefined, (config.base_url as string) || undefined);
   }
   if (process.env.OPENAI_API_KEY) {
     return getModel("openai", process.env.OPENAI_MODEL || "gpt-4o-mini", process.env.OPENAI_API_KEY);

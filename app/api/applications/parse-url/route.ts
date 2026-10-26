@@ -1,6 +1,9 @@
 import { auth } from "@/auth";
+import { limitRequest, limitMax } from "@/lib/rate-limit";
 import { parseJobPost } from "@/lib/job-post-parser";
+import { safeFetchUrl, UnsafeUrlError } from "@/lib/fetch-url";
 import { writeFile, unlink } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 
 function isSafeUrl(input: string): boolean {
   let parsed: URL;
@@ -23,16 +26,19 @@ function isSafeUrl(input: string): boolean {
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await limitRequest(`parse-url:${session.user.id}`, limitMax("RATE_LIMIT_PARSE_URL_PER_HOUR", 10), 3600000)))
+    return Response.json({ error: "Slow down — try again in a bit." }, { status: 429 });
   const { url, description } = await request.json();
   if (!url && !description) return Response.json({ error: "URL or description is required" }, { status: 400 });
   if (url && !isSafeUrl(url)) return Response.json({ error: "Only public job posting URLs are supported." }, { status: 400 });
   let text = description || "";
   if (url) {
     try {
-      const response = await fetch(url);
-      if (!response.ok) return Response.json({ error: `Could not fetch URL (${response.status})` }, { status: 400 });
-      const html = await response.text();
-      const tmpPath = `/tmp/cg-parse-${Date.now()}.html`;
+      const { status, text: html } = await safeFetchUrl(url);
+      if (status < 200 || status >= 300) {
+        return Response.json({ error: `Could not fetch URL (${status})` }, { status: 400 });
+      }
+      const tmpPath = `/tmp/cg-parse-${randomUUID()}.html`;
       await writeFile(tmpPath, html);
       text = html
         .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
@@ -42,7 +48,13 @@ export async function POST(request: Request) {
         .replace(/\s+/g, " ")
         .trim();
       await unlink(tmpPath).catch(() => {});
-    } catch {
+    } catch (error) {
+      if (
+        error instanceof UnsafeUrlError ||
+        (error as { name?: string } | null)?.name === "TimeoutError"
+      ) {
+        return Response.json({ error: "Only public job posting URLs are supported." }, { status: 400 });
+      }
       return Response.json({ error: "Could not fetch the URL content." }, { status: 400 });
     }
   }

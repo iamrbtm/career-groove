@@ -1,7 +1,9 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { AlertTriangle, CheckCircle2, LoaderCircle, Send, Tags, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileText, LoaderCircle, Send, Tags, X } from "lucide-react";
+import { apiFetch, getApiError } from "@/lib/ui/api-fetch";
+import { useToast } from "@/lib/ui/toast";
 
 type CaptureForm = {
   title: string; company: string; location: string;
@@ -17,6 +19,7 @@ type FitScore = {
 
 type PendingApplication = {
   id: string; title: string; company: string;
+  description?: string | null;
   latestScore?: FitScore | null;
 };
 
@@ -26,12 +29,12 @@ const fitLabels: Record<string, { label: string; bg: string; copy: string }> = {
   apply_first: { label: "Apply first", bg: "bg-mint", copy: "Strong match and you're ready to move on it." },
   research_before_applying: { label: "Research first", bg: "bg-sun/60", copy: "Promising, but needs more signal before you commit." },
   remix_resume_first: { label: "Remix resume first", bg: "bg-sun/60", copy: "Good fit, but your materials need tailoring first." },
-  network_first: { label: "Network first", bg: "bg-sky/30", copy: "A referral or contact could open the door here." },
-  stretch_role: { label: "Stretch role", bg: "bg-sky/30", copy: "A real stretch — higher risk, possibly still worth it." },
+  network_first: { label: "Network first", bg: "bg-lilac/30", copy: "A referral or contact could open the door here." },
+  stretch_role: { label: "Stretch role", bg: "bg-coral/20", copy: "A real stretch — higher risk, possibly still worth it." },
   low_signal_lead: { label: "Low-signal lead", bg: "bg-coral/20", copy: "Thin posting or unclear match. Proceed with care." },
   probably_skip: { label: "Probably skip", bg: "bg-ink/10", copy: "The signals point to passing on this one." },
   follow_up_now: { label: "Follow up now", bg: "bg-mint", copy: "Already applied — time to follow up." },
-  prep_mode: { label: "Prep mode", bg: "bg-sky/30", copy: "Already active — focus on prep, not research." },
+  prep_mode: { label: "Prep mode", bg: "bg-lilac/30", copy: "Already active — focus on prep, not research." },
 };
 
 export function CaptureModal({ open, onClose, onSaved }: {
@@ -51,6 +54,8 @@ export function CaptureModal({ open, onClose, onSaved }: {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [pendingApplication, setPendingApplication] = useState<PendingApplication | null>(null);
+  const [savedApplication, setSavedApplication] = useState<PendingApplication | null>(null);
+  const { push } = useToast();
 
   if (!open) return null;
 
@@ -138,7 +143,7 @@ export function CaptureModal({ open, onClose, onSaved }: {
         setSaving(false);
         return;
       }
-      completeSave(application);
+      showSuccess(application);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed.");
     } finally {
@@ -146,14 +151,45 @@ export function CaptureModal({ open, onClose, onSaved }: {
     }
   }
 
-  function completeSave(application: unknown) {
+  function resetForm() {
     setUrl("");
     setDescription("");
     setForm({ title: "", company: "", location: "", workMode: "unknown", salaryMin: "", salaryMax: "", sourceUrl: "", description: "", notes: "" });
     setParsed(false);
     setPendingApplication(null);
+    setSavedApplication(null);
+  }
+
+  function showSuccess(application: PendingApplication) {
+    setPendingApplication(null);
+    setSavedApplication(application);
     onSaved(application);
+  }
+
+  function finish() {
+    resetForm();
     onClose();
+  }
+
+  async function startResumeGeneration() {
+    const application = savedApplication;
+    resetForm();
+    onClose();
+    if (!application) return;
+    if (!application.description?.trim()) {
+      push("Role captured — description needed for drafting now");
+      return;
+    }
+    push("Resume generation queued.");
+    try {
+      await apiFetch("/api/document-jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: "resume", applicationId: application.id }),
+      });
+    } catch (err) {
+      push(getApiError(err), "error");
+    }
   }
 
   async function discardPending() {
@@ -183,13 +219,36 @@ export function CaptureModal({ open, onClose, onSaved }: {
       <div className="w-full max-w-2xl rounded-3xl border-2 border-fg bg-panel p-6 shadow-soft">
         <div className="flex items-center justify-between gap-3">
           <h2 className="font-[var(--font-display)] text-2xl font-black">Capture a role</h2>
-          <button onClick={onClose} className="grid size-10 place-items-center rounded-2xl bg-paper hover:bg-coral/20">
+          <button onClick={finish} className="grid size-10 place-items-center rounded-2xl bg-paper hover:bg-coral/20">
             <X size={18} />
           </button>
         </div>
 
         {error && <p className="mt-4 rounded-2xl border-2 border-coral bg-coral/15 p-3 text-sm font-black">{error}</p>}
 
+        {savedApplication ? (
+          <div className="mt-5 rounded-2xl border-2 border-edge/10 bg-paper p-5 text-center">
+            <CheckCircle2 size={36} className="mx-auto text-fg/70" />
+            <p className="mt-3 text-xs font-black uppercase tracking-[.18em] text-plum">Role captured</p>
+            <h3 className="mt-1 font-[var(--font-display)] text-xl font-black">{savedApplication.title}</h3>
+            <p className="text-sm font-bold text-fg/55">{savedApplication.company}</p>
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+              <button
+                onClick={() => void startResumeGeneration()}
+                className="flex flex-1 items-center justify-center gap-2 rounded-2xl border-2 border-fg bg-coral px-4 py-3 text-sm font-black shadow-[0_3px_0_#26312c]"
+              >
+                <FileText size={16} /> Start generating resume
+              </button>
+              <button
+                onClick={finish}
+                className="flex flex-1 items-center justify-center rounded-2xl border-2 border-edge/10 bg-panel px-4 py-3 text-sm font-black text-fg/60 hover:bg-paper"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        ) : (
+        <>
         <div className="mt-5 space-y-3">
           <input
             value={url}
@@ -247,6 +306,8 @@ export function CaptureModal({ open, onClose, onSaved }: {
               Save opportunity
             </button>
           </form>
+        )}
+        </>
         )}
       </div>
     </div>
@@ -351,7 +412,7 @@ export function CaptureModal({ open, onClose, onSaved }: {
               {saving ? "Removing..." : "Don't add"}
             </button>
             <button
-              onClick={() => pendingApplication && completeSave(pendingApplication)}
+              onClick={() => pendingApplication && showSuccess(pendingApplication)}
               className="flex flex-1 items-center justify-center gap-2 rounded-2xl border-2 border-fg bg-mint px-4 py-2.5 text-sm font-black"
             >
               <CheckCircle2 size={16} /> Add anyway

@@ -1,4 +1,5 @@
 import { parseJobPost, ParsedJob } from "./job-post-parser";
+import { safeFetchUrl } from "./fetch-url";
 
 export interface ResearchResult {
   jobPosting: ParsedJob | null;
@@ -34,35 +35,31 @@ async function fetchText(url: string): Promise<string | null> {
       body.includes("cf-browser-verification") || body.includes("just a moment") ||
       body.includes("Checking your browser") || body.length < 500;
 
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Cache-Control": "no-cache",
-        "Pragma": "no-cache",
-        "DNT": "1",
-        "Upgrade-Insecure-Requests": "1",
-      },
-      signal: AbortSignal.timeout(12000),
-      redirect: "follow",
-    });
-    if (!response.ok) return null;
-    let html = await response.text();
+    const browserHeaders = {
+      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Accept-Encoding": "gzip, deflate, br",
+      "Cache-Control": "no-cache",
+      "Pragma": "no-cache",
+      "DNT": "1",
+      "Upgrade-Insecure-Requests": "1",
+    };
+
+    const { status, text: body } = await safeFetchUrl(url, 12000, { headers: browserHeaders });
+    if (status < 200 || status >= 300) return null;
+    let html = body;
 
     if (isCloudflareOrWaf(html)) {
       const viaWww = url.includes("://www.") ? url.replace("://www.", "://") : url.replace("://", "://www.");
       if (viaWww !== url) {
-        const retry = await fetch(viaWww, {
+        const retry = await safeFetchUrl(viaWww, 8000, {
           headers: {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
           },
-          signal: AbortSignal.timeout(8000),
-          redirect: "follow",
         });
-        if (retry.ok) {
-          const retryHtml = await retry.text();
+        if (retry.status >= 200 && retry.status < 300) {
+          const retryHtml = retry.text;
           if (!isCloudflareOrWaf(retryHtml)) html = retryHtml;
         }
       }

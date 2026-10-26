@@ -19,6 +19,8 @@ import { DecisionStep } from "./steps/decision-step";
 import { ClosedStep } from "./steps/closed-step";
 import { PipelineSignals } from "./pipeline-signals";
 import { fireSaveConfetti } from "@/lib/confetti";
+import { apiFetch, getApiError } from "@/lib/ui/api-fetch";
+import { useToast } from "@/lib/ui/toast";
 import { CaptureModal } from "./capture-modal";
 import { EmailImportModal } from "./email-import-modal";
 import { OpportunitySearchModal } from "./opportunity-search-modal";
@@ -63,6 +65,7 @@ const totalSteps = 6;
 export function TrackerPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { push } = useToast();
   const [applications, setApplications] = useState<Application[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [events, setEvents] = useState<ApplicationEvent[]>([]);
@@ -132,6 +135,23 @@ export function TrackerPage() {
     if (data.application) setApplications((prev) => prev.map((a) => a.id === data.application.id ? { ...a, ...data.application } : a));
   }
 
+  const loadDocumentJobs = useCallback(async () => {
+    const res = await fetch("/api/document-jobs", { cache: "no-store" });
+    if (!res.ok) return;
+    setDocumentJobs((await res.json()).jobs || []);
+  }, []);
+
+  const pollingDocumentJobs = useMemo(
+    () => documentJobs.some((job) => job.status === "queued" || job.status === "processing"),
+    [documentJobs],
+  );
+
+  useEffect(() => {
+    if (!pollingDocumentJobs) return;
+    const timer = window.setInterval(() => void loadDocumentJobs(), 3000);
+    return () => window.clearInterval(timer);
+  }, [pollingDocumentJobs, loadDocumentJobs]);
+
   const refreshAll = useCallback(async (preferredId?: string) => {
     await Promise.all([refreshApplications(preferredId), refreshSupportingData()]);
   }, []);
@@ -146,6 +166,13 @@ export function TrackerPage() {
     const targetId = searchParams.get("applicationId");
     if (targetId && applications.some((a) => a.id === targetId)) setSelectedId(targetId);
   }, [applications, searchParams]);
+
+  useEffect(() => {
+    if (searchParams.get("capture") === "1") {
+      setCaptureOpen(true);
+      router.replace("/applications", { scroll: false });
+    }
+  }, [searchParams, router]);
 
   useEffect(() => {
     if (!selected?.id) { setEvents([]); setDocuments([]); setContacts([]); setInterviews([]); setOutcomes([]); return; }
@@ -175,11 +202,16 @@ export function TrackerPage() {
   async function advanceStep() {
     if (!selected) return;
     const nextStep = Math.min(currentStep + 1, totalSteps);
-    await fetch(`/api/applications/${selected.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ step: nextStep }),
-    });
+    try {
+      await apiFetch(`/api/applications/${selected.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ step: nextStep }),
+      });
+    } catch (err) {
+      push(getApiError(err), "error");
+      return;
+    }
     setActiveStepState(nextStep);
     await refreshAll(selected.id);
     await loadDetail(selected.id);
@@ -187,11 +219,16 @@ export function TrackerPage() {
 
   async function handleArchive() {
     if (!selected) return;
-    await fetch(`/api/applications/${selected.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "archived" }),
-    });
+    try {
+      await apiFetch(`/api/applications/${selected.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "archived" }),
+      });
+    } catch (err) {
+      push(getApiError(err), "error");
+      return;
+    }
     await refreshAll();
   }
 
@@ -232,7 +269,7 @@ export function TrackerPage() {
           </MotionButton>
           <MotionButton
             onClick={() => setEmailImportOpen(true)}
-            className="flex items-center gap-2 rounded-2xl border-2 border-fg bg-sky px-4 py-3 text-sm font-black shadow-pop"
+            className="flex items-center gap-2 rounded-2xl border-2 border-fg bg-lilac px-4 py-3 text-sm font-black shadow-pop"
           >
             <Mail size={18} /> Paste Email
           </MotionButton>
@@ -298,6 +335,7 @@ export function TrackerPage() {
                         documents={documents}
                         documentJobs={documentJobs}
                         onRefresh={() => loadDetail(selected.id)}
+                        onDocumentJobCreated={() => void loadDocumentJobs()}
                         onAdvance={advanceStep}
                       />
                     )}

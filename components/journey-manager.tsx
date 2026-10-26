@@ -18,9 +18,12 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
+import { AnimatePresence, motion } from "framer-motion";
 import { AppShell, PageHeading } from "./app-shell";
 import { EmptyState } from "./empty-state";
 import { parseChapterAI, skillCategories, SkillCategory } from "@/lib/chapter-ai";
+import { apiFetch, getApiError } from "@/lib/ui/api-fetch";
+import { useToast } from "@/lib/ui/toast";
 
 type AnyRow = Record<string, any>;
 type CredentialKind = "education" | "license" | "certification";
@@ -47,7 +50,14 @@ export function JourneyManager() {
   const [tab, setTab] = useState("jobs");
   const [credentialTab, setCredentialTab] =
     useState<CredentialKind>("education");
+  const [manualOpen, setManualOpen] = useState(false);
   const [notice, setNotice] = useState("");
+  const [confirmTarget, setConfirmTarget] = useState<{
+    kind: string;
+    id: string;
+    label: string;
+  } | null>(null);
+  const { push } = useToast();
 
   const load = useCallback(async () => {
     try {
@@ -111,6 +121,19 @@ export function JourneyManager() {
     }
   }
 
+  async function confirmDelete() {
+    if (!confirmTarget) return;
+    const url =
+      confirmTarget.kind === "job"
+        ? `/api/jobs/${confirmTarget.id}`
+        : confirmTarget.kind === "residence"
+          ? `/api/residences/${confirmTarget.id}`
+          : `/api/credentials/${confirmTarget.id}`;
+    setConfirmTarget(null);
+    await remove(url);
+    push("Deleted.");
+  }
+
   const tabs = [
     { id: "jobs", label: "Work", icon: BriefcaseBusiness },
     { id: "homes", label: "Residences", icon: Home },
@@ -151,6 +174,33 @@ export function JourneyManager() {
               <FormTitle icon={<BriefcaseBusiness />} text="Add a work chapter" />
               <p className="text-sm leading-6 text-fg/60">Answer one question at a time. Your interviewer will help uncover the responsibilities, skills, and results worth remembering.</p>
               <Link href="/interview" className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-fg bg-coral py-3 font-black shadow-[0_4px_0_#26312c]"><Plus size={17}/> Start chapter interview</Link>
+              <button
+                type="button"
+                onClick={() => setManualOpen((open) => !open)}
+                aria-expanded={manualOpen}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-edge/15 bg-panel py-3 font-black text-fg/70 transition hover:border-edge/40 hover:text-fg"
+              >
+                <Pencil size={17}/>
+                {manualOpen ? "Hide manual entry" : "Add manually"}
+              </button>
+              <AnimatePresence initial={false}>
+                {manualOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                    transition={{ type: "spring", stiffness: 420, damping: 26 }}
+                    className="mt-5 overflow-hidden rounded-3xl border-2 border-edge/15 bg-panel/55 p-4 shadow-[0_3px_0_rgba(38,49,44,.14)]"
+                  >
+                    <ManualChapterForm
+                      onSaved={async () => {
+                        setManualOpen(false);
+                        await load();
+                      }}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           )}
           {tab === "homes" && (
@@ -228,7 +278,15 @@ export function JourneyManager() {
                     key={job.id}
                     job={job}
                     onView={() => setSelectedJob(job)}
-                    onDelete={() => remove(`/api/jobs/${job.id}`)}
+                    onDelete={() =>
+                      setConfirmTarget({
+                        kind: "job",
+                        id: job.id,
+                        label: job.company
+                          ? `${job.title} at ${job.company}`
+                          : job.title,
+                      })
+                    }
                   />
                 ))}
               </div>
@@ -245,7 +303,13 @@ export function JourneyManager() {
                     key={home.id}
                     home={home}
                     onEdit={() => setSelectedHome(home)}
-                    onDelete={() => remove(`/api/residences/${home.id}`)}
+                    onDelete={() =>
+                      setConfirmTarget({
+                        kind: "residence",
+                        id: home.id,
+                        label: home.label || "this residence",
+                      })
+                    }
                   />
                 ))}
               </div>
@@ -259,7 +323,15 @@ export function JourneyManager() {
               credentials={credentials}
               selected={credentialTab}
               onSelect={setCredentialTab}
-              onDelete={(id) => remove(`/api/credentials/${id}`)}
+              onDelete={(id) =>
+                setConfirmTarget({
+                  kind: "credential",
+                  id,
+                  label:
+                    credentials.find((credential) => credential.id === id)
+                      ?.name || "this credential",
+                })
+              }
             />
           )}
           {tab === "skills" &&
@@ -300,6 +372,60 @@ export function JourneyManager() {
           onDeleted={async () => { setSelectedSkill(null); await load(); setNotice("Skill deleted."); }}
         />
       )}
+      <AnimatePresence>
+        {confirmTarget && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[55] grid place-items-center bg-ink/60 p-4"
+            role="dialog"
+            aria-modal="true"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 16, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.96 }}
+              transition={{ type: "spring", stiffness: 400, damping: 26 }}
+              className="w-full max-w-md rounded-3xl border-2 border-fg bg-panel p-6 shadow-soft"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="font-[var(--font-display)] text-2xl font-black">
+                  Delete {confirmTarget.label}?
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setConfirmTarget(null)}
+                  className="grid size-10 place-items-center rounded-2xl bg-paper hover:bg-coral/20"
+                  aria-label="Cancel delete"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <p className="mt-3 text-sm leading-6 text-fg/60">
+                This can&apos;t be undone.
+              </p>
+              <div className="mt-5 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setConfirmTarget(null)}
+                  className="flex-1 rounded-2xl border-2 border-fg bg-panel px-4 py-2.5 text-sm font-black"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDelete}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl border-2 border-fg bg-coral px-4 py-2.5 text-sm font-black"
+                >
+                  <Trash2 size={16} />
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </AppShell>
   );
 }
@@ -416,6 +542,8 @@ function SkillEditor({ skill, onClose, onSaved, onDeleted }: { skill: AnyRow; on
   const [category, setCategory] = useState<SkillCategory>(skill.category || "other");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const { push } = useToast();
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true); setError("");
@@ -426,11 +554,13 @@ function SkillEditor({ skill, onClose, onSaved, onDeleted }: { skill: AnyRow; on
     finally { setSaving(false); }
   }
   async function removeSkill() {
+    setConfirmOpen(false);
     setSaving(true); setError("");
-    try { await json(`/api/skills/${skill.id}`, { method: "DELETE" }); await onDeleted(); }
+    try { await json(`/api/skills/${skill.id}`, { method: "DELETE" }); push("Deleted."); await onDeleted(); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Skill deletion failed."); setSaving(false); }
   }
-  return <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-ink/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={`Edit ${skill.name}`}>
+  return <>
+  <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-ink/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={`Edit ${skill.name}`}>
     <form onSubmit={save} className="w-full max-w-lg rounded-4xl border-2 border-fg bg-paper p-6 shadow-pop md:p-8">
       <div className="flex items-start justify-between gap-4"><div className="flex gap-3"><div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-sun/50"><BadgeCheck size={21}/></div><div><p className="text-xs font-black uppercase tracking-[.2em] text-plum">Edit skill</p><h2 className="font-[var(--font-display)] text-2xl font-black">Tune this skill</h2></div></div><button type="button" onClick={onClose} className="grid size-10 place-items-center rounded-full bg-panel" aria-label="Close skill editor"><X/></button></div>
       <div className="mt-6">
@@ -442,9 +572,95 @@ function SkillEditor({ skill, onClose, onSaved, onDeleted }: { skill: AnyRow; on
         <p className="mt-4 text-xs font-bold text-fg/45">Used in {skill.chapterCount} work {skill.chapterCount === 1 ? "chapter" : "chapters"}</p>
         {error && <p className="mt-2 text-xs font-bold text-coral">{error}</p>}
       </div>
-      <div className="mt-6 flex items-center gap-3"><button type="button" onClick={removeSkill} disabled={saving} className="grid size-12 place-items-center rounded-2xl border-2 border-edge/15 bg-panel text-fg/50 hover:border-coral hover:text-coral" aria-label={`Delete ${skill.name}`} title="Delete skill"><Trash2 size={19}/></button><button type="button" onClick={onClose} className="ml-auto rounded-2xl px-4 py-3 text-sm font-black">Cancel</button><button disabled={saving || !name.trim()} className="flex items-center gap-2 rounded-2xl border-2 border-fg bg-mint px-5 py-3 text-sm font-black shadow-[0_3px_0_#26312c] disabled:opacity-50"><Save size={17}/>{saving ? "Saving…" : "Save changes"}</button></div>
+      <div className="mt-6 flex items-center gap-3"><button type="button" onClick={() => setConfirmOpen(true)} disabled={saving} className="grid size-12 place-items-center rounded-2xl border-2 border-edge/15 bg-panel text-fg/50 hover:border-coral hover:text-coral" aria-label={`Delete ${skill.name}`} title="Delete skill"><Trash2 size={19}/></button><button type="button" onClick={onClose} className="ml-auto rounded-2xl px-4 py-3 text-sm font-black">Cancel</button><button disabled={saving || !name.trim()} className="flex items-center gap-2 rounded-2xl border-2 border-fg bg-mint px-5 py-3 text-sm font-black shadow-[0_3px_0_#26312c] disabled:opacity-50"><Save size={17}/>{saving ? "Saving…" : "Save changes"}</button></div>
     </form>
-  </div>;
+  </div>
+  {confirmOpen && (
+    <div className="fixed inset-0 z-[55] grid place-items-center bg-ink/60 p-4" role="dialog" aria-modal="true">
+      <div className="w-full max-w-md rounded-3xl border-2 border-fg bg-panel p-6 shadow-soft">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-[var(--font-display)] text-2xl font-black">Delete {skill.name}?</h2>
+          <button type="button" onClick={() => setConfirmOpen(false)} className="grid size-10 place-items-center rounded-2xl bg-paper hover:bg-coral/20" aria-label="Cancel delete"><X size={18}/></button>
+        </div>
+        <p className="mt-3 text-sm leading-6 text-fg/60">This can&apos;t be undone.</p>
+        <div className="mt-5 flex gap-3">
+          <button type="button" onClick={() => setConfirmOpen(false)} className="flex-1 rounded-2xl border-2 border-fg bg-panel px-4 py-2.5 text-sm font-black">Cancel</button>
+          <button type="button" onClick={removeSkill} disabled={saving} className="flex flex-1 items-center justify-center gap-2 rounded-2xl border-2 border-fg bg-coral px-4 py-2.5 text-sm font-black disabled:opacity-60"><Trash2 size={16}/>Delete</button>
+        </div>
+      </div>
+    </div>
+  )}
+  </>;
+}
+
+function ManualChapterForm({ onSaved }: { onSaved: () => Promise<void> }) {
+  const { push } = useToast();
+  const [current, setCurrent] = useState(false);
+  const [saving, setSaving] = useState(false);
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const raw = Object.fromEntries(new FormData(form));
+    const startedOn = String(raw.startedOn || "").trim();
+    const endedOn = String(raw.endedOn || "").trim();
+    const rawNotes = String(raw.rawNotes || "").trim();
+    const body = {
+      company: String(raw.company).trim(),
+      title: String(raw.title).trim(),
+      current,
+      achievements: [],
+      ...(startedOn ? { startedOn } : {}),
+      ...(!current && endedOn ? { endedOn } : {}),
+      ...(rawNotes ? { rawNotes } : {}),
+    };
+    setSaving(true);
+    try {
+      await apiFetch("/api/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      push("Chapter saved.");
+      form.reset();
+      setCurrent(false);
+      await onSaved();
+    } catch (caught) {
+      push(getApiError(caught), "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+  return (
+    <form onSubmit={save} className="space-y-3">
+      <p className="text-xs font-black uppercase tracking-[.2em] text-plum">
+        Manual entry
+      </p>
+      <Input name="title" label="Title" placeholder="Line cook" required autoFocus />
+      <Input name="company" label="Company" placeholder="Sun Cafe" required />
+      <div className="grid grid-cols-2 gap-3">
+        <Input name="startedOn" label="Start date" type="date" />
+        {!current && <Input name="endedOn" label="End date" type="date" />}
+      </div>
+      <label className="flex items-center gap-2 text-sm font-bold">
+        <input
+          type="checkbox"
+          name="current"
+          checked={current}
+          onChange={(event) => setCurrent(event.target.checked)}
+          className="accent-coral"
+        />
+        I&apos;m still doing this
+      </label>
+      <TextArea name="rawNotes" label="Description — optional" />
+      <button
+        disabled={saving}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-fg bg-mint py-3 font-black shadow-[0_4px_0_#26312c] disabled:opacity-50"
+      >
+        <Plus size={17} />
+        {saving ? "Saving…" : "Save chapter"}
+      </button>
+    </form>
+  );
 }
 
 function ChapterEditor({
@@ -744,6 +960,7 @@ function Input(props: {
   required?: boolean;
   placeholder?: string;
   defaultValue?: string;
+  autoFocus?: boolean;
 }) {
   const { label, ...input } = props;
   return (

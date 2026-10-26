@@ -7,7 +7,7 @@ export default {
     extend: {
       colors: {
         ink: "#26312c", cream: "#f6f0e5", coral: "#ff6b57", mint: "#62c6a5",
-        sun: "#ffc857", plum: "#725a7a", fog: "#e8e2d7",
+        sun: "#ffc857", plum: "#725a7a", fog: "#e8e2d7", lilac: "#a288c8",
         paper: "rgb(var(--paper) / <alpha-value>)",
         panel: "rgb(var(--panel) / <alpha-value>)",
         fg: "rgb(var(--fg) / <alpha-value>)",

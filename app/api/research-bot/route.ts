@@ -3,7 +3,9 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getModel } from "@/lib/ai";
 import { requireUser, unauthorized, getUserTier, getSetting } from "@/lib/api-auth";
+import { limitRequest, limitMax } from "@/lib/rate-limit";
 import { decryptSecret } from "@/lib/secret-box";
+import { resolveStoredSecret } from "@/lib/premium-ai";
 import { providerSchema } from "@/lib/provider-models";
 import { isCareerRelevant, offTopicResponse, postFilterResponse } from "@/lib/chat-filter";
 import { researchUrl, researchCompany, buildResearchContext } from "@/lib/research";
@@ -89,7 +91,7 @@ async function getModelForUser(
     const provider = providerSchema.safeParse(config.provider);
     if (provider.success) {
       return {
-        model: getModel(provider.data, (config.model as string) || undefined, (config.api_key as string) || undefined, (config.base_url as string) || undefined),
+        model: getModel(provider.data, (config.model as string) || undefined, resolveStoredSecret(config.api_key as string) || undefined, (config.base_url as string) || undefined),
         provider: provider.data,
       };
     }
@@ -101,6 +103,8 @@ async function getModelForUser(
 export async function POST(request: Request) {
   const userId = await requireUser();
   if (!userId) return unauthorized();
+  if (!(await limitRequest(`research-bot:${userId}`, limitMax("RATE_LIMIT_RESEARCH_BOT_PER_HOUR", 10), 3600000)))
+    return Response.json({ error: "Slow down — try again in a bit." }, { status: 429 });
 
   const parsed = requestSchema.safeParse(await request.json());
   if (!parsed.success) {

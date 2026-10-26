@@ -4,6 +4,7 @@ import { requireUser, unauthorized, getUserTier, getSetting } from "@/lib/api-au
 import { db } from "@/lib/db";
 import { getModel } from "@/lib/ai";
 import { decryptSecret } from "@/lib/secret-box";
+import { resolveStoredSecret } from "@/lib/premium-ai";
 import { providerSchema } from "@/lib/provider-models";
 import { parseChapterAI } from "@/lib/chapter-ai";
 
@@ -75,7 +76,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       if (config?.provider) {
         const p = providerSchema.safeParse(config.provider);
         if (p.success) {
-          generated = await callModel(p.data, (config.model as string) || "gpt-4o-mini", (config.api_key as string) || undefined, (config.base_url as string) || undefined);
+          generated = await callModel(p.data, (config.model as string) || "gpt-4o-mini", resolveStoredSecret(config.api_key as string) || undefined, (config.base_url as string) || undefined);
         }
       }
     }

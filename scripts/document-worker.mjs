@@ -5,7 +5,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
-import { Worker } from "bullmq";
+import { Queue, Worker } from "bullmq";
 import IORedis from "ioredis";
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -55,6 +55,14 @@ function modelFor(connection) {
   if (connection.provider === "ollama") {
     const root = (connection.base_url || process.env.OLLAMA_BASE_URL || "http://localhost:11434").replace(/\/api\/?$/, "").replace(/\/$/, "");
     return createOpenAI({ baseURL: `${root}/v1`, apiKey: key || "ollama" })(connection.selected_model);
+  }
+  if (connection.provider === "nvidia") {
+    const nvidiaRoot = (connection.base_url || "https://integrate.api.nvidia.com").replace(/\/api\/?$/, "").replace(/\/$/, "");
+    return createOpenAI({ baseURL: `${nvidiaRoot}/v1`, apiKey: key || process.env.NVIDIA_API_KEY })(connection.selected_model);
+  }
+  if (connection.provider === "kilo") {
+    const kiloBase = (connection.base_url || "https://api.kilo.ai/api/gateway").replace(/\/+$/, "");
+    return createOpenAI({ baseURL: kiloBase, apiKey: key || process.env.KILO_API_KEY })(connection.selected_model);
   }
   return createOpenAI({ apiKey: key || process.env.OPENAI_API_KEY })(connection.selected_model);
 }
@@ -208,5 +216,71 @@ worker.on("completed", (job) => {
 worker.on("failed", (job, err) => {
   console.error("Document job failed:", job?.id, err?.message);
 });
+
+const documentQueue = new Queue("document-generation", { connection });
+
+let sweeping = false;
+
+async function sweepStalledJobs() {
+  if (sweeping) return;
+  sweeping = true;
+  try {
+    const stale = await pool.query(
+      `SELECT id, kind, target_job, career_context, metadata, created_at, updated_at
+       FROM document_generation_jobs
+       WHERE status IN ('queued','processing') AND updated_at < now() - interval '30 minutes'
+       ORDER BY updated_at LIMIT 10`,
+    );
+    let requeued = 0;
+    let failed = 0;
+    for (const row of stale.rows) {
+      const meta = row.metadata ?? {};
+      const reapCount = Number(meta.reapCount ?? 0) + 1;
+      try {
+        if (reapCount > 2) {
+          await pool.query(
+            `UPDATE document_generation_jobs
+             SET status='failed', error='Job stalled and could not be retried.', completed_at=now(), updated_at=now(),
+                 metadata=jsonb_set(COALESCE(metadata,'{}'::jsonb), '{reapCount}', to_jsonb($2::int))
+             WHERE id=$1`,
+            [row.id, reapCount],
+          );
+          failed++;
+        } else {
+          await pool.query(
+            `UPDATE document_generation_jobs
+             SET updated_at=now(), metadata=jsonb_set(COALESCE(metadata,'{}'::jsonb), '{reapCount}', to_jsonb($2::int))
+             WHERE id=$1`,
+            [row.id, reapCount],
+          );
+          await documentQueue.add(
+            "generate",
+            { jobId: row.id },
+            {
+              jobId: `${row.id}:reap:${reapCount}`,
+              attempts: 3,
+              backoff: { type: "exponential", delay: 2000 },
+              removeOnComplete: { age: 86400, count: 1000 },
+              removeOnFail: { age: 604800 },
+            },
+          );
+          requeued++;
+        }
+      } catch (error) {
+        console.error("Reaper could not handle job", row.id, error instanceof Error ? error.message : error);
+      }
+    }
+    if (stale.rowCount) {
+      console.log(`Stall sweep: ${stale.rowCount} stale, ${requeued} re-enqueued, ${failed} marked failed.`);
+    }
+  } catch (error) {
+    console.error("Stall sweep failed:", error instanceof Error ? error.message : error);
+  } finally {
+    sweeping = false;
+  }
+}
+
+setTimeout(sweepStalledJobs, 5000);
+setInterval(sweepStalledJobs, 5 * 60 * 1000);
 
 console.log("Document worker ready (Redis-backed).");

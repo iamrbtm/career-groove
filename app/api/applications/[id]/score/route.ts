@@ -7,6 +7,7 @@ import { careerDjLabelSchema, commandSessionActionSchema } from "@/lib/applicati
 import { getModel } from "@/lib/ai";
 import { providerSchema } from "@/lib/provider-models";
 import { decryptSecret } from "@/lib/secret-box";
+import { resolveStoredSecret } from "@/lib/premium-ai";
 import { buildTrackerReadiness, loadTrackerContext, refreshApplicationScore } from "@/lib/tracker-studio";
 import { getSetting } from "@/lib/api-auth";
 
@@ -91,7 +92,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           const provider = providerSchema.safeParse(config.provider);
           if (provider.success) {
             const result = await generateText({
-              model: getModel(provider.data, (config.model as string) || undefined, (config.api_key as string) || undefined, (config.base_url as string) || undefined),
+              model: getModel(provider.data, (config.model as string) || undefined, resolveStoredSecret(config.api_key as string) || undefined, (config.base_url as string) || undefined),
               maxRetries: 0,
               system: "Score this job opportunity for CareerGroove. Use only supplied facts. Return only JSON with fit, readiness, desire, leverage, risk, timing, label, reasons, gaps, nextAction, nextActionReason. Labels and actions must match the product contract. Never invent candidate experience.",
               prompt: JSON.stringify({ application: application.rows[0], context: await loadTrackerContext(client, user), userPreferences: preferences.rows[0]?.preferences ?? {}, deterministicScore: score }),

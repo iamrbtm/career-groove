@@ -22,14 +22,16 @@ services:
       FOLLOW_UP_WORKER_ENDPOINT: http://127.0.0.1:3000/api/internal/follow-up-worker
       FOLLOW_UP_WORKER_INTERVAL_MS: 3600000
       CAREER_GROOVE_BACKUP_ROOT: /app/backups
+      CAREER_GROOVE_BACKUP_SOURCE_ROOT: /workspace
       TZ: ${TZ:-America/Los_Angeles}
     extra_hosts: *ollama-hosts
     volumes:
       - ./db/data:/var/lib/postgresql/data
       - ./backups:/app/backups
+      - .:/workspace
       - career_groove_redis:/data
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10

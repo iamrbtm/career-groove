@@ -40,7 +40,13 @@ async function tick() {
       await runBackup(kind, key, script);
     }
 
-    await runMaintenance();
+    const maintenanceKey = hourlyKey(now);
+    if (state.maintenanceLastPeriod !== maintenanceKey) {
+      await runMaintenance();
+      state.maintenanceLastPeriod = maintenanceKey;
+      await mkdir(path.dirname(statePath), { recursive: true });
+      await writeFile(statePath, `${JSON.stringify(state, null, 2)}\n`);
+    }
   } catch (error) {
     console.error("Backup scheduler tick failed.", error);
   } finally {
