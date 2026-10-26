@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getModel } from "@/lib/ai";
 import { requireUser, unauthorized, getUserTier, getSetting } from "@/lib/api-auth";
 import { decryptSecret } from "@/lib/secret-box";
+import { resolveStoredSecret } from "@/lib/premium-ai";
 import { providerSchema } from "@/lib/provider-models";
 import { isCareerRelevant, offTopicResponse, postFilterResponse } from "@/lib/chat-filter";
 import { researchUrl, researchCompany, buildResearchContext } from "@/lib/research";
@@ -89,7 +90,7 @@ async function getModelForUser(
     const provider = providerSchema.safeParse(config.provider);
     if (provider.success) {
       return {
-        model: getModel(provider.data, (config.model as string) || undefined, (config.api_key as string) || undefined, (config.base_url as string) || undefined),
+        model: getModel(provider.data, (config.model as string) || undefined, resolveStoredSecret(config.api_key as string) || undefined, (config.base_url as string) || undefined),
         provider: provider.data,
       };
     }

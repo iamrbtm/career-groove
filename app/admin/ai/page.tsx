@@ -21,6 +21,8 @@ export default function AdminAIConfig() {
   const [provider, setProvider] = useState<Provider>("openai");
   const [model, setModel] = useState("");
   const [apiKey, setApiKey] = useState("");
+  const [apiKeyConfigured, setApiKeyConfigured] = useState(false);
+  const [apiKeyHint, setApiKeyHint] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -33,7 +35,9 @@ export default function AdminAIConfig() {
         if (cfg) {
           setProvider((cfg.provider as Provider) || "openai");
           setModel(cfg.model || "");
-          setApiKey(cfg.api_key || "");
+          setApiKey("");
+          setApiKeyConfigured(Boolean(cfg.apiKeyConfigured));
+          setApiKeyHint((cfg.apiKeyHint as string) || "");
           setBaseUrl(cfg.base_url || "");
         }
       })
@@ -76,7 +80,8 @@ export default function AdminAIConfig() {
         </div>
         <div>
           <label className="text-xs font-black uppercase tracking-wider text-plum">API Key</label>
-          <input value={apiKey} onChange={e => setApiKey(e.target.value)} type="password" placeholder="sk-..." className="mt-1.5 block w-full rounded-2xl border-2 border-ink bg-white px-4 py-3 font-bold placeholder:text-ink/30" />
+          <input value={apiKey} onChange={e => setApiKey(e.target.value)} type="password" placeholder={apiKeyConfigured ? `Configured — ends in ${apiKeyHint}` : "sk-..."} className="mt-1.5 block w-full rounded-2xl border-2 border-ink bg-white px-4 py-3 font-bold placeholder:text-ink/30" />
+          <p className="mt-1 text-xs font-bold text-ink/55">{apiKeyConfigured && !apiKey ? `A key is already stored. Leave blank to keep it.` : apiKey ? `The stored key will be encrypted on save.` : "No key configured yet."}</p>
         </div>
         <div>
           <label className="text-xs font-black uppercase tracking-wider text-plum">Base URL (optional)</label>
