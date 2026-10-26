@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getModel } from "@/lib/ai";
 import { requireUser, unauthorized, getUserTier, getSetting } from "@/lib/api-auth";
+import { limitRequest, limitMax } from "@/lib/rate-limit";
 import { decryptSecret } from "@/lib/secret-box";
 import { resolveStoredSecret } from "@/lib/premium-ai";
 import { providerSchema } from "@/lib/provider-models";
@@ -102,6 +103,8 @@ async function getModelForUser(
 export async function POST(request: Request) {
   const userId = await requireUser();
   if (!userId) return unauthorized();
+  if (!(await limitRequest(`research-bot:${userId}`, limitMax("RATE_LIMIT_RESEARCH_BOT_PER_HOUR", 10), 3600000)))
+    return Response.json({ error: "Slow down — try again in a bit." }, { status: 429 });
 
   const parsed = requestSchema.safeParse(await request.json());
   if (!parsed.success) {

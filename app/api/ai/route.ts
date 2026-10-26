@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getModel } from "@/lib/ai";
 import { resolveStoredSecret } from "@/lib/premium-ai";
 import { requireUser, unauthorized, getUserTier, getSetting, forbidden } from "@/lib/api-auth";
+import { limitRequest, limitMax } from "@/lib/rate-limit";
 import { db } from "@/lib/db";
 import { decryptSecret } from "@/lib/secret-box";
 import { providerSchema } from "@/lib/provider-models";
@@ -81,6 +82,8 @@ async function tryPremiumFallback(params: { purpose: string; messages: Array<{ r
 export async function POST(request: Request) {
   const userId = await requireUser();
   if (!userId) return unauthorized();
+  if (!(await limitRequest(`ai:${userId}`, limitMax("RATE_LIMIT_AI_PER_HOUR", 60), 3600000)))
+    return Response.json({ error: "Slow down — try again in a bit." }, { status: 429 });
   const parsed = requestSchema.safeParse(await request.json());
   if (!parsed.success)
     return Response.json({ error: parsed.error.flatten() }, { status: 400 });

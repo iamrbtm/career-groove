@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { limitRequest, limitMax } from "@/lib/rate-limit";
 import { parseJobPost } from "@/lib/job-post-parser";
 import { safeFetchUrl, UnsafeUrlError } from "@/lib/fetch-url";
 import { writeFile, unlink } from "node:fs/promises";
@@ -25,6 +26,8 @@ function isSafeUrl(input: string): boolean {
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await limitRequest(`parse-url:${session.user.id}`, limitMax("RATE_LIMIT_PARSE_URL_PER_HOUR", 10), 3600000)))
+    return Response.json({ error: "Slow down — try again in a bit." }, { status: 429 });
   const { url, description } = await request.json();
   if (!url && !description) return Response.json({ error: "URL or description is required" }, { status: 400 });
   if (url && !isSafeUrl(url)) return Response.json({ error: "Only public job posting URLs are supported." }, { status: 400 });
