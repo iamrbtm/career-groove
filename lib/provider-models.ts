@@ -27,7 +27,7 @@ export async function discoverModels(provider: ProviderName, apiKey?: string): P
     const body = await providerFetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000", { headers: { "x-goog-api-key": apiKey ?? "" } });
     models = (body.models ?? []).filter((model: {supportedGenerationMethods?:string[]}) => model.supportedGenerationMethods?.includes("generateContent")).map((model: {name:string;displayName?:string;baseModelId?:string}) => ({ id: model.baseModelId || model.name.replace(/^models\//, ""), name: model.displayName || model.name }));
   } else if (provider === "nvidia") {
-    const body = await providerFetch("https://api.nvidia.com/v1/models", { headers: { Authorization: `Bearer ${apiKey}` } });
+    const body = await providerFetch("https://integrate.api.nvidia.com/v1/models", { headers: { Authorization: `Bearer ${apiKey}` } });
     models = (body.data ?? []).map((model: {id:string;name?:string}) => ({ id: model.id, name: model.name || model.id }));
   } else if (provider === "kilo") {
     // Kilo AI Gateway: one OpenAI-compatible endpoint for 500+ models.

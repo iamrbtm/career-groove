@@ -56,6 +56,14 @@ function modelFor(connection) {
     const root = (connection.base_url || process.env.OLLAMA_BASE_URL || "http://localhost:11434").replace(/\/api\/?$/, "").replace(/\/$/, "");
     return createOpenAI({ baseURL: `${root}/v1`, apiKey: key || "ollama" })(connection.selected_model);
   }
+  if (connection.provider === "nvidia") {
+    const nvidiaRoot = (connection.base_url || "https://integrate.api.nvidia.com").replace(/\/api\/?$/, "").replace(/\/$/, "");
+    return createOpenAI({ baseURL: `${nvidiaRoot}/v1`, apiKey: key || process.env.NVIDIA_API_KEY })(connection.selected_model);
+  }
+  if (connection.provider === "kilo") {
+    const kiloBase = (connection.base_url || "https://api.kilo.ai/api/gateway").replace(/\/+$/, "");
+    return createOpenAI({ baseURL: kiloBase, apiKey: key || process.env.KILO_API_KEY })(connection.selected_model);
+  }
   return createOpenAI({ apiKey: key || process.env.OPENAI_API_KEY })(connection.selected_model);
 }
 
