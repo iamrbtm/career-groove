@@ -1,6 +1,8 @@
 #!/bin/sh
 set -e
 
+rm -f /tmp/.cg-ready
+
 echo "db-init: waiting for postgres..."
 until pg_isready -h 127.0.0.1 -p "${PGPORT:-5432}" -q; do
     sleep 1
@@ -19,7 +21,11 @@ fi
 
 echo "db-init: running schema migrations..."
 unset PGPASSWORD
-node /app/scripts/migrate.mjs
+if ! node /app/scripts/migrate.mjs; then
+    echo "db-init: migrations failed after retries" >&2
+    rm -f /tmp/.cg-ready
+    exit 1
+fi
 
 touch /tmp/.cg-ready
 echo "db-init: done."
