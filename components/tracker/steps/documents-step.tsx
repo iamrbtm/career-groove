@@ -24,11 +24,11 @@ function formatDate(value: string) {
 }
 
 export function DocumentsStep({
-  applicationId, score, documents, documentJobs, onRefresh, onAdvance,
+  applicationId, score, documents, documentJobs, onRefresh, onDocumentJobCreated, onAdvance,
 }: {
   applicationId: string; score?: Score | null;
   documents: Document[]; documentJobs: DocumentJob[];
-  onRefresh: () => Promise<void>; onAdvance: () => void;
+  onRefresh: () => Promise<void>; onDocumentJobCreated: () => void; onAdvance: () => void;
 }) {
   const [generating, setGenerating] = useState("");
   const [downloadingId, setDownloadingId] = useState("");
@@ -47,6 +47,7 @@ export function DocumentsStep({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not queue draft.");
       setNotice("Draft queued.");
+      onDocumentJobCreated();
       await onRefresh();
     } catch (err) {
       setNotice(err instanceof Error ? err.message : "Could not queue draft.");
