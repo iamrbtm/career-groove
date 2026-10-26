@@ -101,6 +101,12 @@ export async function POST(request: Request) {
       ],
     );
   }
-  await enqueueDocumentJob(created.rows[0].id);
+  try {
+    await enqueueDocumentJob(created.rows[0].id);
+  } catch {
+    const jobId = created.rows[0].id;
+    await db.query(`UPDATE document_generation_jobs SET status='failed', error=$2 WHERE id=$1`, [jobId, "Could not queue job"]);
+    return Response.json({ error: "Could not queue job", jobId }, { status: 503 });
+  }
   return Response.json({ job: created.rows[0] }, { status: 202 });
 }
