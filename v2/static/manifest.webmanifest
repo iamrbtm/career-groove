@@ -1,0 +1,17 @@
+{
+  "name": "CareerGroove",
+  "short_name": "CareerGroove",
+  "description": "A calm, focused career workflow app.",
+  "start_url": "/home",
+  "display": "standalone",
+  "background_color": "#f5efe0",
+  "theme_color": "#10100d",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

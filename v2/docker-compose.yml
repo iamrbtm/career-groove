@@ -1,0 +1,16 @@
+services:
+  app:
+    build: .
+    container_name: career_groove_v2
+    ports:
+      - "3000:3000"
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-career_groove}
+      POSTGRES_DB: ${POSTGRES_DB:-careergroove}
+      AUTH_SECRET: ${AUTH_SECRET:-career_groove_v2_default_secret}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-career_groove_v2_default_secret}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-career_groove_v2_default_encryption}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-rbtm2006@me.com}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      SELF_ORIGIN: ${SELF_ORIGIN:-http://localhost:3000}
+    restart: unless-stopped

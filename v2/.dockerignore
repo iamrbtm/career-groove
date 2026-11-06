@@ -1,0 +1,14 @@
+.env
+.env.*
+!.env.example
+.git
+.github
+.svelte-kit
+node_modules
+build
+*.log
+.DS_Store
+backups
+old
+bootstrap-credentials.txt
+test

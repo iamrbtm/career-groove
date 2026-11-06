@@ -1,0 +1,11 @@
+node_modules
+.svelte-kit
+build
+.env
+.env.*
+!.env.example
+db/data
+seed/seed.json
+bootstrap-credentials.txt
+*.log
+.DS_Store
