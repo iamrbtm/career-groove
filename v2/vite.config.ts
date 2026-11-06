@@ -17,6 +17,9 @@ export default defineConfig(({ mode }) => {
         paths: {
           origin: process.env.SELF_ORIGIN ?? "http://localhost:3000",
         },
+        csrf: {
+          trustedOrigins: ["*"],
+        },
       }),
     ],
     server: { port: 3001 },

@@ -86,7 +86,6 @@ check "admin after save" "/tools/admin"
 
 echo "== sign out =="
 curl -sS -b "$CJ" -X POST "$BASE/api/auth/sign-out" -H "Origin: $BASE" | head -c 200; echo
-check "home after signout" "/home" "302"
-check "home after signout alt" "/home" "303"
+check "home after signout" "/home" "303"
 
 echo "SMOKE DONE"

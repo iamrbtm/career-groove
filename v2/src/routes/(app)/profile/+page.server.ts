@@ -53,6 +53,7 @@ function list(form: FormData, key: string) {
 
 export const actions = {
   updateProfile: async ({ request, locals }: { request: Request; locals: App.Locals }) => {
+    if (!locals.user) redirect(303, "/signin");
     const user = locals.user!;
     const form = await request.formData();
     await updateProfile(user.id, {
